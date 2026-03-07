@@ -1,26 +1,59 @@
-@import "tailwindcss";
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
 
-:root {
-  --background: #ffffff;
-  --foreground: #171717;
-}
-
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
-}
-
-@media (prefers-color-scheme: dark) {
+@layer base {
   :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
+    --background: 270 100% 99%;
+    --foreground: 270 10% 10%;
+    --card: 0 0% 100%;
+    --card-foreground: 270 10% 10%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 270 10% 10%;
+    --primary: 271 81% 64%;
+    --primary-foreground: 0 0% 100%;
+    --secondary: 270 50% 96%;
+    --secondary-foreground: 271 60% 35%;
+    --muted: 270 30% 96%;
+    --muted-foreground: 270 10% 50%;
+    --accent: 270 50% 94%;
+    --accent-foreground: 271 60% 35%;
+    --destructive: 0 84.2% 60.2%;
+    --destructive-foreground: 210 40% 98%;
+    --border: 270 30% 90%;
+    --input: 270 30% 90%;
+    --ring: 271 81% 64%;
+    --radius: 0.75rem;
+    --chart-1: 271 81% 64%;
+    --chart-2: 291 64% 42%;
+    --chart-3: 197 37% 24%;
+    --chart-4: 43 74% 66%;
+    --chart-5: 27 87% 67%;
   }
 }
 
-body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+@layer base {
+  * {
+    @apply border-border;
+  }
+  body {
+    @apply bg-background text-foreground;
+    font-feature-settings: "rlig" 1, "calt" 1;
+  }
+}
+
+/* Custom scrollbar */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: hsl(var(--border));
+  border-radius: 9999px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: hsl(var(--muted-foreground));
 }

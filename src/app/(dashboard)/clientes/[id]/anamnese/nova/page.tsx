@@ -1,0 +1,261 @@
+"use client";
+
+import { useState } from "react";
+import { useParams, useRouter } from "next/navigation";
+import { Topbar } from "@/components/layout/Topbar";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
+import { useClient } from "@/hooks/useClients";
+import { useAnamneses } from "@/hooks/useAnamnesis";
+import { toast } from "@/components/ui/toaster";
+import { ArrowLeft, Save, AlertTriangle, CheckCircle2 } from "lucide-react";
+import Link from "next/link";
+import type { AnamnosisProcedureType, AnamnesisHairLoss } from "@/domain/entities";
+
+type YesNo = "yes" | "no" | "";
+
+function YesNoField({
+  label,
+  value,
+  onChange,
+  detail,
+  detailValue,
+  onDetailChange,
+  detailPlaceholder,
+}: {
+  label: string;
+  value: YesNo;
+  onChange: (v: YesNo) => void;
+  detail?: boolean;
+  detailValue?: string;
+  onDetailChange?: (v: string) => void;
+  detailPlaceholder?: string;
+}) {
+  return (
+    <div className="space-y-1.5">
+      <p className="text-sm font-medium">{label}</p>
+      <div className="flex gap-3">
+        {(["yes", "no"] as const).map((opt) => (
+          <button
+            key={opt}
+            type="button"
+            onClick={() => onChange(opt)}
+            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-sm font-medium border transition-all ${
+              value === opt
+                ? opt === "yes"
+                  ? "bg-red-50 border-red-300 text-red-700"
+                  : "bg-emerald-50 border-emerald-300 text-emerald-700"
+                : "bg-white border-brand-100 text-muted-foreground hover:border-brand-300"
+            }`}
+          >
+            {opt === "yes" ? <AlertTriangle className="w-3.5 h-3.5" /> : <CheckCircle2 className="w-3.5 h-3.5" />}
+            {opt === "yes" ? "Sim" : "Não"}
+          </button>
+        ))}
+      </div>
+      {detail && value === "yes" && (
+        <Input
+          value={detailValue}
+          onChange={(e) => onDetailChange?.(e.target.value)}
+          placeholder={detailPlaceholder ?? "Especifique..."}
+          className="mt-1.5 text-sm"
+        />
+      )}
+    </div>
+  );
+}
+
+export default function NovaAnamnesePage() {
+  const { id } = useParams<{ id: string }>();
+  const router = useRouter();
+  const { client } = useClient(id);
+  const { createAnamnesis } = useAnamneses(id);
+  const [saving, setSaving] = useState(false);
+
+  // Preventive
+  const [hasAllergy, setHasAllergy] = useState<YesNo>("");
+  const [allergyDetails, setAllergyDetails] = useState("");
+  const [hadEyeSurgery, setHadEyeSurgery] = useState<YesNo>("");
+  const [hasEyeDisease, setHasEyeDisease] = useState<YesNo>("");
+  const [eyeDiseaseDetails, setEyeDiseaseDetails] = useState("");
+  const [usesEyeDrops, setUsesEyeDrops] = useState<YesNo>("");
+  const [familyThyroid, setFamilyThyroid] = useState<YesNo>("");
+  const [hasGlaucoma, setHasGlaucoma] = useState<YesNo>("");
+  const [hairLoss, setHairLoss] = useState<AnamnesisHairLoss | "">("");
+  const [blepharitis, setBlepharitis] = useState<YesNo>("");
+  const [hasEpilepsy, setHasEpilepsy] = useState<YesNo>("");
+
+  // Service
+  const [procedureType, setProcedureType] = useState<AnamnosisProcedureType>("extension");
+  const [mappingSize, setMappingSize] = useState("");
+  const [mappingCurve, setMappingCurve] = useState("");
+  const [mappingThickness, setMappingThickness] = useState("");
+
+  // Authorization + notes
+  const [authorizedPhoto, setAuthorizedPhoto] = useState<YesNo>("");
+  const [notes, setNotes] = useState("");
+
+  const isComplete =
+    hasAllergy !== "" &&
+    hadEyeSurgery !== "" &&
+    hasEyeDisease !== "" &&
+    usesEyeDrops !== "" &&
+    familyThyroid !== "" &&
+    hasGlaucoma !== "" &&
+    blepharitis !== "" &&
+    hasEpilepsy !== "" &&
+    authorizedPhoto !== "";
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!isComplete) {
+      toast({ title: "Preencha todas as perguntas da anamnese", variant: "destructive" });
+      return;
+    }
+    setSaving(true);
+    try {
+      await createAnamnesis({
+        clientId: id,
+        hasAllergy: hasAllergy === "yes",
+        allergyDetails: allergyDetails || undefined,
+        hadEyeSurgeryLast3Months: hadEyeSurgery === "yes",
+        hasEyeDisease: hasEyeDisease === "yes",
+        eyeDiseaseDetails: eyeDiseaseDetails || undefined,
+        usesEyeDrops: usesEyeDrops === "yes",
+        familyThyroidHistory: familyThyroid === "yes",
+        hasGlaucoma: hasGlaucoma === "yes",
+        hairLossGrade: hairLoss || undefined,
+        proneToBlepharitis: blepharitis === "yes",
+        hasEpilepsy: hasEpilepsy === "yes",
+        procedureType,
+        mapping: mappingSize || mappingCurve || mappingThickness
+          ? { size: mappingSize || undefined, curve: mappingCurve || undefined, thickness: mappingThickness || undefined }
+          : undefined,
+        authorizedPhotoPublishing: authorizedPhoto === "yes",
+        signedAt: new Date(),
+        notes: notes || undefined,
+      });
+      toast({ title: "Anamnese salva!", variant: "success" });
+      router.push(`/clientes/${id}/anamnese`);
+    } catch {
+      toast({ title: "Erro ao salvar anamnese", variant: "destructive" });
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <div>
+      <Topbar title="Nova Anamnese" />
+      <div className="p-4 sm:p-6 max-w-2xl animate-fade-in">
+        <div className="flex items-center gap-3 mb-6">
+          <Link href={`/clientes/${id}/anamnese`}>
+            <Button variant="ghost" size="icon"><ArrowLeft className="w-4 h-4" /></Button>
+          </Link>
+          <div>
+            <h1 className="text-xl font-bold">Ficha de Anamnese</h1>
+            {client && <p className="text-sm text-muted-foreground">{client.name}</p>}
+          </div>
+        </div>
+
+        <form onSubmit={handleSubmit} className="space-y-5">
+          {/* Informações Preventivas */}
+          <div className="bg-white rounded-2xl border border-brand-100 shadow-card p-5 sm:p-6">
+            <h2 className="font-semibold mb-5 text-brand-700 flex items-center gap-2">
+              <AlertTriangle className="w-4 h-4" />
+              Informações Preventivas
+            </h2>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
+              <YesNoField label="Possui alguma Alergia?" value={hasAllergy} onChange={setHasAllergy}
+                detail detailValue={allergyDetails} onDetailChange={setAllergyDetails} detailPlaceholder="Qual alergia?" />
+              <YesNoField label="Cirurgia ocular nos últimos 3 meses?" value={hadEyeSurgery} onChange={setHadEyeSurgery} />
+              <YesNoField label="Possui doença ocular?" value={hasEyeDisease} onChange={setHasEyeDisease}
+                detail detailValue={eyeDiseaseDetails} onDetailChange={setEyeDiseaseDetails} detailPlaceholder="Qual doença?" />
+              <YesNoField label="Faz uso de colírio?" value={usesEyeDrops} onChange={setUsesEyeDrops} />
+              <YesNoField label="Histórico de tireóide na família?" value={familyThyroid} onChange={setFamilyThyroid} />
+              <YesNoField label="Possui glaucoma?" value={hasGlaucoma} onChange={setHasGlaucoma} />
+              <YesNoField label="Propensa a blefarite?" value={blepharitis} onChange={setBlepharitis} />
+              <YesNoField label="Possui epilepsia?" value={hasEpilepsy} onChange={setHasEpilepsy} />
+
+              <div className="sm:col-span-2">
+                <p className="text-sm font-medium mb-2">Grau de queda de cabelo</p>
+                <div className="flex gap-2">
+                  {([["low", "Pouco"], ["medium", "Médio"], ["high", "Muito"]] as const).map(([val, label]) => (
+                    <button key={val} type="button" onClick={() => setHairLoss(val)}
+                      className={`flex-1 py-1.5 rounded-xl text-sm font-medium border transition-all ${
+                        hairLoss === val ? "bg-brand-500 text-white border-brand-500" : "bg-white border-brand-100 text-muted-foreground hover:border-brand-300"
+                      }`}>
+                      {label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Procedimento */}
+          <div className="bg-white rounded-2xl border border-brand-100 shadow-card p-5 sm:p-6">
+            <h2 className="font-semibold mb-5 text-brand-700">Procedimento a ser Realizado</h2>
+            <div className="flex flex-wrap gap-2 mb-5">
+              {([["extension", "Extensão de Cílios"], ["permanent", "Permanente de Cílios"], ["lash_lifting", "Lash Lifting"]] as const).map(([val, label]) => (
+                <button key={val} type="button" onClick={() => setProcedureType(val)}
+                  className={`px-4 py-2 rounded-xl text-sm font-medium border transition-all ${
+                    procedureType === val ? "bg-brand-500 text-white border-brand-500" : "bg-white border-brand-100 text-muted-foreground hover:border-brand-300"
+                  }`}>
+                  {label}
+                </button>
+              ))}
+            </div>
+
+            {procedureType === "extension" && (
+              <>
+                <h3 className="font-medium text-sm mb-3 text-brand-600">Mapping Estilo</h3>
+                <div className="grid grid-cols-3 gap-3">
+                  <div>
+                    <Label htmlFor="size">Tamanho</Label>
+                    <Input id="size" value={mappingSize} onChange={(e) => setMappingSize(e.target.value)} placeholder="ex: 13mm" className="mt-1.5" />
+                  </div>
+                  <div>
+                    <Label htmlFor="curve">Curvatura</Label>
+                    <Input id="curve" value={mappingCurve} onChange={(e) => setMappingCurve(e.target.value)} placeholder="ex: C" className="mt-1.5" />
+                  </div>
+                  <div>
+                    <Label htmlFor="thickness">Espessura</Label>
+                    <Input id="thickness" value={mappingThickness} onChange={(e) => setMappingThickness(e.target.value)} placeholder="ex: 0.10" className="mt-1.5" />
+                  </div>
+                </div>
+              </>
+            )}
+          </div>
+
+          {/* Autorização e Observações */}
+          <div className="bg-white rounded-2xl border border-brand-100 shadow-card p-5 sm:p-6">
+            <h2 className="font-semibold mb-5 text-brand-700">Autorizações</h2>
+            <YesNoField
+              label="Autoriza publicação de fotos antes/depois para fins de marketing?"
+              value={authorizedPhoto}
+              onChange={setAuthorizedPhoto}
+            />
+            <div className="mt-4">
+              <Label htmlFor="notes">Observações adicionais</Label>
+              <Textarea id="notes" value={notes} onChange={(e) => setNotes(e.target.value)}
+                placeholder="Observações sobre sensibilidades, preferências ou cuidados especiais..." className="mt-1.5" rows={3} />
+            </div>
+          </div>
+
+          <div className="flex gap-3">
+            <Link href={`/clientes/${id}/anamnese`} className="flex-1">
+              <Button type="button" variant="outline" className="w-full">Cancelar</Button>
+            </Link>
+            <Button type="submit" disabled={saving || !isComplete} className="flex-1">
+              <Save className="w-4 h-4" />
+              {saving ? "Salvando..." : "Salvar Anamnese"}
+            </Button>
+          </div>
+        </form>
+      </div>
+    </div>
+  );
+}
