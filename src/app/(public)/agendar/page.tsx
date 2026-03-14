@@ -8,7 +8,7 @@ import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { api } from "@/lib/api";
 import { formatCurrency } from "@/lib/formatters";
-import { LASH_TECHNIQUE_LABELS } from "@/domain/enums";
+
 import { Clock, Sparkles, ChevronRight, CalendarDays, User, Loader2 } from "lucide-react";
 import { addDays, format, isSameDay } from "date-fns";
 import { ptBR } from "date-fns/locale";
@@ -194,9 +194,6 @@ export default function AgendarPage() {
                         <h3 className="font-semibold group-hover:text-brand-700 transition-colors">
                           {proc.name}
                         </h3>
-                        <Badge variant="secondary" className="text-xs">
-                          {LASH_TECHNIQUE_LABELS[proc.technique]}
-                        </Badge>
                       </div>
                       {proc.description && (
                         <p className="text-sm text-muted-foreground">{proc.description}</p>

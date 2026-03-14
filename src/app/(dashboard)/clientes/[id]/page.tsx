@@ -43,15 +43,6 @@ import { LashFlowStatus } from "@/components/clients/LashFlowStatus";
 import { useAnamneses } from "@/hooks/useAnamnesis";
 import { ClipboardList } from "lucide-react";
 
-const TECHNIQUE_COLORS: Record<string, string> = {
-  classic: "bg-blue-100 text-blue-700",
-  volume: "bg-purple-100 text-purple-700",
-  hybrid: "bg-brand-100 text-brand-700",
-  mega_volume: "bg-pink-100 text-pink-700",
-  wispy: "bg-amber-100 text-amber-700",
-  wet_look: "bg-teal-100 text-teal-700",
-  other: "bg-gray-100 text-gray-700",
-};
 
 const PAYMENT_METHOD_COLORS: Record<PaymentMethod, string> = {
   pix: "bg-emerald-50 text-emerald-700",
@@ -124,11 +115,11 @@ export default function ClienteProfilePage() {
   );
 
   // Techniques used (from completed appointments)
-  const techCounts: Record<string, { name: string; technique: string; count: number }> = {};
+  const techCounts: Record<string, { name: string; count: number }> = {};
   for (const apt of completedAppointments) {
     const proc = mockProcedures.find((p) => p.id === apt.procedureId);
     if (!proc) continue;
-    if (!techCounts[proc.id]) techCounts[proc.id] = { name: proc.name, technique: proc.technique, count: 0 };
+    if (!techCounts[proc.id]) techCounts[proc.id] = { name: proc.name, count: 0 };
     techCounts[proc.id].count++;
   }
   const techList = Object.values(techCounts).sort((a, b) => b.count - a.count);
@@ -364,7 +355,7 @@ export default function ClienteProfilePage() {
                     {techList.map((t) => (
                       <div key={t.name}>
                         <div className="flex items-center justify-between mb-1.5">
-                          <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${TECHNIQUE_COLORS[t.technique] ?? "bg-gray-100 text-gray-700"}`}>
+                          <span className="text-xs font-medium px-2 py-0.5 rounded-full bg-gray-100 text-gray-700">
                             {t.name}
                           </span>
                           <span className="text-xs font-semibold text-muted-foreground">

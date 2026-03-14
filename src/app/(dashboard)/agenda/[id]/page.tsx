@@ -171,7 +171,7 @@ export default function AgendamentoDetailPage() {
               {procedure ? (
                 <div className="space-y-3">
                   <p className="font-semibold text-lg leading-tight">{procedure.name}</p>
-                  <p className="text-sm text-muted-foreground capitalize">{procedure.technique.replace(/_/g, " ")}</p>
+
                   <div className="flex items-center justify-between pt-1">
                     <div className="flex items-center gap-1.5 text-sm text-muted-foreground">
                       <Clock className="w-3.5 h-3.5" />
