@@ -7,21 +7,26 @@ export async function POST(req: NextRequest) {
   console.log("[auth/login] API_URL:", apiUrl);
   console.log("[auth/login] AUTH_CLIENT_ID set:", !!process.env.AUTH_CLIENT_ID);
   console.log("[auth/login] AUTH_CLIENT_SECRET set:", !!process.env.AUTH_CLIENT_SECRET);
+  console.log("[auth/login] username:", username);
+
+  const body = {
+    username,
+    password,
+    clientId: process.env.AUTH_CLIENT_ID,
+    clientSecret: process.env.AUTH_CLIENT_SECRET,
+  };
+  console.log("[auth/login] payload keys:", Object.keys(body));
 
   const res = await fetch(`${apiUrl}/auth/login`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-      username,
-      password,
-      clientId: process.env.AUTH_CLIENT_ID,
-      clientSecret: process.env.AUTH_CLIENT_SECRET,
-    }),
+    body: JSON.stringify(body),
   });
 
   console.log("[auth/login] backend status:", res.status);
 
   const data = await res.json().catch(() => ({}));
+  if (!res.ok) console.log("[auth/login] backend error:", JSON.stringify(data));
 
   return NextResponse.json(data, { status: res.status });
 }
