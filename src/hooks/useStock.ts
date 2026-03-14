@@ -13,9 +13,14 @@ export function useStock(filters?: { category?: MaterialCategory; search?: strin
 
   const load = useCallback(async () => {
     setLoading(true);
-    const result = await stockService.listMaterials(filters);
-    setMaterials(result);
-    setLoading(false);
+    try {
+      const result = await stockService.listMaterials(filters);
+      setMaterials(result);
+    } catch (err) {
+      console.error("[useStock] load:", err);
+    } finally {
+      setLoading(false);
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [filtersKey]);
 

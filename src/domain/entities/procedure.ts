@@ -1,9 +1,6 @@
-import type { LashTechnique } from "../enums";
-
 export interface Procedure {
   id: string;
   name: string;
-  technique: LashTechnique;
   description?: string;
   priceInCents: number;
   durationMinutes: number;

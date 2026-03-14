@@ -14,7 +14,8 @@ export function useProcedures(activeOnly = false) {
     try {
       const result = await procedureService.listProcedures(activeOnly);
       setProcedures(result);
-    } catch {
+    } catch (err) {
+      console.error("[useProcedures] load:", err);
       setError("Erro ao carregar procedimentos");
     } finally {
       setLoading(false);

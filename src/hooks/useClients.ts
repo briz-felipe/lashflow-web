@@ -24,7 +24,8 @@ export function useClients(filters?: ClientFilters, perPage = 20) {
     try {
       const result = await clientService.listClients(filters, { page, perPage });
       if (isMounted) setData(result);
-    } catch {
+    } catch (err) {
+      console.error("[useClients] load:", err);
       if (isMounted) setError("Erro ao carregar clientes");
     } finally {
       if (isMounted) setLoading(false);

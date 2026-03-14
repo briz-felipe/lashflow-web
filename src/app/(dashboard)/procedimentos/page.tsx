@@ -6,7 +6,6 @@ import { PageHeader } from "@/components/layout/PageHeader";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
@@ -25,10 +24,6 @@ import {
 } from "lucide-react";
 import { toast } from "@/components/ui/toaster";
 import type { Procedure } from "@/domain/entities";
-import type { LashTechnique } from "@/domain/enums";
-import { LASH_TECHNIQUE_LABELS } from "@/domain/enums";
-
-const TECHNIQUES: LashTechnique[] = ["classic", "volume", "hybrid", "mega_volume", "wispy", "wet_look", "other"];
 
 export default function ProcedimentosPage() {
   const { procedures, loading, createProcedure, updateProcedure, deleteProcedure, toggleActive } = useProcedures();
@@ -36,7 +31,7 @@ export default function ProcedimentosPage() {
   const [editing, setEditing] = useState<Procedure | null>(null);
   const [saving, setSaving] = useState(false);
 
-  const defaultForm = { name: "", technique: "classic" as LashTechnique, description: "", priceInCents: "", durationMinutes: "" };
+  const defaultForm = { name: "", description: "", priceInCents: "", durationMinutes: "" };
   const [form, setForm] = useState(defaultForm);
 
   const openCreate = () => { setEditing(null); setForm(defaultForm); setShowForm(true); };
@@ -44,7 +39,6 @@ export default function ProcedimentosPage() {
     setEditing(p);
     setForm({
       name: p.name,
-      technique: p.technique,
       description: p.description ?? "",
       priceInCents: String(p.priceInCents / 100),
       durationMinutes: String(p.durationMinutes),
@@ -61,7 +55,6 @@ export default function ProcedimentosPage() {
     try {
       const input = {
         name: form.name,
-        technique: form.technique,
         description: form.description || undefined,
         priceInCents: Math.round(parseFloat(form.priceInCents.replace(",", ".")) * 100),
         durationMinutes: parseInt(form.durationMinutes),
@@ -75,7 +68,8 @@ export default function ProcedimentosPage() {
         toast({ title: "Procedimento criado!", variant: "success" });
       }
       setShowForm(false);
-    } catch {
+    } catch (err) {
+      console.error("[procedimentos] handleSave:", err);
       toast({ title: "Erro ao salvar", variant: "destructive" });
     } finally {
       setSaving(false);
@@ -163,19 +157,6 @@ export default function ProcedimentosPage() {
               <Label>Nome *</Label>
               <Input value={form.name} onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))} placeholder="Ex: Volume Russo 3D" className="mt-1.5" />
             </div>
-            <div>
-              <Label>Técnica *</Label>
-              <Select value={form.technique} onValueChange={(v) => setForm((f) => ({ ...f, technique: v as LashTechnique }))}>
-                <SelectTrigger className="mt-1.5">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {TECHNIQUES.map((t) => (
-                    <SelectItem key={t} value={t}>{LASH_TECHNIQUE_LABELS[t]}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
             <div className="grid grid-cols-2 gap-4">
               <div>
                 <Label>Preço (R$) *</Label>
@@ -233,9 +214,6 @@ function ProcedureCard({
         </div>
       </div>
       <h3 className="font-semibold text-foreground">{procedure.name}</h3>
-      <Badge variant="secondary" className="mt-1 text-xs">
-        {LASH_TECHNIQUE_LABELS[procedure.technique]}
-      </Badge>
       {procedure.description && (
         <p className="text-xs text-muted-foreground mt-2 line-clamp-2">{procedure.description}</p>
       )}

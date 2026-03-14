@@ -61,6 +61,7 @@ class ApiClient {
 
     if (!res.ok) {
       const err = await res.json().catch(() => ({}));
+      console.error(`[api] ${options.method ?? "GET"} ${path} → ${res.status}`, err);
       throw Object.assign(new Error(err.detail ?? err.message ?? `HTTP ${res.status}`), {
         status: res.status,
         data: err,

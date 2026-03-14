@@ -92,7 +92,8 @@ export default function NovoClientePage() {
       });
       toast({ title: "Cliente cadastrada!", description: `${client.name} foi adicionada com sucesso.`, variant: "success" });
       router.push(`/clientes/${client.id}`);
-    } catch {
+    } catch (err) {
+      console.error("[novo-cliente] createClient:", err);
       toast({ title: "Erro ao cadastrar", variant: "destructive" });
     } finally {
       setSaving(false);
