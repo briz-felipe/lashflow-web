@@ -4,7 +4,6 @@ export const mockProcedures: Procedure[] = [
   {
     id: "proc-001",
     name: "Clássico",
-    technique: "classic",
     description: "Fio por fio, efeito natural e elegante. Ideal para o dia a dia.",
     priceInCents: 18000,
     durationMinutes: 90,
@@ -15,7 +14,6 @@ export const mockProcedures: Procedure[] = [
   {
     id: "proc-002",
     name: "Volume Russo 3D",
-    technique: "volume",
     description: "Leque de 3 fios, efeito dramático e volumoso.",
     priceInCents: 25000,
     durationMinutes: 120,
@@ -26,7 +24,6 @@ export const mockProcedures: Procedure[] = [
   {
     id: "proc-003",
     name: "Híbrido",
-    technique: "hybrid",
     description: "Combinação de fio por fio e volume, efeito natural com mais densidade.",
     priceInCents: 22000,
     durationMinutes: 110,
@@ -37,7 +34,6 @@ export const mockProcedures: Procedure[] = [
   {
     id: "proc-004",
     name: "Mega Volume",
-    technique: "mega_volume",
     description: "Máximo volume com leques de 6 a 16 fios. Efeito glamouroso.",
     priceInCents: 32000,
     durationMinutes: 150,
@@ -48,7 +44,6 @@ export const mockProcedures: Procedure[] = [
   {
     id: "proc-005",
     name: "Wispy",
-    technique: "wispy",
     description: "Mix de fios longos e curtos para efeito natural texturizado.",
     priceInCents: 27000,
     durationMinutes: 120,
@@ -59,7 +54,6 @@ export const mockProcedures: Procedure[] = [
   {
     id: "proc-006",
     name: "Wet Look",
-    technique: "wet_look",
     description: "Fios agrupados com cola especial para efeito molhado e sensual.",
     priceInCents: 28000,
     durationMinutes: 130,
@@ -70,7 +64,6 @@ export const mockProcedures: Procedure[] = [
   {
     id: "proc-007",
     name: "Remoção",
-    technique: "other",
     description: "Remoção completa das extensões com produto específico. Indicada quando os cílios precisam de descanso ou quando o intervalo entre manutenções foi superior a 15 dias.",
     priceInCents: 3000,
     durationMinutes: 30,
