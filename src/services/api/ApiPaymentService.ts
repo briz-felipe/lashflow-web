@@ -1,3 +1,4 @@
+import { api } from "@/lib/api";
 import type { Payment, CreatePaymentInput } from "@/domain/entities";
 import type {
   IPaymentService,
@@ -7,66 +8,37 @@ import type {
 } from "../interfaces/IPaymentService";
 import type { PaymentMethod } from "@/domain/enums";
 
-const BASE_URL = process.env.NEXT_PUBLIC_API_URL ?? "/api";
-
 export class ApiPaymentService implements IPaymentService {
-  async createPayment(input: CreatePaymentInput): Promise<Payment> {
-    const res = await fetch(`${BASE_URL}/pagamentos`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(input),
-    });
-    if (!res.ok) throw new Error("Erro ao criar pagamento");
-    return res.json();
+  createPayment(input: CreatePaymentInput): Promise<Payment> {
+    return api.post("/payments", input);
   }
 
-  async updatePayment(id: string, input: Partial<Payment>): Promise<Payment> {
-    const res = await fetch(`${BASE_URL}/pagamentos/${id}`, {
-      method: "PUT",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(input),
-    });
-    if (!res.ok) throw new Error("Erro ao atualizar pagamento");
-    return res.json();
+  updatePayment(id: string, input: Partial<Payment>): Promise<Payment> {
+    return api.patch(`/payments/${id}`, input);
   }
 
-  async getPaymentByAppointmentId(appointmentId: string): Promise<Payment | null> {
-    const res = await fetch(`${BASE_URL}/pagamentos?appointmentId=${appointmentId}`);
-    if (res.status === 404) return null;
-    if (!res.ok) throw new Error("Erro ao buscar pagamento");
-    const data = await res.json();
-    return data[0] ?? null;
+  getPaymentByAppointmentId(appointmentId: string): Promise<Payment | null> {
+    return api.get(`/payments/by-appointment/${appointmentId}`);
   }
 
   async listPayments(): Promise<Payment[]> {
-    const res = await fetch(`${BASE_URL}/pagamentos`);
-    if (!res.ok) throw new Error("Erro ao listar pagamentos");
-    return res.json();
+    const data = await api.get<{ data: Payment[] } | Payment[]>("/payments");
+    return Array.isArray(data) ? data : data.data;
   }
 
-  async getCashFlow(from: Date, to: Date): Promise<CashFlowEntry[]> {
-    const params = `from=${from.toISOString()}&to=${to.toISOString()}`;
-    const res = await fetch(`${BASE_URL}/pagamentos/cash-flow?${params}`);
-    if (!res.ok) throw new Error("Erro ao buscar fluxo de caixa");
-    return res.json();
+  getCashFlow(from: Date, to: Date): Promise<CashFlowEntry[]> {
+    return api.get(`/payments/cash-flow?from=${from.toISOString()}&to=${to.toISOString()}`);
   }
 
-  async getRevenueStats(): Promise<RevenueStats> {
-    const res = await fetch(`${BASE_URL}/pagamentos/stats`);
-    if (!res.ok) throw new Error("Erro ao buscar stats");
-    return res.json();
+  getRevenueStats(): Promise<RevenueStats> {
+    return api.get("/payments/stats");
   }
 
-  async getMonthlyRevenue(months = 6): Promise<MonthlyRevenue[]> {
-    const res = await fetch(`${BASE_URL}/pagamentos/monthly?months=${months}`);
-    if (!res.ok) throw new Error("Erro ao buscar receita mensal");
-    return res.json();
+  getMonthlyRevenue(months = 6): Promise<MonthlyRevenue[]> {
+    return api.get(`/payments/monthly-revenue?months=${months}`);
   }
 
-  async getPaymentMethodBreakdown(from: Date, to: Date): Promise<Record<PaymentMethod, number>> {
-    const params = `from=${from.toISOString()}&to=${to.toISOString()}`;
-    const res = await fetch(`${BASE_URL}/pagamentos/breakdown?${params}`);
-    if (!res.ok) throw new Error("Erro ao buscar breakdown");
-    return res.json();
+  getPaymentMethodBreakdown(from: Date, to: Date): Promise<Record<PaymentMethod, number>> {
+    return api.get(`/payments/method-breakdown?from=${from.toISOString()}&to=${to.toISOString()}`);
   }
 }

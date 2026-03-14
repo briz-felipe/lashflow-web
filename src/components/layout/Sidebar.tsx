@@ -5,6 +5,7 @@ import {
   CalendarDays,
   ChevronRight,
   LayoutDashboard,
+  LogOut,
   Package,
   Receipt,
   Scissors,
@@ -18,6 +19,7 @@ import Link from "next/link";
 import { cn } from "@/lib/utils";
 import { usePathname } from "next/navigation";
 import { useSidebar } from "./SidebarContext";
+import { useAuth } from "@/hooks/useAuth";
 
 const navItems = [
   { href: "/",              label: "Dashboard",    icon: LayoutDashboard, exact: true },
@@ -33,6 +35,7 @@ const navItems = [
 export function Sidebar() {
   const pathname = usePathname();
   const { isOpen, close } = useSidebar();
+  const { user, logout } = useAuth();
 
   const isActive = (href: string, exact?: boolean) => {
     if (exact) return pathname === href;
@@ -114,15 +117,27 @@ export function Sidebar() {
         </nav>
 
         {/* Footer */}
-        <div className="px-6 py-4 border-t border-white/10">
+        <div className="px-4 py-4 border-t border-white/10">
           <div className="flex items-center gap-3">
-            <div className="flex items-center justify-center w-8 h-8 rounded-full bg-gradient-to-br from-brand-300 to-brand-500 text-white text-xs font-bold flex-shrink-0">
-              P
+            <div className="flex items-center justify-center w-8 h-8 rounded-full bg-gradient-to-br from-brand-300 to-brand-500 text-white text-xs font-bold flex-shrink-0 uppercase">
+              {user?.username?.charAt(0) ?? "?"}
             </div>
             <div className="flex-1 min-w-0">
-              <p className="text-sm font-medium text-white truncate">Profissional</p>
-              <p className="text-xs text-brand-300 truncate">Admin</p>
+              <p className="text-sm font-medium text-white truncate">
+                {user?.username ?? "—"}
+              </p>
+              <p className="text-xs text-brand-300 truncate">
+                {user?.is_superuser ? "Admin" : "Profissional"}
+              </p>
             </div>
+            <button
+              onClick={logout}
+              className="flex items-center justify-center w-8 h-8 rounded-lg text-brand-300 hover:text-white hover:bg-white/10 transition-colors flex-shrink-0"
+              aria-label="Sair"
+              title="Sair"
+            >
+              <LogOut className="w-4 h-4" />
+            </button>
           </div>
         </div>
       </aside>

@@ -5,6 +5,7 @@ import type { IPaymentService } from "./interfaces/IPaymentService";
 import type { IAnamnesisService } from "./interfaces/IAnamnesisService";
 import type { IStockService } from "./interfaces/IStockService";
 import type { IExpenseService } from "./interfaces/IExpenseService";
+import type { ISettingsService } from "./interfaces/ISettingsService";
 
 import { MockClientService } from "./mock/MockClientService";
 import { MockAppointmentService } from "./mock/MockAppointmentService";
@@ -13,6 +14,7 @@ import { MockPaymentService } from "./mock/MockPaymentService";
 import { MockAnamnesisService } from "./mock/MockAnamnesisService";
 import { MockStockService } from "./mock/MockStockService";
 import { MockExpenseService } from "./mock/MockExpenseService";
+import { MockSettingsService } from "./mock/MockSettingsService";
 
 import { ApiClientService } from "./api/ApiClientService";
 import { ApiAppointmentService } from "./api/ApiAppointmentService";
@@ -21,6 +23,7 @@ import { ApiPaymentService } from "./api/ApiPaymentService";
 import { ApiAnamnesisService } from "./api/ApiAnamnesisService";
 import { ApiStockService } from "./api/ApiStockService";
 import { ApiExpenseService } from "./api/ApiExpenseService";
+import { ApiSettingsService } from "./api/ApiSettingsService";
 
 const USE_MOCK = process.env.NEXT_PUBLIC_USE_MOCK !== "false";
 
@@ -51,3 +54,7 @@ export const stockService: IStockService = USE_MOCK
 export const expenseService: IExpenseService = USE_MOCK
   ? new MockExpenseService()
   : new ApiExpenseService();
+
+export const settingsService: ISettingsService = USE_MOCK
+  ? new MockSettingsService()
+  : new ApiSettingsService();

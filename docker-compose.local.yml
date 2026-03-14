@@ -1,0 +1,17 @@
+services:
+  frontend:
+    build:
+      context: .
+      dockerfile: Dockerfile.dev
+    # network_mode: host → container usa a rede do host
+    # localhost:8000 funciona igual ao rodar fora do Docker
+    network_mode: host
+    environment:
+      NEXT_PUBLIC_API_URL: http://localhost:8000/api/v1
+      NEXT_PUBLIC_USE_MOCK: "false"
+      # hot reload em Docker (Linux)
+      WATCHPACK_POLLING: "true"
+    volumes:
+      - .:/app
+      - /app/node_modules
+      - /app/.next

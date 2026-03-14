@@ -1,3 +1,4 @@
+import { api } from "@/lib/api";
 import type { Client, CreateClientInput, UpdateClientInput } from "@/domain/entities";
 import type {
   IClientService,
@@ -5,8 +6,6 @@ import type {
   PaginationOptions,
   PaginatedResult,
 } from "../interfaces/IClientService";
-
-const BASE_URL = process.env.NEXT_PUBLIC_API_URL ?? "/api";
 
 export class ApiClientService implements IClientService {
   async listClients(
@@ -17,48 +16,27 @@ export class ApiClientService implements IClientService {
     if (filters?.search) params.set("search", filters.search);
     if (filters?.segments) params.set("segments", filters.segments.join(","));
     if (pagination?.page) params.set("page", String(pagination.page));
-    if (pagination?.perPage) params.set("perPage", String(pagination.perPage));
-
-    const res = await fetch(`${BASE_URL}/clientes?${params}`);
-    if (!res.ok) throw new Error("Erro ao listar clientes");
-    return res.json();
+    if (pagination?.perPage) params.set("per_page", String(pagination.perPage));
+    return api.get(`/clients?${params}`);
   }
 
-  async getClientById(id: string): Promise<Client | null> {
-    const res = await fetch(`${BASE_URL}/clientes/${id}`);
-    if (res.status === 404) return null;
-    if (!res.ok) throw new Error("Erro ao buscar cliente");
-    return res.json();
+  getClientById(id: string): Promise<Client | null> {
+    return api.get(`/clients/${id}`);
   }
 
-  async createClient(input: CreateClientInput): Promise<Client> {
-    const res = await fetch(`${BASE_URL}/clientes`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(input),
-    });
-    if (!res.ok) throw new Error("Erro ao criar cliente");
-    return res.json();
+  createClient(input: CreateClientInput): Promise<Client> {
+    return api.post("/clients", input);
   }
 
-  async updateClient(id: string, input: UpdateClientInput): Promise<Client> {
-    const res = await fetch(`${BASE_URL}/clientes/${id}`, {
-      method: "PUT",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(input),
-    });
-    if (!res.ok) throw new Error("Erro ao atualizar cliente");
-    return res.json();
+  updateClient(id: string, input: UpdateClientInput): Promise<Client> {
+    return api.put(`/clients/${id}`, input);
   }
 
-  async deleteClient(id: string): Promise<void> {
-    const res = await fetch(`${BASE_URL}/clientes/${id}`, { method: "DELETE" });
-    if (!res.ok) throw new Error("Erro ao deletar cliente");
+  deleteClient(id: string): Promise<void> {
+    return api.delete(`/clients/${id}`);
   }
 
-  async searchClients(query: string): Promise<Client[]> {
-    const res = await fetch(`${BASE_URL}/clientes/search?q=${encodeURIComponent(query)}`);
-    if (!res.ok) throw new Error("Erro ao buscar clientes");
-    return res.json();
+  searchClients(query: string): Promise<Client[]> {
+    return api.get(`/clients/search?q=${encodeURIComponent(query)}`);
   }
 }

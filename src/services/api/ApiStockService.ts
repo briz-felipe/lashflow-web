@@ -1,8 +1,7 @@
+import { api } from "@/lib/api";
 import type { Material, CreateMaterialInput, UpdateMaterialInput, StockMovement, CreateStockMovementInput } from "@/domain/entities";
 import type { IStockService, StockAlert, MonthlyStockCost } from "../interfaces/IStockService";
 import type { MaterialCategory } from "@/domain/enums";
-
-const BASE_URL = process.env.NEXT_PUBLIC_API_URL ?? "/api";
 
 export class ApiStockService implements IStockService {
   async listMaterials(filters?: { category?: MaterialCategory; search?: string; lowStock?: boolean }): Promise<Material[]> {
@@ -10,41 +9,23 @@ export class ApiStockService implements IStockService {
     if (filters?.category) params.set("category", filters.category);
     if (filters?.search) params.set("search", filters.search);
     if (filters?.lowStock) params.set("lowStock", "true");
-    const res = await fetch(`${BASE_URL}/materials?${params}`);
-    if (!res.ok) throw new Error("Erro ao listar materiais");
-    return res.json();
+    return api.get(`/stock/materials?${params}`);
   }
 
-  async getMaterialById(id: string): Promise<Material | null> {
-    const res = await fetch(`${BASE_URL}/materials/${id}`);
-    if (res.status === 404) return null;
-    if (!res.ok) throw new Error("Erro ao buscar material");
-    return res.json();
+  getMaterialById(id: string): Promise<Material | null> {
+    return api.get(`/stock/materials/${id}`);
   }
 
-  async createMaterial(input: CreateMaterialInput): Promise<Material> {
-    const res = await fetch(`${BASE_URL}/materials`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(input),
-    });
-    if (!res.ok) throw new Error("Erro ao criar material");
-    return res.json();
+  createMaterial(input: CreateMaterialInput): Promise<Material> {
+    return api.post("/stock/materials", input);
   }
 
-  async updateMaterial(id: string, input: UpdateMaterialInput): Promise<Material> {
-    const res = await fetch(`${BASE_URL}/materials/${id}`, {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(input),
-    });
-    if (!res.ok) throw new Error("Erro ao atualizar material");
-    return res.json();
+  updateMaterial(id: string, input: UpdateMaterialInput): Promise<Material> {
+    return api.patch(`/stock/materials/${id}`, input);
   }
 
-  async deleteMaterial(id: string): Promise<void> {
-    const res = await fetch(`${BASE_URL}/materials/${id}`, { method: "DELETE" });
-    if (!res.ok) throw new Error("Erro ao deletar material");
+  deleteMaterial(id: string): Promise<void> {
+    return api.delete(`/stock/materials/${id}`);
   }
 
   async listMovements(filters?: { materialId?: string; from?: Date; to?: Date }): Promise<StockMovement[]> {
@@ -52,37 +33,23 @@ export class ApiStockService implements IStockService {
     if (filters?.materialId) params.set("materialId", filters.materialId);
     if (filters?.from) params.set("from", filters.from.toISOString());
     if (filters?.to) params.set("to", filters.to.toISOString());
-    const res = await fetch(`${BASE_URL}/stock-movements?${params}`);
-    if (!res.ok) throw new Error("Erro ao listar movimentações");
-    return res.json();
+    return api.get(`/stock/movements?${params}`);
   }
 
-  async createMovement(input: CreateStockMovementInput): Promise<StockMovement> {
-    const res = await fetch(`${BASE_URL}/stock-movements`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(input),
-    });
-    if (!res.ok) throw new Error("Erro ao registrar movimentação");
-    return res.json();
+  createMovement(input: CreateStockMovementInput): Promise<StockMovement> {
+    return api.post("/stock/movements", input);
   }
 
-  async getLowStockAlerts(): Promise<StockAlert[]> {
-    const res = await fetch(`${BASE_URL}/stock/alerts`);
-    if (!res.ok) throw new Error("Erro ao buscar alertas");
-    return res.json();
+  getLowStockAlerts(): Promise<StockAlert[]> {
+    return api.get("/stock/materials/alerts");
   }
 
-  async getMonthlyStockCosts(months = 6): Promise<MonthlyStockCost[]> {
-    const res = await fetch(`${BASE_URL}/stock/monthly-costs?months=${months}`);
-    if (!res.ok) throw new Error("Erro ao buscar custos mensais");
-    return res.json();
+  getMonthlyStockCosts(months = 6): Promise<MonthlyStockCost[]> {
+    return api.get(`/stock/monthly-costs?months=${months}`);
   }
 
   async getTotalStockValueInCents(): Promise<number> {
-    const res = await fetch(`${BASE_URL}/stock/total-value`);
-    if (!res.ok) throw new Error("Erro ao buscar valor total");
-    const data = await res.json();
-    return data.totalValueInCents;
+    const data = await api.get<{ total_value_in_cents?: number; totalValueInCents?: number }>("/stock/value");
+    return data.total_value_in_cents ?? data.totalValueInCents ?? 0;
   }
 }

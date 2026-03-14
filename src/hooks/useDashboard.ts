@@ -1,7 +1,8 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { paymentService, appointmentService, clientService } from "@/services";
+import { api } from "@/lib/api";
+import { appointmentService } from "@/services";
 import type { RevenueStats, MonthlyRevenue } from "@/services/interfaces/IPaymentService";
 import type { Appointment } from "@/domain/entities";
 
@@ -13,7 +14,22 @@ export interface DashboardStats {
   monthlyRevenue: MonthlyRevenue[];
   todayAppointments: Appointment[];
   pendingApprovals: Appointment[];
+  pendingApprovalsCount: number;
   loading: boolean;
+}
+
+interface DashboardStatsResponse {
+  totalClients: number;
+  clientsWithUpcomingAppointments: number;
+  todayAppointmentsCount: number;
+  revenueStats: RevenueStats;
+  monthlyRevenue: MonthlyRevenue[];
+  pendingApprovalsCount: number;
+}
+
+interface DashboardTodayResponse {
+  appointments: Appointment[];
+  pendingApprovalsCount: number;
 }
 
 export function useDashboard(): DashboardStats {
@@ -25,6 +41,7 @@ export function useDashboard(): DashboardStats {
     monthlyRevenue: [],
     todayAppointments: [],
     pendingApprovals: [],
+    pendingApprovalsCount: 0,
     loading: true,
   });
 
@@ -33,37 +50,23 @@ export function useDashboard(): DashboardStats {
 
     async function load() {
       try {
-        const [
-          clientsResult,
-          revenueStats,
-          monthlyRevenue,
-          todayAppointments,
-          pendingApprovals,
-          allUpcoming,
-        ] = await Promise.all([
-          clientService.listClients(),
-          paymentService.getRevenueStats(),
-          paymentService.getMonthlyRevenue(6),
-          appointmentService.getTodayAppointments(),
+        const [dashStats, dashToday, pendingApprovals] = await Promise.all([
+          api.get<DashboardStatsResponse>("/dashboard/stats"),
+          api.get<DashboardTodayResponse>("/dashboard/today"),
           appointmentService.getPendingApprovals(),
-          appointmentService.listAppointments({
-            status: ["confirmed", "pending_approval"],
-            from: new Date(),
-          }),
         ]);
 
         if (!isMounted) return;
 
-        const uniqueClientIds = new Set(allUpcoming.map((a) => a.clientId));
-
         setStats({
-          totalClients: clientsResult.total,
-          clientsWithUpcomingAppointments: uniqueClientIds.size,
-          todayAppointmentsCount: todayAppointments.length,
-          revenueStats,
-          monthlyRevenue,
-          todayAppointments,
+          totalClients: dashStats.totalClients,
+          clientsWithUpcomingAppointments: dashStats.clientsWithUpcomingAppointments,
+          todayAppointmentsCount: dashStats.todayAppointmentsCount,
+          revenueStats: dashStats.revenueStats,
+          monthlyRevenue: dashStats.monthlyRevenue,
+          todayAppointments: dashToday.appointments,
           pendingApprovals,
+          pendingApprovalsCount: dashStats.pendingApprovalsCount,
           loading: false,
         });
       } catch {

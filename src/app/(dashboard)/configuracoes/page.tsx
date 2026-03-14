@@ -8,23 +8,93 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { toast } from "@/components/ui/toaster";
-import { mockTimeSlots, mockBlockedDates } from "@/data";
-import { Settings, Clock, Link2, Copy, Check } from "lucide-react";
+import { useSettings } from "@/hooks/useSettings";
+import { Settings, Clock, Link2, Copy, Check, Trash2, Plus } from "lucide-react";
 
 const DAY_NAMES = ["Dom", "Seg", "Ter", "Qua", "Qui", "Sex", "Sáb"];
+const ALL_DAYS = [1, 2, 3, 4, 5, 6, 0];
 
 export default function ConfiguracoesPage() {
   const [copied, setCopied] = useState(false);
+  const [newDate, setNewDate] = useState("");
+  const [newReason, setNewReason] = useState("");
+  const [addingDate, setAddingDate] = useState(false);
+  const [savingSlots, setSavingSlots] = useState(false);
+
   const publicLink =
     typeof window !== "undefined"
       ? `${window.location.origin}/agendar`
       : "/agendar";
+
+  const { timeSlots, blockedDates, loading, updateTimeSlots, addBlockedDate, removeBlockedDate } =
+    useSettings();
+
+  // Local editable state for time slots
+  const [slotEdits, setSlotEdits] = useState<
+    Record<number, { isAvailable: boolean; startTime: string; endTime: string }>
+  >({});
+
+  const getSlotValue = (day: number) => {
+    if (slotEdits[day] !== undefined) return slotEdits[day];
+    const slot = timeSlots.find((s) => s.dayOfWeek === day);
+    return slot
+      ? { isAvailable: slot.isAvailable, startTime: slot.startTime, endTime: slot.endTime }
+      : { isAvailable: false, startTime: "09:00", endTime: "18:00" };
+  };
+
+  const setSlotField = (day: number, field: string, value: string | boolean) => {
+    setSlotEdits((prev) => ({
+      ...prev,
+      [day]: { ...getSlotValue(day), [field]: value },
+    }));
+  };
 
   const copyLink = () => {
     navigator.clipboard.writeText(publicLink);
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
     toast({ title: "Link copiado!", variant: "success" });
+  };
+
+  const handleSaveSlots = async () => {
+    setSavingSlots(true);
+    try {
+      const slots = ALL_DAYS.map((day) => {
+        const v = getSlotValue(day);
+        return { dayOfWeek: day, startTime: v.startTime, endTime: v.endTime, isAvailable: v.isAvailable };
+      });
+      await updateTimeSlots(slots);
+      setSlotEdits({});
+      toast({ title: "Horários salvos!", variant: "success" });
+    } catch {
+      toast({ title: "Erro ao salvar horários", variant: "destructive" });
+    } finally {
+      setSavingSlots(false);
+    }
+  };
+
+  const handleAddBlockedDate = async () => {
+    if (!newDate) return;
+    setAddingDate(true);
+    try {
+      await addBlockedDate(newDate, newReason || undefined);
+      setNewDate("");
+      setNewReason("");
+      toast({ title: "Data bloqueada!", variant: "success" });
+    } catch {
+      toast({ title: "Erro ao bloquear data", variant: "destructive" });
+    } finally {
+      setAddingDate(false);
+    }
+  };
+
+  const handleRemoveBlockedDate = async (id: string) => {
+    try {
+      await removeBlockedDate(id);
+      toast({ title: "Data desbloqueada", variant: "success" });
+    } catch {
+      toast({ title: "Erro ao remover data", variant: "destructive" });
+    }
   };
 
   return (
@@ -62,35 +132,59 @@ export default function ConfiguracoesPage() {
             <Clock className="w-4 h-4" />
             Horários de Atendimento
           </h2>
-          <div className="space-y-3">
-            {[1, 2, 3, 4, 5, 6, 0].map((day) => {
-              const slot = mockTimeSlots.find((s) => s.dayOfWeek === day);
-              return (
-                <div
-                  key={day}
-                  className="flex items-center gap-4 p-3 rounded-xl border border-brand-50 hover:border-brand-200 transition-colors"
-                >
-                  <span className="w-8 text-sm font-semibold text-center">
-                    {DAY_NAMES[day]}
-                  </span>
-                  {slot ? (
-                    <>
-                      <Badge variant="success">Disponível</Badge>
-                      <span className="text-sm text-muted-foreground">
-                        {slot.startTime} — {slot.endTime}
-                      </span>
-                    </>
-                  ) : (
-                    <Badge variant="muted">Fechado</Badge>
-                  )}
-                </div>
-              );
-            })}
-          </div>
-          <p className="text-xs text-muted-foreground mt-4">
-            Os horários são configurados automaticamente com base nos slots cadastrados.
-            A edição de horários estará disponível na versão com backend.
-          </p>
+          {loading ? (
+            <p className="text-sm text-muted-foreground">Carregando...</p>
+          ) : (
+            <div className="space-y-3">
+              {ALL_DAYS.map((day) => {
+                const v = getSlotValue(day);
+                return (
+                  <div
+                    key={day}
+                    className="flex items-center gap-4 p-3 rounded-xl border border-brand-50 hover:border-brand-200 transition-colors"
+                  >
+                    <span className="w-8 text-sm font-semibold text-center flex-shrink-0">
+                      {DAY_NAMES[day]}
+                    </span>
+                    <button
+                      onClick={() => setSlotField(day, "isAvailable", !v.isAvailable)}
+                      className="flex-shrink-0"
+                    >
+                      {v.isAvailable ? (
+                        <Badge variant="success">Disponível</Badge>
+                      ) : (
+                        <Badge variant="muted">Fechado</Badge>
+                      )}
+                    </button>
+                    {v.isAvailable && (
+                      <div className="flex items-center gap-2 text-sm flex-1">
+                        <Input
+                          type="time"
+                          value={v.startTime}
+                          onChange={(e) => setSlotField(day, "startTime", e.target.value)}
+                          className="w-28 h-8 text-sm"
+                        />
+                        <span className="text-muted-foreground">—</span>
+                        <Input
+                          type="time"
+                          value={v.endTime}
+                          onChange={(e) => setSlotField(day, "endTime", e.target.value)}
+                          className="w-28 h-8 text-sm"
+                        />
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          )}
+          <Button
+            className="mt-4"
+            onClick={handleSaveSlots}
+            disabled={savingSlots || loading}
+          >
+            {savingSlots ? "Salvando..." : "Salvar horários"}
+          </Button>
         </div>
 
         {/* Blocked dates */}
@@ -99,11 +193,37 @@ export default function ConfiguracoesPage() {
             <Settings className="w-4 h-4" />
             Datas Bloqueadas
           </h2>
-          {mockBlockedDates.length === 0 ? (
+
+          <div className="flex gap-2 mb-4">
+            <Input
+              type="date"
+              value={newDate}
+              onChange={(e) => setNewDate(e.target.value)}
+              className="w-40"
+            />
+            <Input
+              placeholder="Motivo (opcional)"
+              value={newReason}
+              onChange={(e) => setNewReason(e.target.value)}
+              className="flex-1"
+            />
+            <Button
+              variant="outline"
+              onClick={handleAddBlockedDate}
+              disabled={!newDate || addingDate}
+            >
+              <Plus className="w-4 h-4" />
+              Bloquear
+            </Button>
+          </div>
+
+          {loading ? (
+            <p className="text-sm text-muted-foreground">Carregando...</p>
+          ) : blockedDates.length === 0 ? (
             <p className="text-sm text-muted-foreground">Nenhuma data bloqueada</p>
           ) : (
             <div className="space-y-2">
-              {mockBlockedDates.map((bd) => (
+              {blockedDates.map((bd) => (
                 <div
                   key={bd.id}
                   className="flex items-center justify-between p-3 rounded-xl border border-red-50 bg-red-50/50"
@@ -112,7 +232,15 @@ export default function ConfiguracoesPage() {
                     <p className="text-sm font-medium">{bd.date}</p>
                     {bd.reason && <p className="text-xs text-muted-foreground">{bd.reason}</p>}
                   </div>
-                  <Badge variant="destructive">Bloqueado</Badge>
+                  <div className="flex items-center gap-2">
+                    <Badge variant="destructive">Bloqueado</Badge>
+                    <button
+                      onClick={() => handleRemoveBlockedDate(bd.id)}
+                      className="text-muted-foreground hover:text-red-500 transition-colors"
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </button>
+                  </div>
                 </div>
               ))}
             </div>
