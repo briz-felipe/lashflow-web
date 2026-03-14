@@ -75,7 +75,7 @@ export async function refreshTokens(): Promise<boolean> {
 // ─── login / logout ────────────────────────────────────────────────────────
 
 export async function login(username: string, password: string): Promise<void> {
-  const res = await fetch(`${API}/auth/login`, {
+  const res = await fetch("/api/auth/login", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ username, password }),
