@@ -127,7 +127,7 @@ export function Sidebar() {
                 {user?.username ?? "—"}
               </p>
               <p className="text-xs text-brand-300 truncate">
-                {user?.is_superuser ? "Admin" : "Profissional"}
+                {user?.isSuperuser ? "Admin" : "Profissional"}
               </p>
             </div>
             <button
