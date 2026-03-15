@@ -4,7 +4,7 @@ import type { IProcedureService } from "../interfaces/IProcedureService";
 
 export class ApiProcedureService implements IProcedureService {
   listProcedures(activeOnly = false): Promise<Procedure[]> {
-    return api.get(`/procedures${activeOnly ? "?activeOnly=true" : ""}`);
+    return api.get(`/procedures/${activeOnly ? "?activeOnly=true" : ""}`);
   }
 
   getProcedureById(id: string): Promise<Procedure | null> {
@@ -12,7 +12,7 @@ export class ApiProcedureService implements IProcedureService {
   }
 
   createProcedure(input: CreateProcedureInput): Promise<Procedure> {
-    return api.post("/procedures", input);
+    return api.post("/procedures/", input);
   }
 
   updateProcedure(id: string, input: UpdateProcedureInput): Promise<Procedure> {

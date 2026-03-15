@@ -10,7 +10,7 @@ export class ApiAppointmentService implements IAppointmentService {
     if (filters?.status) params.set("status", filters.status.join(","));
     if (filters?.from) params.set("from", (filters.from as Date).toISOString());
     if (filters?.to) params.set("to", (filters.to as Date).toISOString());
-    return api.get(`/appointments?${params}`);
+    return api.get(`/appointments/?${params}`);
   }
 
   getAppointmentById(id: string): Promise<Appointment | null> {
@@ -18,7 +18,7 @@ export class ApiAppointmentService implements IAppointmentService {
   }
 
   createAppointment(input: CreateAppointmentInput): Promise<Appointment> {
-    return api.post("/appointments", input);
+    return api.post("/appointments/", input);
   }
 
   updateAppointmentStatus(

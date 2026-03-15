@@ -4,7 +4,7 @@ import type { IAnamnesisService } from "../interfaces/IAnamnesisService";
 
 export class ApiAnamnesisService implements IAnamnesisService {
   listByClient(clientId: string): Promise<Anamnesis[]> {
-    return api.get(`/anamneses?clientId=${clientId}`);
+    return api.get(`/anamneses/?clientId=${clientId}`);
   }
 
   getById(id: string): Promise<Anamnesis | null> {
@@ -12,7 +12,7 @@ export class ApiAnamnesisService implements IAnamnesisService {
   }
 
   create(input: CreateAnamnesisInput): Promise<Anamnesis> {
-    return api.post("/anamneses", input);
+    return api.post("/anamneses/", input);
   }
 
   update(id: string, input: Partial<CreateAnamnesisInput>): Promise<Anamnesis> {

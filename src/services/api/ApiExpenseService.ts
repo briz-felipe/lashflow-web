@@ -9,7 +9,7 @@ export class ApiExpenseService implements IExpenseService {
     if (filters?.month) params.set("month", filters.month);
     if (filters?.category) params.set("category", filters.category);
     if (filters?.isPaid !== undefined) params.set("isPaid", String(filters.isPaid));
-    return api.get(`/expenses?${params}`);
+    return api.get(`/expenses/?${params}`);
   }
 
   getExpenseById(id: string): Promise<Expense | null> {
@@ -17,7 +17,7 @@ export class ApiExpenseService implements IExpenseService {
   }
 
   createExpense(input: CreateExpenseInput): Promise<Expense> {
-    return api.post("/expenses", input);
+    return api.post("/expenses/", input);
   }
 
   updateExpense(id: string, input: UpdateExpenseInput): Promise<Expense> {
