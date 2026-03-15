@@ -10,7 +10,7 @@ import { LoadingPage } from "@/components/shared/LoadingSpinner";
 import { paymentService, stockService, expenseService } from "@/services";
 import { formatCurrency, formatDate } from "@/lib/formatters";
 import { DollarSign, TrendingUp, Calendar, CreditCard, Package, Receipt, ArrowUpRight, ArrowDownRight } from "lucide-react";
-import { startOfMonth, endOfMonth, subMonths, format } from "date-fns";
+import { startOfMonth, endOfMonth, subMonths, format, parse, isValid } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import type { RevenueStats, MonthlyRevenue, CashFlowEntry } from "@/services/interfaces/IPaymentService";
 import type { MonthlyStockCost } from "@/services/interfaces/IStockService";
@@ -45,6 +45,7 @@ export default function FinanceiroPage() {
     async function load() {
       const from = startOfMonth(subMonths(new Date(), 0));
       const to = endOfMonth(new Date());
+      try {
       const [s, m, cf, bd, expSummary, sc, sv, et] = await Promise.all([
         paymentService.getRevenueStats(),
         paymentService.getMonthlyRevenue(12),
@@ -64,7 +65,11 @@ export default function FinanceiroPage() {
       setStockCosts(sc);
       setStockValue(sv);
       setExpenseTotals(et);
+    } catch (err) {
+      console.error("[financeiro] load error:", err);
+    } finally {
       setLoading(false);
+    }
     }
     load();
   // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -83,10 +88,15 @@ export default function FinanceiroPage() {
     ...expenseTotals.map((e) => e.month),
     ...stockCosts.map((s) => s.month),
   ]);
+  function parseMonthLabel(month: string): string {
+    const d = parse(month, "yyyy-MM", new Date());
+    return isValid(d) ? format(d, "MMM yy", { locale: ptBR }) : month;
+  }
+
   const costChartData = Array.from(allMonths)
     .sort()
     .map((month) => {
-      const label = format(new Date(month + "-01"), "MMM yy", { locale: ptBR });
+      const label = parseMonthLabel(month);
       const despesas = expenseTotals.find((e) => e.month === month)?.totalInCents ?? 0;
       const materiais = stockCosts.find((s) => s.month === month)?.totalCostInCents ?? 0;
       return { month: label, despesas, materiais };
@@ -94,7 +104,7 @@ export default function FinanceiroPage() {
 
   // Build income vs expense chart data (12 months)
   const incomeVsExpenseData = monthly.map((m) => {
-    const label = format(new Date(m.month + "-01"), "MMM yy", { locale: ptBR });
+    const label = parseMonthLabel(m.month);
     const receita = m.amountInCents;
     const despesaVal = expenseTotals.find((e) => e.month === m.month)?.totalInCents ?? 0;
     const materialVal = stockCosts.find((s) => s.month === m.month)?.totalCostInCents ?? 0;
