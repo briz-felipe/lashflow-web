@@ -365,11 +365,12 @@ export default function AgendaPage() {
 
   const { from, to } = getDateRange(view, currentDate);
 
-  const { appointments, loading } = useAppointments({
+  const { appointments, loading, error: appointmentsError } = useAppointments({
     from,
     to,
     status: ["pending_approval", "confirmed", "in_progress", "completed"],
   });
+  console.log("[agenda] range:", from?.toISOString(), "→", to?.toISOString(), "| count:", appointments.length, "| error:", appointmentsError);
 
   const { appointments: pending, approve, reject } = usePendingApprovals();
 
@@ -501,11 +502,17 @@ export default function AgendaPage() {
 
         {/* Appointment list below calendar (month + week) */}
         {view !== "day" && (
-          <AppointmentListSection
-            appointments={appointments}
-            selectedDay={selectedDay}
-            onClearDay={() => setSelectedDay(null)}
-          />
+          appointmentsError ? (
+            <div className="bg-red-50 border border-red-200 rounded-2xl p-4 text-sm text-red-700">
+              Erro ao carregar agendamentos: {appointmentsError}
+            </div>
+          ) : (
+            <AppointmentListSection
+              appointments={appointments}
+              selectedDay={selectedDay}
+              onClearDay={() => setSelectedDay(null)}
+            />
+          )
         )}
       </div>
     </div>
