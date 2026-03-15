@@ -26,38 +26,16 @@ import {
   Star,
   TrendingUp,
   Clock,
-  CreditCard,
-  Banknote,
-  Zap,
   BarChart2,
   Sun,
   Sunset,
   Moon,
   Users,
+  ClipboardList,
 } from "lucide-react";
 import Link from "next/link";
-import { mockProcedures, mockPayments } from "@/data";
-import type { PaymentMethod } from "@/domain/enums";
-import { PAYMENT_METHOD_LABELS } from "@/domain/enums";
 import { LashFlowStatus } from "@/components/clients/LashFlowStatus";
 import { useAnamneses } from "@/hooks/useAnamnesis";
-import { ClipboardList } from "lucide-react";
-
-
-const PAYMENT_METHOD_COLORS: Record<PaymentMethod, string> = {
-  pix: "bg-emerald-50 text-emerald-700",
-  cash: "bg-amber-50 text-amber-700",
-  credit_card: "bg-blue-50 text-blue-700",
-  debit_card: "bg-indigo-50 text-indigo-700",
-  bank_transfer: "bg-violet-50 text-violet-700",
-  other: "bg-gray-50 text-gray-600",
-};
-
-function PaymentMethodIcon({ method }: { method: PaymentMethod }) {
-  if (method === "pix") return <Zap className="w-3.5 h-3.5" />;
-  if (method === "cash") return <Banknote className="w-3.5 h-3.5" />;
-  return <CreditCard className="w-3.5 h-3.5" />;
-}
 
 const DAY_NAMES = ["Dom", "Seg", "Ter", "Qua", "Qui", "Sex", "Sáb"];
 
@@ -108,7 +86,6 @@ export default function ClienteProfilePage() {
     );
   }
 
-  const favProc = mockProcedures.find((p) => p.id === client.favoriteProcedureId);
   const completedAppointments = appointments.filter((a) => a.status === "completed");
   const upcomingAppointments = appointments.filter(
     (a) => a.status === "confirmed" || a.status === "pending_approval"
@@ -117,32 +94,22 @@ export default function ClienteProfilePage() {
   // Techniques used (from completed appointments)
   const techCounts: Record<string, { name: string; count: number }> = {};
   for (const apt of completedAppointments) {
-    const proc = mockProcedures.find((p) => p.id === apt.procedureId);
-    if (!proc) continue;
-    if (!techCounts[proc.id]) techCounts[proc.id] = { name: proc.name, count: 0 };
-    techCounts[proc.id].count++;
+    const name = apt.procedureName;
+    if (!name) continue;
+    if (!techCounts[name]) techCounts[name] = { name, count: 0 };
+    techCounts[name].count++;
   }
   const techList = Object.values(techCounts).sort((a, b) => b.count - a.count);
   const maxTechCount = techList[0]?.count ?? 1;
-
-  // Payment methods used
-  const clientPayments = mockPayments.filter((p) => p.clientId === id && p.method);
-  const payMethodCounts: Record<string, number> = {};
-  for (const p of clientPayments) {
-    const m = p.method as string;
-    payMethodCounts[m] = (payMethodCounts[m] ?? 0) + 1;
-  }
-  const payMethodList = Object.entries(payMethodCounts)
-    .map(([method, count]) => ({ method: method as PaymentMethod, count }))
-    .sort((a, b) => b.count - a.count);
 
   // Favorite day of week & average time
   const dayCount: Record<number, number> = {};
   let hourSum = 0;
   for (const apt of completedAppointments) {
-    const day = apt.scheduledAt.getDay();
+    const d = new Date(apt.scheduledAt);
+    const day = d.getDay();
     dayCount[day] = (dayCount[day] ?? 0) + 1;
-    hourSum += apt.scheduledAt.getHours();
+    hourSum += d.getHours();
   }
   const favoriteDayEntry = Object.entries(dayCount).sort((a, b) => Number(b[1]) - Number(a[1]))[0];
   const favoriteDayName = favoriteDayEntry ? DAY_NAMES[parseInt(favoriteDayEntry[0])] : null;
@@ -303,7 +270,7 @@ export default function ClienteProfilePage() {
               <div className="bg-white rounded-2xl border border-brand-100 shadow-card p-4 text-center">
                 <Star className="w-5 h-5 text-amber-500 mx-auto mb-2" />
                 <p className="text-sm font-bold text-foreground truncate">
-                  {favProc?.name ?? "—"}
+                  {techList[0]?.name ?? "—"}
                 </p>
                 <p className="text-xs text-muted-foreground">Técnica favorita</p>
               </div>
@@ -373,30 +340,9 @@ export default function ClienteProfilePage() {
                   </div>
                 </div>
 
-                {/* Payments + Behavior */}
+                {/* Behavior */}
                 <div className="space-y-4">
-                  {/* Payment methods */}
-                  {payMethodList.length > 0 && (
-                    <div className="bg-white rounded-2xl border border-brand-100 shadow-card p-5">
-                      <h3 className="font-semibold text-sm mb-3 flex items-center gap-2 text-brand-700">
-                        <CreditCard className="w-4 h-4" />
-                        Formas de Pagamento
-                      </h3>
-                      <div className="space-y-2">
-                        {payMethodList.map(({ method, count }) => (
-                          <div key={method} className="flex items-center justify-between">
-                            <div className={`flex items-center gap-1.5 text-xs font-medium px-2 py-1 rounded-lg ${PAYMENT_METHOD_COLORS[method]}`}>
-                              <PaymentMethodIcon method={method} />
-                              {PAYMENT_METHOD_LABELS[method]}
-                            </div>
-                            <span className="text-xs font-semibold text-muted-foreground">
-                              {count}x
-                            </span>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                  )}
+                  {/* (payment methods analytics removed — not available from API yet) */}
 
                   {/* Scheduling behavior */}
                   {(favoriteDayName || timeOfDay) && (
@@ -448,16 +394,14 @@ export default function ClienteProfilePage() {
                   Próximos Agendamentos
                 </h3>
                 <div className="space-y-2">
-                  {upcomingAppointments.map((apt) => {
-                    const proc = mockProcedures.find((p) => p.id === apt.procedureId);
-                    return (
+                  {upcomingAppointments.map((apt) => (
                       <Link
                         key={apt.id}
                         href={`/agenda/${apt.id}`}
                         className="flex items-center justify-between p-3 rounded-xl border border-brand-50 hover:bg-brand-50 transition-colors"
                       >
                         <div>
-                          <p className="text-sm font-medium">{proc?.name ?? "—"}</p>
+                          <p className="text-sm font-medium">{apt.procedureName ?? "—"}</p>
                           <p className="text-xs text-muted-foreground">
                             {formatDateTime(apt.scheduledAt)}
                           </p>
@@ -469,8 +413,7 @@ export default function ClienteProfilePage() {
                           <AppointmentStatusBadge status={apt.status} />
                         </div>
                       </Link>
-                    );
-                  })}
+                  ))}
                 </div>
               </div>
             )}
@@ -484,16 +427,14 @@ export default function ClienteProfilePage() {
                 </p>
               ) : (
                 <div className="space-y-2">
-                  {completedAppointments.slice(0, 10).map((apt) => {
-                    const proc = mockProcedures.find((p) => p.id === apt.procedureId);
-                    return (
+                  {completedAppointments.slice(0, 10).map((apt) => (
                       <Link
                         key={apt.id}
                         href={`/agenda/${apt.id}`}
                         className="flex items-center justify-between p-3 rounded-xl hover:bg-brand-50 transition-colors group"
                       >
                         <div>
-                          <p className="text-sm font-medium">{proc?.name ?? "—"}</p>
+                          <p className="text-sm font-medium">{apt.procedureName ?? "—"}</p>
                           <p className="text-xs text-muted-foreground">
                             {formatDate(apt.scheduledAt)}
                           </p>
@@ -502,8 +443,7 @@ export default function ClienteProfilePage() {
                           {formatCurrency(apt.priceCharged)}
                         </p>
                       </Link>
-                    );
-                  })}
+                  ))}
                 </div>
               )}
             </div>
