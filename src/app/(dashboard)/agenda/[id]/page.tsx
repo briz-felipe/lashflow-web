@@ -26,8 +26,8 @@ import {
   Scissors,
 } from "lucide-react";
 import Link from "next/link";
-import { mockClients, mockProcedures } from "@/data";
-import type { Appointment } from "@/domain/entities";
+import { clientService, procedureService } from "@/services";
+import type { Appointment, Client, Procedure } from "@/domain/entities";
 import type { Payment } from "@/domain/entities";
 import type { AppointmentStatus, LashServiceType } from "@/domain/enums";
 import type { PaymentMethod } from "@/domain/enums";
@@ -47,18 +47,25 @@ export default function AgendamentoDetailPage() {
   const { id } = useParams<{ id: string }>();
   const [apt, setApt] = useState<Appointment | null>(null);
   const [payment, setPayment] = useState<Payment | null>(null);
+  const [client, setClient] = useState<Client | null>(null);
+  const [procedure, setProcedure] = useState<Procedure | null>(null);
   const [loading, setLoading] = useState(true);
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>("pix");
   const [savingPayment, setSavingPayment] = useState(false);
 
   useEffect(() => {
     async function load() {
-      const [a, p] = await Promise.all([
-        appointmentService.getAppointmentById(id),
-        paymentService.getPaymentByAppointmentId(id),
-      ]);
+      const a = await appointmentService.getAppointmentById(id);
+      if (!a) { setLoading(false); return; }
       setApt(a);
+      const [p, c, proc] = await Promise.all([
+        paymentService.getPaymentByAppointmentId(a.id).catch(() => null),
+        clientService.getClientById(a.clientId).catch(() => null),
+        procedureService.getProcedureById(a.procedureId).catch(() => null),
+      ]);
       setPayment(p);
+      setClient(c);
+      setProcedure(proc);
       setLoading(false);
     }
     load();
@@ -105,9 +112,6 @@ export default function AgendamentoDetailPage() {
 
   if (loading) return <LoadingPage />;
   if (!apt) return <div className="p-6"><p>Agendamento não encontrado.</p></div>;
-
-  const client = mockClients.find((c) => c.id === apt.clientId);
-  const procedure = mockProcedures.find((p) => p.id === apt.procedureId);
 
   const serviceTypeCfg = apt.serviceType ? SERVICE_TYPE_CONFIG[apt.serviceType] : null;
 
