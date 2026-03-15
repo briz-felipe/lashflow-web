@@ -63,6 +63,11 @@ class ApiClient {
 
     if (!res.ok) {
       const err = await res.json().catch(() => ({}));
+      if (Array.isArray(err.detail)) {
+        err.detail.forEach((d: { loc?: string[]; msg?: string; type?: string }) => {
+          console.error(`[api] validation error — field: ${d.loc?.join(".")}, msg: ${d.msg}`);
+        });
+      }
       console.error(`[api] ${options.method ?? "GET"} ${path} → ${res.status}`, err);
       throw Object.assign(new Error(err.detail ?? err.message ?? `HTTP ${res.status}`), {
         status: res.status,

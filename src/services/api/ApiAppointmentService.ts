@@ -7,7 +7,7 @@ export class ApiAppointmentService implements IAppointmentService {
   async listAppointments(filters?: AppointmentFilters): Promise<Appointment[]> {
     const params = new URLSearchParams();
     if (filters?.clientId) params.set("clientId", filters.clientId);
-    if (filters?.status) params.set("status", filters.status.join(","));
+    if (filters?.status) filters.status.forEach((s) => params.append("status", s));
     if (filters?.from) params.set("from", (filters.from as Date).toISOString());
     if (filters?.to) params.set("to", (filters.to as Date).toISOString());
     return api.get(`/appointments/?${params}`);

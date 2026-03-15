@@ -161,7 +161,7 @@ function NovoAgendamentoContent() {
 
   const { createAppointment } = useAppointments();
   const { procedures } = useProcedures(true);
-  const { data: allClients } = useClients({}, 200);
+  const { data: allClients } = useClients({}, 100);
   const [saving, setSaving] = useState(false);
 
   const [selectedClient, setSelectedClient] = useState<Client | null>(null);
@@ -226,6 +226,7 @@ function NovoAgendamentoContent() {
         procedureId: form.procedureId,
         scheduledAt,
         serviceType: form.serviceType as LashServiceType,
+        priceCharged: selectedProcedure?.priceInCents,
         notes: form.notes || undefined,
       });
       toast({ title: "Agendamento criado!", variant: "success" });
