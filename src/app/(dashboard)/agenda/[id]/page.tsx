@@ -55,7 +55,9 @@ export default function AgendamentoDetailPage() {
       const a = await appointmentService.getAppointmentById(id);
       if (!a) { setLoading(false); return; }
       setApt(a);
-      const p = await paymentService.getPaymentByAppointmentId(a.id).catch(() => null);
+      const p = a.paymentId
+        ? await paymentService.getPaymentByAppointmentId(a.id).catch(() => null)
+        : null;
       setPayment(p);
       setLoading(false);
     }
