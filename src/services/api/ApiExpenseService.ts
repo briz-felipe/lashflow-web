@@ -8,8 +8,9 @@ export class ApiExpenseService implements IExpenseService {
     const params = new URLSearchParams();
     if (filters?.month) params.set("month", filters.month);
     if (filters?.category) params.set("category", filters.category);
-    if (filters?.isPaid !== undefined) params.set("isPaid", String(filters.isPaid));
-    return api.get(`/expenses/?${params}`);
+    if (filters?.isPaid !== undefined) params.set("is_paid", String(filters.isPaid));
+    const qs = params.toString();
+    return api.get(`/expenses${qs ? `?${qs}` : ""}`);
   }
 
   getExpenseById(id: string): Promise<Expense | null> {
@@ -17,7 +18,7 @@ export class ApiExpenseService implements IExpenseService {
   }
 
   createExpense(input: CreateExpenseInput): Promise<Expense> {
-    return api.post("/expenses/", input);
+    return api.post("/expenses", input);
   }
 
   updateExpense(id: string, input: UpdateExpenseInput): Promise<Expense> {
@@ -36,7 +37,8 @@ export class ApiExpenseService implements IExpenseService {
     return api.get(`/expenses/summary?month=${month}`);
   }
 
-  getMonthlyExpenseTotals(months = 6): Promise<{ month: string; totalInCents: number }[]> {
-    return api.get(`/expenses/monthly-totals?months=${months}`);
+  async getMonthlyExpenseTotals(months = 6): Promise<{ month: string; totalInCents: number }[]> {
+    const data = await api.get<Array<{ month: string; total_in_cents?: number; totalInCents?: number }>>(`/expenses/monthly-totals?months=${months}`);
+    return data.map((d) => ({ month: d.month, totalInCents: d.total_in_cents ?? d.totalInCents ?? 0 }));
   }
 }

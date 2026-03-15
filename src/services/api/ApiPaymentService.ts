@@ -10,7 +10,7 @@ import type { PaymentMethod } from "@/domain/enums";
 
 export class ApiPaymentService implements IPaymentService {
   createPayment(input: CreatePaymentInput): Promise<Payment> {
-    return api.post("/payments/", input);
+    return api.post("/payments", input);
   }
 
   updatePayment(id: string, input: Partial<Payment>): Promise<Payment> {
@@ -22,7 +22,7 @@ export class ApiPaymentService implements IPaymentService {
   }
 
   async listPayments(): Promise<Payment[]> {
-    const data = await api.get<{ data: Payment[] } | Payment[]>("/payments/");
+    const data = await api.get<{ data: Payment[] } | Payment[]>("/payments");
     return Array.isArray(data) ? data : data.data;
   }
 

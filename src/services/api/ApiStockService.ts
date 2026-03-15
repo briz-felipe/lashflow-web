@@ -46,8 +46,19 @@ export class ApiStockService implements IStockService {
     return api.get("/stock/materials/alerts");
   }
 
-  getMonthlyStockCosts(months = 6): Promise<MonthlyStockCost[]> {
-    return api.get(`/stock/monthly-costs?months=${months}`);
+  async getMonthlyStockCosts(months = 6): Promise<MonthlyStockCost[]> {
+    const data = await api.get<Array<{
+      month: string;
+      total_cost_in_cents?: number;
+      totalCostInCents?: number;
+      purchase_count?: number;
+      purchaseCount?: number;
+    }>>(`/stock/monthly-costs?months=${months}`);
+    return data.map((d) => ({
+      month: d.month,
+      totalCostInCents: d.total_cost_in_cents ?? d.totalCostInCents ?? 0,
+      purchaseCount: d.purchase_count ?? d.purchaseCount ?? 0,
+    }));
   }
 
   async getTotalStockValueInCents(): Promise<number> {

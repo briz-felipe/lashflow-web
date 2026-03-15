@@ -17,7 +17,8 @@ export class ApiClientService implements IClientService {
     if (filters?.segments) params.set("segments", filters.segments.join(","));
     if (pagination?.page) params.set("page", String(pagination.page));
     if (pagination?.perPage) params.set("per_page", String(pagination.perPage));
-    return api.get(`/clients/?${params}`);
+    const qs = params.toString();
+    return api.get(`/clients${qs ? `?${qs}` : ""}`);
   }
 
   getClientById(id: string): Promise<Client | null> {
@@ -25,7 +26,7 @@ export class ApiClientService implements IClientService {
   }
 
   createClient(input: CreateClientInput): Promise<Client> {
-    return api.post("/clients/", input);
+    return api.post("/clients", input);
   }
 
   updateClient(id: string, input: UpdateClientInput): Promise<Client> {
