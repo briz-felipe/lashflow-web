@@ -52,14 +52,19 @@ export default function AgendamentoDetailPage() {
 
   useEffect(() => {
     async function load() {
-      const a = await appointmentService.getAppointmentById(id);
-      if (!a) { setLoading(false); return; }
-      setApt(a);
-      const p = a.paymentId
-        ? await paymentService.getPaymentByAppointmentId(a.id).catch(() => null)
-        : null;
-      setPayment(p);
-      setLoading(false);
+      try {
+        const a = await appointmentService.getAppointmentById(id);
+        if (!a) return;
+        setApt(a);
+        if (a.paymentId) {
+          const p = await paymentService.getPaymentByAppointmentId(a.id).catch(() => null);
+          setPayment(p);
+        }
+      } catch (err) {
+        console.error("[agenda/detail] load error:", err);
+      } finally {
+        setLoading(false);
+      }
     }
     load();
   }, [id]);
