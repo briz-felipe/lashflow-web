@@ -226,7 +226,7 @@ function NovoAgendamentoContent() {
         procedureId: form.procedureId,
         scheduledAt,
         serviceType: form.serviceType as LashServiceType,
-        priceCharged: selectedProcedure?.priceInCents ?? 0,
+        priceCharged: selectedProcedure?.priceInCents,
         notes: form.notes || undefined,
       });
       toast({ title: "Agendamento criado!", variant: "success" });

@@ -5,8 +5,6 @@ import { Topbar } from "@/components/layout/Topbar";
 import { PageHeader } from "@/components/layout/PageHeader";
 import { Button } from "@/components/ui/button";
 import { useAppointments, usePendingApprovals } from "@/hooks/useAppointments";
-import { useClients } from "@/hooks/useClients";
-import { useProcedures } from "@/hooks/useProcedures";
 import { LoadingPage } from "@/components/shared/LoadingSpinner";
 import { formatTime, formatCurrency, formatRelativeDate } from "@/lib/formatters";
 import {
@@ -19,7 +17,7 @@ import {
   CalendarDays,
 } from "lucide-react";
 import Link from "next/link";
-import type { Client, Procedure, Appointment } from "@/domain/entities";
+import type { Appointment } from "@/domain/entities";
 import type { LashServiceType } from "@/domain/enums";
 import { LASH_SERVICE_TYPE_LABELS } from "@/domain/enums";
 import { AppointmentStatusBadge } from "@/components/appointments/AppointmentStatusBadge";
@@ -84,19 +82,7 @@ function getDateRange(view: CalendarView, date: Date) {
 }
 
 // ─── Compact card for calendar cells ──────────────────────────────────────────
-function AppointmentCard({
-  apt,
-  compact = false,
-  clientMap,
-  procedureMap,
-}: {
-  apt: Appointment;
-  compact?: boolean;
-  clientMap: Record<string, Client>;
-  procedureMap: Record<string, Procedure>;
-}) {
-  const client = clientMap[apt.clientId];
-  const procedure = procedureMap[apt.procedureId];
+function AppointmentCard({ apt, compact = false }: { apt: Appointment; compact?: boolean }) {
   return (
     <Link
       href={`/agenda/${apt.id}`}
@@ -107,7 +93,7 @@ function AppointmentCard({
         {apt.serviceType && (
           <span className={`w-2 h-2 rounded-full flex-shrink-0 ${SERVICE_DOT[apt.serviceType]}`} />
         )}
-        <p className="font-semibold truncate">{client?.name.split(" ")[0] ?? "—"}</p>
+        <p className="font-semibold truncate">{apt.clientName?.split(" ")[0] ?? "—"}</p>
       </div>
       {!compact && <p className="text-muted-foreground">{formatTime(apt.scheduledAt)}</p>}
       {apt.serviceType ? (
@@ -115,28 +101,18 @@ function AppointmentCard({
           {LASH_SERVICE_TYPE_LABELS[apt.serviceType]}
         </p>
       ) : (
-        <p className="text-muted-foreground truncate">{procedure?.name}</p>
+        <p className="text-muted-foreground truncate">{apt.procedureName}</p>
       )}
     </Link>
   );
 }
 
 // ─── Appointment list row (used below calendar) ────────────────────────────────
-function AppointmentListRow({
-  apt,
-  clientMap,
-  procedureMap,
-}: {
-  apt: Appointment;
-  clientMap: Record<string, Client>;
-  procedureMap: Record<string, Procedure>;
-}) {
-  const client = clientMap[apt.clientId];
-  const procedure = procedureMap[apt.procedureId];
+function AppointmentListRow({ apt }: { apt: Appointment }) {
   return (
     <Link
       href={`/agenda/${apt.id}`}
-      className="flex items-center gap-4 p-3 rounded-xl hover:bg-brand-50 transition-colors group"
+      className="flex items-center gap-4 p-3 rounded-xl hover:bg-brand-50 transition-colors"
     >
       <div className="text-center w-12 flex-shrink-0">
         <p className="text-xs text-muted-foreground">{format(new Date(apt.scheduledAt), "EEE", { locale: ptBR })}</p>
@@ -144,9 +120,9 @@ function AppointmentListRow({
       </div>
       <div className={`w-1 self-stretch rounded-full flex-shrink-0 ${apt.serviceType ? SERVICE_DOT[apt.serviceType] : "bg-gray-300"}`} />
       <div className="flex-1 min-w-0">
-        <p className="text-sm font-semibold truncate">{client?.name ?? "—"}</p>
+        <p className="text-sm font-semibold truncate">{apt.clientName ?? "—"}</p>
         <p className="text-xs text-muted-foreground truncate">
-          {procedure?.name ?? "—"}
+          {apt.procedureName ?? "—"}
           {apt.serviceType && (
             <span className={`ml-1.5 font-medium ${SERVICE_LABEL_COLOR[apt.serviceType]}`}>
               · {LASH_SERVICE_TYPE_LABELS[apt.serviceType]}
@@ -166,14 +142,10 @@ function AppointmentListRow({
 function AppointmentListSection({
   appointments,
   selectedDay,
-  clientMap,
-  procedureMap,
   onClearDay,
 }: {
   appointments: Appointment[];
   selectedDay: Date | null;
-  clientMap: Record<string, Client>;
-  procedureMap: Record<string, Procedure>;
   onClearDay: () => void;
 }) {
   const filtered = selectedDay
@@ -195,10 +167,7 @@ function AppointmentListSection({
           </span>
         </div>
         {selectedDay && (
-          <button
-            onClick={onClearDay}
-            className="text-xs text-muted-foreground hover:text-foreground transition-colors"
-          >
+          <button onClick={onClearDay} className="text-xs text-muted-foreground hover:text-foreground transition-colors">
             Ver todos
           </button>
         )}
@@ -209,9 +178,7 @@ function AppointmentListSection({
         </div>
       ) : (
         <div className="divide-y divide-brand-50">
-          {filtered.map((apt) => (
-            <AppointmentListRow key={apt.id} apt={apt} clientMap={clientMap} procedureMap={procedureMap} />
-          ))}
+          {filtered.map((apt) => <AppointmentListRow key={apt.id} apt={apt} />)}
         </div>
       )}
     </div>
@@ -219,12 +186,7 @@ function AppointmentListSection({
 }
 
 // ─── Day View ──────────────────────────────────────────────────────────────────
-function DayView({ date, appointments, clientMap, procedureMap }: {
-  date: Date;
-  appointments: Appointment[];
-  clientMap: Record<string, Client>;
-  procedureMap: Record<string, Procedure>;
-}) {
+function DayView({ date, appointments }: { date: Date; appointments: Appointment[] }) {
   return (
     <div className="bg-white rounded-2xl border border-brand-100 shadow-card overflow-hidden">
       <div className="px-6 py-4 border-b border-brand-50 text-center">
@@ -244,9 +206,7 @@ function DayView({ date, appointments, clientMap, procedureMap }: {
                 {String(hour).padStart(2, "0")}:00
               </div>
               <div className="flex-1 p-2 space-y-1">
-                {hourApts.map((apt) => (
-                  <AppointmentCard key={apt.id} apt={apt} clientMap={clientMap} procedureMap={procedureMap} />
-                ))}
+                {hourApts.map((apt) => <AppointmentCard key={apt.id} apt={apt} />)}
               </div>
             </div>
           );
@@ -257,11 +217,9 @@ function DayView({ date, appointments, clientMap, procedureMap }: {
 }
 
 // ─── Week View ─────────────────────────────────────────────────────────────────
-function WeekView({ date, appointments, clientMap, procedureMap, selectedDay, onDaySelect }: {
+function WeekView({ date, appointments, selectedDay, onDaySelect }: {
   date: Date;
   appointments: Appointment[];
-  clientMap: Record<string, Client>;
-  procedureMap: Record<string, Procedure>;
   selectedDay: Date | null;
   onDaySelect: (day: Date) => void;
 }) {
@@ -316,7 +274,7 @@ function WeekView({ date, appointments, clientMap, procedureMap, selectedDay, on
               ) : (
                 dayApts
                   .sort((a, b) => new Date(a.scheduledAt).getTime() - new Date(b.scheduledAt).getTime())
-                  .map((apt) => <AppointmentCard key={apt.id} apt={apt} clientMap={clientMap} procedureMap={procedureMap} />)
+                  .map((apt) => <AppointmentCard key={apt.id} apt={apt} />)
               )}
             </button>
           );
@@ -327,11 +285,9 @@ function WeekView({ date, appointments, clientMap, procedureMap, selectedDay, on
 }
 
 // ─── Month View ────────────────────────────────────────────────────────────────
-function MonthView({ date, appointments, clientMap, procedureMap, selectedDay, onDaySelect }: {
+function MonthView({ date, appointments, selectedDay, onDaySelect }: {
   date: Date;
   appointments: Appointment[];
-  clientMap: Record<string, Client>;
-  procedureMap: Record<string, Procedure>;
   selectedDay: Date | null;
   onDaySelect: (day: Date) => void;
 }) {
@@ -381,7 +337,7 @@ function MonthView({ date, appointments, clientMap, procedureMap, selectedDay, o
               </p>
               <div className="space-y-0.5">
                 {dayApts.slice(0, 3).map((apt) => (
-                  <AppointmentCard key={apt.id} apt={apt} compact clientMap={clientMap} procedureMap={procedureMap} />
+                  <AppointmentCard key={apt.id} apt={apt} compact />
                 ))}
                 {dayApts.length > 3 && (
                   <p className="text-xs text-muted-foreground pl-1">+{dayApts.length - 3} mais</p>
@@ -410,11 +366,6 @@ export default function AgendaPage() {
   });
 
   const { appointments: pending, approve, reject } = usePendingApprovals();
-  const { data: clients } = useClients({}, 100);
-  const { procedures } = useProcedures();
-
-  const clientMap = Object.fromEntries(clients.map((c) => [c.id, c]));
-  const procedureMap = Object.fromEntries(procedures.map((p) => [p.id, p]));
 
   function navigate(dir: 1 | -1) {
     setSelectedDay(null);
@@ -426,6 +377,10 @@ export default function AgendaPage() {
   function changeView(v: CalendarView) {
     setView(v);
     setSelectedDay(null);
+  }
+
+  function toggleDay(day: Date) {
+    setSelectedDay((prev) => (prev && isSameDay(prev, day) ? null : day));
   }
 
   function navLabel() {
@@ -467,38 +422,34 @@ export default function AgendaPage() {
               </span>
             </div>
             <div className="space-y-2">
-              {pending.map((apt) => {
-                const client = clientMap[apt.clientId];
-                const procedure = procedureMap[apt.procedureId];
-                return (
-                  <div key={apt.id} className="flex items-center gap-3 bg-white rounded-xl p-3 border border-amber-100">
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-2">
-                        <p className="text-sm font-semibold truncate">{client?.name ?? "—"}</p>
-                        {apt.serviceType && (
-                          <span className={`inline-flex items-center gap-1 text-xs font-medium ${SERVICE_LABEL_COLOR[apt.serviceType]}`}>
-                            <span className={`w-2 h-2 rounded-full ${SERVICE_DOT[apt.serviceType]}`} />
-                            {LASH_SERVICE_TYPE_LABELS[apt.serviceType]}
-                          </span>
-                        )}
-                      </div>
-                      <p className="text-xs text-muted-foreground">
-                        {procedure?.name} • {formatRelativeDate(apt.scheduledAt)}
-                      </p>
+              {pending.map((apt) => (
+                <div key={apt.id} className="flex items-center gap-3 bg-white rounded-xl p-3 border border-amber-100">
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2">
+                      <p className="text-sm font-semibold truncate">{apt.clientName ?? "—"}</p>
+                      {apt.serviceType && (
+                        <span className={`inline-flex items-center gap-1 text-xs font-medium ${SERVICE_LABEL_COLOR[apt.serviceType]}`}>
+                          <span className={`w-2 h-2 rounded-full ${SERVICE_DOT[apt.serviceType]}`} />
+                          {LASH_SERVICE_TYPE_LABELS[apt.serviceType]}
+                        </span>
+                      )}
                     </div>
-                    <div className="flex gap-2 flex-shrink-0">
-                      <Button size="sm" variant="ghost" className="h-7 text-red-600 hover:bg-red-50"
-                        onClick={async () => { await reject(apt.id, "Horário indisponível"); toast({ title: "Agendamento recusado", variant: "destructive" }); }}>
-                        <XCircle className="w-4 h-4" /> Recusar
-                      </Button>
-                      <Button size="sm" className="h-7 bg-emerald-500 hover:bg-emerald-600"
-                        onClick={async () => { await approve(apt.id); toast({ title: "Agendamento aprovado!", variant: "success" }); }}>
-                        <CheckCircle2 className="w-4 h-4" /> Aprovar
-                      </Button>
-                    </div>
+                    <p className="text-xs text-muted-foreground">
+                      {apt.procedureName} • {formatRelativeDate(apt.scheduledAt)}
+                    </p>
                   </div>
-                );
-              })}
+                  <div className="flex gap-2 flex-shrink-0">
+                    <Button size="sm" variant="ghost" className="h-7 text-red-600 hover:bg-red-50"
+                      onClick={async () => { await reject(apt.id, "Horário indisponível"); toast({ title: "Agendamento recusado", variant: "destructive" }); }}>
+                      <XCircle className="w-4 h-4" /> Recusar
+                    </Button>
+                    <Button size="sm" className="h-7 bg-emerald-500 hover:bg-emerald-600"
+                      onClick={async () => { await approve(apt.id); toast({ title: "Agendamento aprovado!", variant: "success" }); }}>
+                      <CheckCircle2 className="w-4 h-4" /> Aprovar
+                    </Button>
+                  </div>
+                </div>
+              ))}
             </div>
           </div>
         )}
@@ -538,37 +489,15 @@ export default function AgendaPage() {
         </div>
 
         {/* Calendar View */}
-        {view === "day" && (
-          <DayView date={currentDate} appointments={appointments} clientMap={clientMap} procedureMap={procedureMap} />
-        )}
-        {view === "week" && (
-          <WeekView
-            date={currentDate}
-            appointments={appointments}
-            clientMap={clientMap}
-            procedureMap={procedureMap}
-            selectedDay={selectedDay}
-            onDaySelect={(day) => setSelectedDay(isSameDay(day, selectedDay ?? new Date(-1)) ? null : day)}
-          />
-        )}
-        {view === "month" && (
-          <MonthView
-            date={currentDate}
-            appointments={appointments}
-            clientMap={clientMap}
-            procedureMap={procedureMap}
-            selectedDay={selectedDay}
-            onDaySelect={(day) => setSelectedDay(isSameDay(day, selectedDay ?? new Date(-1)) ? null : day)}
-          />
-        )}
+        {view === "day" && <DayView date={currentDate} appointments={appointments} />}
+        {view === "week" && <WeekView date={currentDate} appointments={appointments} selectedDay={selectedDay} onDaySelect={toggleDay} />}
+        {view === "month" && <MonthView date={currentDate} appointments={appointments} selectedDay={selectedDay} onDaySelect={toggleDay} />}
 
         {/* Appointment list below calendar (month + week) */}
         {view !== "day" && (
           <AppointmentListSection
             appointments={appointments}
             selectedDay={selectedDay}
-            clientMap={clientMap}
-            procedureMap={procedureMap}
             onClearDay={() => setSelectedDay(null)}
           />
         )}

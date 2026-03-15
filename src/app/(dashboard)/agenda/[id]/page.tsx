@@ -26,8 +26,7 @@ import {
   Scissors,
 } from "lucide-react";
 import Link from "next/link";
-import { clientService, procedureService } from "@/services";
-import type { Appointment, Client, Procedure } from "@/domain/entities";
+import type { Appointment } from "@/domain/entities";
 import type { Payment } from "@/domain/entities";
 import type { AppointmentStatus, LashServiceType } from "@/domain/enums";
 import type { PaymentMethod } from "@/domain/enums";
@@ -47,8 +46,6 @@ export default function AgendamentoDetailPage() {
   const { id } = useParams<{ id: string }>();
   const [apt, setApt] = useState<Appointment | null>(null);
   const [payment, setPayment] = useState<Payment | null>(null);
-  const [client, setClient] = useState<Client | null>(null);
-  const [procedure, setProcedure] = useState<Procedure | null>(null);
   const [loading, setLoading] = useState(true);
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>("pix");
   const [savingPayment, setSavingPayment] = useState(false);
@@ -58,14 +55,8 @@ export default function AgendamentoDetailPage() {
       const a = await appointmentService.getAppointmentById(id);
       if (!a) { setLoading(false); return; }
       setApt(a);
-      const [p, c, proc] = await Promise.all([
-        paymentService.getPaymentByAppointmentId(a.id).catch(() => null),
-        clientService.getClientById(a.clientId).catch(() => null),
-        procedureService.getProcedureById(a.procedureId).catch(() => null),
-      ]);
+      const p = await paymentService.getPaymentByAppointmentId(a.id).catch(() => null);
       setPayment(p);
-      setClient(c);
-      setProcedure(proc);
       setLoading(false);
     }
     load();
@@ -137,14 +128,14 @@ export default function AgendamentoDetailPage() {
             <h3 className="font-semibold mb-5 flex items-center gap-2 text-brand-700 text-base">
               <User className="w-4 h-4" /> Cliente
             </h3>
-            {client ? (
-              <Link href={`/clientes/${client.id}`} className="flex items-center gap-4 hover:bg-brand-50 rounded-xl p-3 -mx-3 transition-colors">
+            {apt.clientName ? (
+              <Link href={`/clientes/${apt.clientId}`} className="flex items-center gap-4 hover:bg-brand-50 rounded-xl p-3 -mx-3 transition-colors">
                 <div className="w-12 h-12 rounded-full bg-gradient-brand flex items-center justify-center text-white text-lg font-bold flex-shrink-0">
-                  {client.name.charAt(0)}
+                  {apt.clientName.charAt(0)}
                 </div>
                 <div>
-                  <p className="font-semibold text-base">{client.name}</p>
-                  <p className="text-sm text-muted-foreground mt-0.5">{client.phone}</p>
+                  <p className="font-semibold text-base">{apt.clientName}</p>
+                  {apt.clientPhone && <p className="text-sm text-muted-foreground mt-0.5">{apt.clientPhone}</p>}
                 </div>
               </Link>
             ) : <p className="text-muted-foreground">—</p>}
@@ -172,9 +163,9 @@ export default function AgendamentoDetailPage() {
               <h3 className="font-semibold mb-4 flex items-center gap-2 text-brand-700 text-base">
                 <Sparkles className="w-4 h-4" /> Procedimento
               </h3>
-              {procedure ? (
+              {apt.procedureName ? (
                 <div className="space-y-3">
-                  <p className="font-semibold text-lg leading-tight">{procedure.name}</p>
+                  <p className="font-semibold text-lg leading-tight">{apt.procedureName}</p>
 
                   <div className="flex items-center justify-between pt-1">
                     <div className="flex items-center gap-1.5 text-sm text-muted-foreground">

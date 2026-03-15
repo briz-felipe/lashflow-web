@@ -3,7 +3,10 @@ import type { AppointmentStatus, LashServiceType } from "../enums";
 export interface Appointment {
   id: string;
   clientId: string;
+  clientName?: string;
+  clientPhone?: string;
   procedureId: string;
+  procedureName?: string;
   paymentId?: string;
 
   serviceType?: LashServiceType;
