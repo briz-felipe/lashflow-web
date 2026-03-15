@@ -7,7 +7,12 @@ class ApiClient {
   private refreshing: Promise<boolean> | null = null;
 
   constructor(baseURL: string) {
-    this.baseURL = baseURL;
+    // Upgrade http → https when page is served over HTTPS (avoids mixed-content blocks)
+    if (typeof window !== "undefined" && window.location.protocol === "https:") {
+      this.baseURL = baseURL.replace(/^http:\/\//, "https://");
+    } else {
+      this.baseURL = baseURL;
+    }
   }
 
   private headers(extra?: HeadersInit): HeadersInit {
