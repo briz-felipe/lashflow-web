@@ -20,7 +20,9 @@ class ApiClient {
   }
 
   private async request<T>(path: string, options: RequestInit = {}): Promise<T> {
-    const res = await fetch(`${this.baseURL}${path}`, {
+    const fullUrl = `${this.baseURL}${path}`;
+    console.log(`[api] ${options.method ?? "GET"} ${fullUrl}`);
+    const res = await fetch(fullUrl, {
       ...options,
       headers: this.headers(options.headers),
     });
