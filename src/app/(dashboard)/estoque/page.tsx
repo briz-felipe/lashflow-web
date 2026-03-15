@@ -378,7 +378,7 @@ export default function EstoquePage() {
                       </div>
                       <span className="text-xs text-muted-foreground">{formatDate(mov.date)}</span>
                     </div>
-                    <p className="text-sm font-medium mt-2">{mat?.name ?? "—"}</p>
+                    <p className="text-sm font-medium mt-2">{mov.materialName ?? mat?.name ?? "—"}</p>
                     {mov.notes && <p className="text-xs text-muted-foreground">{mov.notes}</p>}
                     <div className="flex items-center justify-between mt-2 pt-2 border-t border-brand-50">
                       <span className={`text-sm font-bold ${MOVEMENT_COLOR[mov.type]}`}>
@@ -426,7 +426,7 @@ export default function EstoquePage() {
                             </div>
                           </td>
                           <td className="px-4 py-3 text-sm">
-                            {mat?.name ?? "—"}
+                            {mov.materialName ?? mat?.name ?? "—"}
                             {mov.notes && <p className="text-xs text-muted-foreground">{mov.notes}</p>}
                           </td>
                           <td className="px-4 py-3 text-center text-sm font-semibold">

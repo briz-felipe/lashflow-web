@@ -3,6 +3,7 @@ import type { StockMovementType } from "../enums";
 export interface StockMovement {
   id: string;
   materialId: string;
+  materialName?: string;
   type: StockMovementType;
   quantity: number;
   unitCostInCents: number;

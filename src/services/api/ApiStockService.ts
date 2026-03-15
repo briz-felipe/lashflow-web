@@ -8,8 +8,9 @@ export class ApiStockService implements IStockService {
     const params = new URLSearchParams();
     if (filters?.category) params.set("category", filters.category);
     if (filters?.search) params.set("search", filters.search);
-    if (filters?.lowStock) params.set("lowStock", "true");
-    return api.get(`/stock/materials/?${params}`);
+    if (filters?.lowStock) params.set("low_stock", "true");
+    const qs = params.toString();
+    return api.get(`/stock/materials${qs ? `?${qs}` : ""}`);
   }
 
   getMaterialById(id: string): Promise<Material | null> {
@@ -17,7 +18,7 @@ export class ApiStockService implements IStockService {
   }
 
   createMaterial(input: CreateMaterialInput): Promise<Material> {
-    return api.post("/stock/materials/", input);
+    return api.post("/stock/materials", input);
   }
 
   updateMaterial(id: string, input: UpdateMaterialInput): Promise<Material> {
@@ -30,14 +31,15 @@ export class ApiStockService implements IStockService {
 
   async listMovements(filters?: { materialId?: string; from?: Date; to?: Date }): Promise<StockMovement[]> {
     const params = new URLSearchParams();
-    if (filters?.materialId) params.set("materialId", filters.materialId);
+    if (filters?.materialId) params.set("material_id", filters.materialId);
     if (filters?.from) params.set("from", filters.from.toISOString());
     if (filters?.to) params.set("to", filters.to.toISOString());
-    return api.get(`/stock/movements/?${params}`);
+    const qs = params.toString();
+    return api.get(`/stock/movements${qs ? `?${qs}` : ""}`);
   }
 
   createMovement(input: CreateStockMovementInput): Promise<StockMovement> {
-    return api.post("/stock/movements/", input);
+    return api.post("/stock/movements", input);
   }
 
   getLowStockAlerts(): Promise<StockAlert[]> {
