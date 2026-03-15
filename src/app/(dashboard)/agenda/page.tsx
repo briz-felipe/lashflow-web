@@ -148,8 +148,14 @@ function AppointmentListSection({
   selectedDay: Date | null;
   onClearDay: () => void;
 }) {
+  console.log("[agenda] appointments total:", appointments.length, "selectedDay:", selectedDay);
+
   const filtered = selectedDay
-    ? appointments.filter((a) => isSameDay(new Date(a.scheduledAt), selectedDay))
+    ? appointments.filter((a) => {
+        const match = isSameDay(new Date(a.scheduledAt), selectedDay);
+        console.log("[agenda] filter", a.scheduledAt, "→", match);
+        return match;
+      })
     : [...appointments].sort((a, b) => new Date(a.scheduledAt).getTime() - new Date(b.scheduledAt).getTime());
 
   const title = selectedDay
