@@ -101,18 +101,16 @@ export const LASH_SERVICE_TYPE_LABELS: Record<LashServiceType, string> = {
 // ── Stock / Materials ──
 
 export type MaterialCategory =
-  | "acessorios"
+  | "cilios"
+  | "cola"
   | "descartaveis"
-  | "essenciais"
-  | "opcionais"
-  | "quimicos";
+  | "outros";
 
 export const MATERIAL_CATEGORY_LABELS: Record<MaterialCategory, string> = {
-  acessorios: "Acessórios",
+  cilios: "Cílios",
+  cola: "Cola",
   descartaveis: "Descartáveis",
-  essenciais: "Essenciais",
-  opcionais: "Opcionais",
-  quimicos: "Químicos",
+  outros: "Outros",
 };
 
 export type MaterialUnit =
