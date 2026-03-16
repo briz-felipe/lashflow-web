@@ -10,7 +10,7 @@ export class ApiExpenseService implements IExpenseService {
     if (filters?.category) params.set("category", filters.category);
     if (filters?.isPaid !== undefined) params.set("is_paid", String(filters.isPaid));
     const qs = params.toString();
-    return api.get(`/expenses${qs ? `?${qs}` : ""}`);
+    return api.get(`/expenses/${qs ? `?${qs}` : ""}`);
   }
 
   getExpenseById(id: string): Promise<Expense | null> {
@@ -18,7 +18,7 @@ export class ApiExpenseService implements IExpenseService {
   }
 
   createExpense(input: CreateExpenseInput): Promise<Expense> {
-    return api.post("/expenses", input);
+    return api.post("/expenses/", input);
   }
 
   updateExpense(id: string, input: UpdateExpenseInput): Promise<Expense> {
