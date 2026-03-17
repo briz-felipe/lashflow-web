@@ -12,7 +12,7 @@ export class ApiProcedureService implements IProcedureService {
   }
 
   createProcedure(input: CreateProcedureInput): Promise<Procedure> {
-    return api.post("/procedures", input);
+    return api.post("/procedures/", input);
   }
 
   updateProcedure(id: string, input: UpdateProcedureInput): Promise<Procedure> {
