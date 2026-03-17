@@ -193,6 +193,7 @@ function AppointmentListSection({
 
 // ─── Day View ──────────────────────────────────────────────────────────────────
 function DayView({ date, appointments }: { date: Date; appointments: Appointment[] }) {
+  const dayApts = appointments.filter((a) => isSameDay(new Date(a.scheduledAt), date));
   return (
     <div className="bg-white rounded-2xl border border-brand-100 shadow-card overflow-hidden">
       <div className="px-6 py-4 border-b border-brand-50 text-center">
@@ -205,7 +206,7 @@ function DayView({ date, appointments }: { date: Date; appointments: Appointment
       </div>
       <div className="overflow-y-auto max-h-[600px]">
         {HOURS.map((hour) => {
-          const hourApts = appointments.filter((a) => getHours(new Date(a.scheduledAt)) === hour);
+          const hourApts = dayApts.filter((a) => getHours(new Date(a.scheduledAt)) === hour);
           return (
             <div key={hour} className="flex border-b border-brand-50 last:border-0 min-h-[64px]">
               <div className="w-16 flex-shrink-0 px-3 py-2 text-xs text-muted-foreground font-medium text-right border-r border-brand-50">
