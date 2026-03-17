@@ -31,6 +31,9 @@ import type { Payment } from "@/domain/entities";
 import type { AppointmentStatus, LashServiceType } from "@/domain/enums";
 import type { PaymentMethod } from "@/domain/enums";
 import { PAYMENT_METHOD_LABELS, LASH_SERVICE_TYPE_LABELS } from "@/domain/enums";
+import { REMINDER_TEMPLATES } from "@/domain/entities/reminder";
+import { WhatsAppReminderService } from "@/services/WhatsAppReminderService";
+import { MessageCircle, ChevronDown } from "lucide-react";
 
 const SERVICE_TYPE_CONFIG: Record<LashServiceType, { bg: string; text: string; icon: React.ReactNode }> = {
   application: { bg: "bg-brand-50 border-brand-200",     text: "text-brand-700",   icon: <Sparkles className="w-3.5 h-3.5" /> },
@@ -49,6 +52,7 @@ export default function AgendamentoDetailPage() {
   const [loading, setLoading] = useState(true);
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>("pix");
   const [savingPayment, setSavingPayment] = useState(false);
+  const [reminderOpen, setReminderOpen] = useState(false);
 
   useEffect(() => {
     async function load() {
@@ -136,15 +140,58 @@ export default function AgendamentoDetailPage() {
               <User className="w-4 h-4" /> Cliente
             </h3>
             {apt.clientName ? (
-              <Link href={`/clientes/${apt.clientId}`} className="flex items-center gap-4 hover:bg-brand-50 rounded-xl p-3 -mx-3 transition-colors">
-                <div className="w-12 h-12 rounded-full bg-gradient-brand flex items-center justify-center text-white text-lg font-bold flex-shrink-0">
-                  {apt.clientName.charAt(0)}
-                </div>
-                <div>
-                  <p className="font-semibold text-base">{apt.clientName}</p>
-                  {apt.clientPhone && <p className="text-sm text-muted-foreground mt-0.5">{apt.clientPhone}</p>}
-                </div>
-              </Link>
+              <div className="space-y-3">
+                <Link href={`/clientes/${apt.clientId}`} className="flex items-center gap-4 hover:bg-brand-50 rounded-xl p-3 -mx-3 transition-colors">
+                  <div className="w-12 h-12 rounded-full bg-gradient-brand flex items-center justify-center text-white text-lg font-bold flex-shrink-0">
+                    {apt.clientName.charAt(0)}
+                  </div>
+                  <div>
+                    <p className="font-semibold text-base">{apt.clientName}</p>
+                    {apt.clientPhone && <p className="text-sm text-muted-foreground mt-0.5">{apt.clientPhone}</p>}
+                  </div>
+                </Link>
+
+                {apt.clientPhone && apt.status !== "cancelled" && apt.status !== "no_show" && (
+                  <div className="relative">
+                    <Button
+                      variant="outline"
+                      className="w-full border-green-200 text-green-700 hover:bg-green-50 hover:border-green-300 gap-2"
+                      onClick={() => setReminderOpen((o) => !o)}
+                    >
+                      <MessageCircle className="w-4 h-4" />
+                      Lembrete via WhatsApp
+                      <ChevronDown className={`w-3.5 h-3.5 ml-auto transition-transform ${reminderOpen ? "rotate-180" : ""}`} />
+                    </Button>
+
+                    {reminderOpen && (
+                      <div className="absolute z-20 top-full left-0 right-0 mt-1 bg-white rounded-xl border border-brand-100 shadow-lg overflow-hidden">
+                        {REMINDER_TEMPLATES.map((tpl) => {
+                          const vars = WhatsAppReminderService.buildVariables({
+                            clientName: apt.clientName!,
+                            scheduledAt: apt.scheduledAt,
+                            procedure: apt.procedureName ?? "procedimento",
+                            durationMinutes: apt.durationMinutes,
+                          });
+                          const url = WhatsAppReminderService.getLink(apt.clientPhone!, tpl, vars);
+                          return (
+                            <a
+                              key={tpl.id}
+                              href={url}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              onClick={() => setReminderOpen(false)}
+                              className="flex flex-col px-4 py-3 hover:bg-green-50 transition-colors border-b last:border-0 border-brand-50"
+                            >
+                              <span className="text-sm font-medium text-foreground">{tpl.name}</span>
+                              <span className="text-xs text-muted-foreground mt-0.5">{tpl.description}</span>
+                            </a>
+                          );
+                        })}
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
             ) : <p className="text-muted-foreground">—</p>}
           </div>
 

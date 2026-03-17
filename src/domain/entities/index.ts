@@ -7,3 +7,5 @@ export type { Anamnesis, CreateAnamnesisInput, LashMapping, AnamnesisHairLoss, A
 export type { Material, CreateMaterialInput, UpdateMaterialInput } from "./material";
 export type { StockMovement, CreateStockMovementInput } from "./stock-movement";
 export type { Expense, CreateExpenseInput, UpdateExpenseInput } from "./expense";
+export type { ReminderTemplate, ReminderVariables } from "./reminder";
+export { REMINDER_TEMPLATES } from "./reminder";
