@@ -462,8 +462,24 @@ export default function AgendaPage() {
         )}
 
         {/* Calendar Controls */}
-        <div className="flex flex-col sm:flex-row sm:items-center gap-3">
-          <div className="flex items-center gap-2 flex-1 justify-between sm:justify-start">
+        <div className="flex flex-col gap-2">
+          {/* View switcher — full width on mobile, auto on desktop */}
+          <div className="grid grid-cols-3 rounded-xl border border-brand-100 overflow-hidden bg-white">
+            {(["day", "week", "month"] as CalendarView[]).map((v) => (
+              <button
+                key={v}
+                onClick={() => changeView(v)}
+                className={`py-2 text-sm font-medium transition-colors border-r last:border-r-0 border-brand-100 ${
+                  view === v ? "bg-brand-500 text-white" : "text-muted-foreground hover:bg-brand-50"
+                }`}
+              >
+                {v === "day" ? "Dia" : v === "week" ? "Semana" : "Mês"}
+              </button>
+            ))}
+          </div>
+
+          {/* Navigation row */}
+          <div className="flex items-center justify-between">
             <Button variant="ghost" size="icon" onClick={() => navigate(-1)}>
               <ChevronLeft className="w-4 h-4" />
             </Button>
@@ -476,20 +492,6 @@ export default function AgendaPage() {
             <Button variant="ghost" size="icon" onClick={() => navigate(1)}>
               <ChevronRight className="w-4 h-4" />
             </Button>
-          </div>
-
-          <div className="flex rounded-xl border border-brand-100 overflow-hidden bg-white self-start sm:self-auto">
-            {(["day", "week", "month"] as CalendarView[]).map((v) => (
-              <button
-                key={v}
-                onClick={() => changeView(v)}
-                className={`px-3 sm:px-4 py-2 text-sm font-medium transition-colors border-r last:border-r-0 border-brand-100 ${
-                  view === v ? "bg-brand-500 text-white" : "text-muted-foreground hover:bg-brand-50"
-                }`}
-              >
-                {v === "day" ? "Dia" : v === "week" ? "Sem" : "Mês"}
-              </button>
-            ))}
           </div>
         </div>
 

@@ -7,6 +7,10 @@ export function middleware(req: NextRequest) {
     return NextResponse.redirect(new URL("/login", req.url));
   }
 
+  if (req.nextUrl.pathname === "/") {
+    return NextResponse.redirect(new URL("/agenda", req.url));
+  }
+
   return NextResponse.next();
 }
 

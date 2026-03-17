@@ -22,7 +22,7 @@ export default function LoginPage() {
     setLoading(true);
     try {
       await login(username, password);
-      router.push("/");
+      router.push("/agenda");
     } catch (err) {
       setError(err instanceof Error ? err.message : "Erro ao fazer login");
     } finally {
