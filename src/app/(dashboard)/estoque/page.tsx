@@ -23,7 +23,7 @@ import {
   MATERIAL_CATEGORY_LABELS, MATERIAL_UNIT_LABELS, STOCK_MOVEMENT_TYPE_LABELS,
 } from "@/domain/enums";
 
-const CATEGORIES: MaterialCategory[] = ["essenciais", "acessorios", "descartaveis", "quimicos", "opcionais"];
+const CATEGORIES: MaterialCategory[] = ["cilios", "cola", "descartaveis", "outros"];
 const UNITS: MaterialUnit[] = ["un", "pacote", "caixa", "ml", "g", "par", "rolo", "kit"];
 
 const MOVEMENT_ICON: Record<StockMovementType, React.ReactNode> = {
