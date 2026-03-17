@@ -353,6 +353,7 @@ function NovoAgendamentoContent() {
         serviceType: form.serviceType as LashServiceType,
         priceCharged: selectedProcedure?.priceInCents,
         notes: form.notes || undefined,
+        status: "confirmed",
       });
       toast({ title: "Agendamento criado!", variant: "success" });
       router.push(`/agenda/${apt.id}`);

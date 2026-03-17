@@ -19,7 +19,8 @@ export class ApiAppointmentService implements IAppointmentService {
   }
 
   createAppointment(input: CreateAppointmentInput): Promise<Appointment> {
-    return api.post("/appointments/", input);
+    const { status, ...rest } = input;
+    return api.post("/appointments/", { ...rest, ...(status ? { status } : {}) });
   }
 
   updateAppointmentStatus(

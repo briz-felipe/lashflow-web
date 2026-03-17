@@ -34,4 +34,5 @@ export type CreateAppointmentInput = {
   serviceType?: LashServiceType;
   priceCharged?: number;
   notes?: string;
+  status?: AppointmentStatus;
 };
