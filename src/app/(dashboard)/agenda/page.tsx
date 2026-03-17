@@ -411,7 +411,7 @@ export default function AgendaPage() {
         <PageHeader
           title="Agenda"
           action={
-            <Link href="/agenda/novo">
+            <Link href={`/agenda/novo?date=${format(currentDate, "yyyy-MM-dd")}`}>
               <Button>
                 <Plus className="w-4 h-4" />
                 Novo Agendamento

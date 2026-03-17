@@ -12,13 +12,15 @@ import { useAppointments } from "@/hooks/useAppointments";
 import { useProcedures } from "@/hooks/useProcedures";
 import { useClients } from "@/hooks/useClients";
 import { toast } from "@/components/ui/toaster";
-import { ArrowLeft, Save, Calendar, User, Sparkles, RefreshCw, X, Search, CheckCircle2 } from "lucide-react";
+import { ArrowLeft, Save, Calendar, User, Sparkles, RefreshCw, X, Search, CheckCircle2, UserPlus } from "lucide-react";
 import Link from "next/link";
 import { formatCurrency, formatPhone } from "@/lib/formatters";
 import type { LashServiceType } from "@/domain/enums";
 import { LASH_SERVICE_TYPE_LABELS } from "@/domain/enums";
 import { computeCycle } from "@/components/clients/LashFlowStatus";
 import type { Client } from "@/domain/entities";
+import { clientService } from "@/services";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 
 const REMOVAL_PROC_ID = "proc-007";
 
@@ -52,6 +54,94 @@ const SERVICE_TYPES: Array<{
   },
 ];
 
+// ─── Quick register modal ──────────────────────────────────────────────────────
+function QuickRegisterModal({
+  open,
+  initialName,
+  onClose,
+  onCreated,
+}: {
+  open: boolean;
+  initialName: string;
+  onClose: () => void;
+  onCreated: (c: Client) => void;
+}) {
+  const [name, setName] = useState(initialName);
+  const [phone, setPhone] = useState("");
+  const [saving, setSaving] = useState(false);
+
+  // Sync initial name when modal opens
+  useEffect(() => {
+    if (open) {
+      setName(initialName);
+      setPhone("");
+    }
+  }, [open, initialName]);
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!name.trim() || !phone.trim()) return;
+    setSaving(true);
+    try {
+      const created = await clientService.createClient({ name: name.trim(), phone: phone.trim() });
+      toast({ title: `${created.name} cadastrada!`, variant: "success" });
+      onCreated(created);
+    } catch {
+      toast({ title: "Erro ao cadastrar cliente", variant: "destructive" });
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <Dialog open={open} onOpenChange={(o) => { if (!o) onClose(); }}>
+      <DialogContent className="max-w-sm">
+        <DialogHeader>
+          <DialogTitle className="flex items-center gap-2">
+            <UserPlus className="w-4 h-4 text-brand-500" />
+            Cadastro Rápido
+          </DialogTitle>
+        </DialogHeader>
+        <p className="text-sm text-muted-foreground -mt-2">
+          Preencha nome e telefone. Os demais dados podem ser adicionados depois na aba de clientes.
+        </p>
+        <form onSubmit={handleSubmit} className="space-y-4 mt-2">
+          <div>
+            <Label htmlFor="qr-name">Nome *</Label>
+            <Input
+              id="qr-name"
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              placeholder="Nome da cliente"
+              className="mt-1.5 h-11"
+              autoFocus
+            />
+          </div>
+          <div>
+            <Label htmlFor="qr-phone">Telefone / WhatsApp *</Label>
+            <Input
+              id="qr-phone"
+              value={phone}
+              onChange={(e) => setPhone(e.target.value)}
+              placeholder="(11) 99999-9999"
+              className="mt-1.5 h-11"
+              type="tel"
+            />
+          </div>
+          <div className="flex gap-3 pt-1">
+            <Button type="button" variant="outline" className="flex-1" onClick={onClose}>
+              Cancelar
+            </Button>
+            <Button type="submit" className="flex-1" disabled={saving || !name.trim() || !phone.trim()}>
+              {saving ? "Cadastrando..." : "Cadastrar"}
+            </Button>
+          </div>
+        </form>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
 // ─── Client search combobox ───────────────────────────────────────────────────
 function ClientSearch({
   selected,
@@ -62,6 +152,7 @@ function ClientSearch({
 }) {
   const [query, setQuery] = useState("");
   const [open, setOpen] = useState(false);
+  const [modalOpen, setModalOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
 
   const { data: results } = useClients(
@@ -100,48 +191,81 @@ function ClientSearch({
   }
 
   return (
-    <div ref={ref} className="relative">
-      <div className="relative">
-        <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground pointer-events-none" />
-        <Input
-          value={query}
-          onChange={(e) => { setQuery(e.target.value); setOpen(true); }}
-          onFocus={() => setOpen(true)}
-          placeholder="Buscar por nome ou telefone..."
-          className="pl-9"
-          autoComplete="off"
-        />
-      </div>
-      {open && (query.length >= 1 || results.length > 0) && (
-        <div className="absolute z-50 top-full mt-1 w-full bg-white rounded-xl border border-brand-100 shadow-card-hover overflow-hidden max-h-56 overflow-y-auto">
-          {results.length === 0 ? (
-            <p className="text-sm text-muted-foreground px-4 py-3">Nenhuma cliente encontrada</p>
-          ) : (
-            results.map((c) => (
-              <button
-                key={c.id}
-                type="button"
-                className="w-full flex items-center gap-3 px-4 py-2.5 hover:bg-brand-50 transition-colors text-left"
-                onMouseDown={(e) => {
-                  e.preventDefault();
-                  onSelect(c);
-                  setQuery("");
-                  setOpen(false);
-                }}
-              >
-                <div className="w-7 h-7 rounded-full bg-gradient-brand flex items-center justify-center text-white text-xs font-bold flex-shrink-0">
-                  {c.name.charAt(0)}
-                </div>
-                <div className="min-w-0 flex-1">
-                  <p className="text-sm font-medium truncate">{c.name}</p>
-                  <p className="text-xs text-muted-foreground">{formatPhone(c.phone)}</p>
-                </div>
-              </button>
-            ))
-          )}
+    <>
+      <div ref={ref} className="relative">
+        <div className="relative">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground pointer-events-none" />
+          <Input
+            value={query}
+            onChange={(e) => { setQuery(e.target.value); setOpen(true); }}
+            onFocus={() => setOpen(true)}
+            placeholder="Buscar por nome ou telefone..."
+            className="pl-9"
+            autoComplete="off"
+          />
         </div>
-      )}
-    </div>
+        {open && query.length >= 1 && (
+          <div className="absolute z-50 top-full mt-1 w-full bg-white rounded-xl border border-brand-100 shadow-card-hover overflow-hidden max-h-64 overflow-y-auto">
+            {results.length === 0 ? (
+              <div className="px-4 py-3 text-sm text-muted-foreground">
+                Nenhuma cliente encontrada para &ldquo;{query}&rdquo;
+              </div>
+            ) : (
+              results.map((c) => (
+                <button
+                  key={c.id}
+                  type="button"
+                  className="w-full flex items-center gap-3 px-4 py-2.5 hover:bg-brand-50 transition-colors text-left"
+                  onMouseDown={(e) => {
+                    e.preventDefault();
+                    onSelect(c);
+                    setQuery("");
+                    setOpen(false);
+                  }}
+                >
+                  <div className="w-7 h-7 rounded-full bg-gradient-brand flex items-center justify-center text-white text-xs font-bold flex-shrink-0">
+                    {c.name.charAt(0)}
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <p className="text-sm font-medium truncate">{c.name}</p>
+                    <p className="text-xs text-muted-foreground">{formatPhone(c.phone)}</p>
+                  </div>
+                </button>
+              ))
+            )}
+            {/* Always show the "register new" option when typing */}
+            <button
+              type="button"
+              className="w-full flex items-center gap-3 px-4 py-3 hover:bg-brand-50 transition-colors text-left border-t border-brand-50"
+              onMouseDown={(e) => {
+                e.preventDefault();
+                setOpen(false);
+                setModalOpen(true);
+              }}
+            >
+              <div className="w-7 h-7 rounded-full bg-brand-100 flex items-center justify-center flex-shrink-0">
+                <UserPlus className="w-3.5 h-3.5 text-brand-600" />
+              </div>
+              <div className="min-w-0 flex-1">
+                <p className="text-sm font-semibold text-brand-700">Cadastrar nova cliente</p>
+                <p className="text-xs text-muted-foreground">Cadastro rápido com nome e telefone</p>
+              </div>
+            </button>
+          </div>
+        )}
+      </div>
+
+      <QuickRegisterModal
+        open={modalOpen}
+        initialName={query}
+        onClose={() => setModalOpen(false)}
+        onCreated={(c) => {
+          onSelect(c);
+          setQuery("");
+          setModalOpen(false);
+        }}
+      />
+    </>
   );
 }
 
@@ -158,6 +282,7 @@ function NovoAgendamentoContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const prefilledClientId = searchParams.get("clientId") ?? "";
+  const prefilledDate = searchParams.get("date") ?? "";
 
   const { createAppointment } = useAppointments();
   const { procedures } = useProcedures(true);
@@ -168,7 +293,7 @@ function NovoAgendamentoContent() {
   const [form, setForm] = useState({
     procedureId: "",
     serviceType: "" as LashServiceType | "",
-    date: "",
+    date: prefilledDate,
     time: "09:00",
     notes: "",
   });
@@ -364,25 +489,25 @@ function NovoAgendamentoContent() {
                 <h2 className="font-semibold mb-5 flex items-center gap-2 text-brand-700 text-base">
                   <Calendar className="w-4 h-4" /> Data e Hora *
                 </h2>
-                <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-4">
                   <div>
-                    <Label htmlFor="date">Data</Label>
+                    <Label htmlFor="date" className="text-sm font-medium text-muted-foreground">Data</Label>
                     <Input
                       id="date"
                       type="date"
                       value={form.date}
                       onChange={(e) => setForm((f) => ({ ...f, date: e.target.value }))}
-                      className="mt-1.5"
+                      className="mt-1.5 h-12 text-base"
                     />
                   </div>
                   <div>
-                    <Label htmlFor="time">Hora</Label>
+                    <Label htmlFor="time" className="text-sm font-medium text-muted-foreground">Horário</Label>
                     <Input
                       id="time"
                       type="time"
                       value={form.time}
                       onChange={(e) => setForm((f) => ({ ...f, time: e.target.value }))}
-                      className="mt-1.5"
+                      className="mt-1.5 h-12 text-base"
                     />
                   </div>
                 </div>
