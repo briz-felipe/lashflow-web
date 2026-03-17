@@ -360,7 +360,7 @@ function MonthView({ date, appointments, selectedDay, onDaySelect }: {
 
 // ─── Main Page ─────────────────────────────────────────────────────────────────
 export default function AgendaPage() {
-  const [view, setView] = useState<CalendarView>("day");
+  const [view, setView] = useState<CalendarView>("month");
   const [currentDate, setCurrentDate] = useState(new Date());
   const [selectedDay, setSelectedDay] = useState<Date | null>(null);
 
@@ -411,7 +411,7 @@ export default function AgendaPage() {
         <PageHeader
           title="Agenda"
           action={
-            <Link href={`/agenda/novo?date=${format(currentDate, "yyyy-MM-dd")}`}>
+            <Link href={`/agenda/novo?date=${format(selectedDay ?? currentDate, "yyyy-MM-dd")}`}>
               <Button>
                 <Plus className="w-4 h-4" />
                 Novo Agendamento
