@@ -10,6 +10,7 @@ import { Badge } from "@/components/ui/badge";
 import { toast } from "@/components/ui/toaster";
 import { useSettings } from "@/hooks/useSettings";
 import { Settings, Clock, Link2, Copy, Check, Trash2, Plus } from "lucide-react";
+import { WhatsAppTemplatesSection } from "@/components/settings/WhatsAppTemplatesSection";
 
 const DAY_NAMES = ["Dom", "Seg", "Ter", "Qua", "Qui", "Sex", "Sáb"];
 const ALL_DAYS: (0 | 1 | 2 | 3 | 4 | 5 | 6)[] = [1, 2, 3, 4, 5, 6, 0];
@@ -246,6 +247,8 @@ export default function ConfiguracoesPage() {
             </div>
           )}
         </div>
+
+        <WhatsAppTemplatesSection />
       </div>
     </div>
   );

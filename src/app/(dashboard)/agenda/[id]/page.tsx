@@ -33,6 +33,7 @@ import type { PaymentMethod } from "@/domain/enums";
 import { PAYMENT_METHOD_LABELS, LASH_SERVICE_TYPE_LABELS } from "@/domain/enums";
 import { REMINDER_TEMPLATES } from "@/domain/entities/reminder";
 import { WhatsAppReminderService } from "@/services/WhatsAppReminderService";
+import { useWhatsAppTemplates } from "@/hooks/useWhatsAppTemplates";
 import { MessageCircle, ChevronDown } from "lucide-react";
 
 const SERVICE_TYPE_CONFIG: Record<LashServiceType, { bg: string; text: string; icon: React.ReactNode }> = {
@@ -53,6 +54,9 @@ export default function AgendamentoDetailPage() {
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>("pix");
   const [savingPayment, setSavingPayment] = useState(false);
   const [reminderOpen, setReminderOpen] = useState(false);
+  const { templates: apiTemplates } = useWhatsAppTemplates();
+  // Use API templates if available, fall back to built-in ones
+  const reminderTemplates = apiTemplates.length > 0 ? apiTemplates : REMINDER_TEMPLATES;
 
   useEffect(() => {
     async function load() {
@@ -165,14 +169,15 @@ export default function AgendamentoDetailPage() {
 
                     {reminderOpen && (
                       <div className="absolute z-20 top-full left-0 right-0 mt-1 bg-white rounded-xl border border-brand-100 shadow-lg overflow-hidden">
-                        {REMINDER_TEMPLATES.map((tpl) => {
+                        {reminderTemplates.map((tpl) => {
                           const vars = WhatsAppReminderService.buildVariables({
                             clientName: apt.clientName!,
                             scheduledAt: apt.scheduledAt,
                             procedure: apt.procedureName ?? "procedimento",
                             durationMinutes: apt.durationMinutes,
                           });
-                          const url = WhatsAppReminderService.getLink(apt.clientPhone!, tpl, vars);
+                          const message = WhatsAppReminderService.interpolate(tpl.message, vars);
+                          const url = WhatsAppReminderService.buildUrl(apt.clientPhone!, message);
                           return (
                             <a
                               key={tpl.id}

@@ -9,3 +9,5 @@ export type { StockMovement, CreateStockMovementInput } from "./stock-movement";
 export type { Expense, CreateExpenseInput, UpdateExpenseInput } from "./expense";
 export type { ReminderTemplate, ReminderVariables } from "./reminder";
 export { REMINDER_TEMPLATES } from "./reminder";
+export type { WhatsAppTemplate, CreateWhatsAppTemplateInput, UpdateWhatsAppTemplateInput, TemplateVariables } from "./whatsapp-template";
+export { TEMPLATE_VARIABLE_LABELS } from "./whatsapp-template";
