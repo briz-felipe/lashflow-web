@@ -2,14 +2,12 @@
 
 import { useState } from "react";
 import { Topbar } from "@/components/layout/Topbar";
-import { PageHeader } from "@/components/layout/PageHeader";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { toast } from "@/components/ui/toaster";
 import { useSettings } from "@/hooks/useSettings";
-import { Settings, Clock, Link2, Copy, Check, Trash2, Plus } from "lucide-react";
+import { Clock, Link2, Copy, Check, Trash2, Plus, CalendarOff } from "lucide-react";
 import { WhatsAppTemplatesSection } from "@/components/settings/WhatsAppTemplatesSection";
 
 const DAY_NAMES = ["Dom", "Seg", "Ter", "Qua", "Qui", "Sex", "Sáb"];
@@ -30,7 +28,6 @@ export default function ConfiguracoesPage() {
   const { timeSlots, blockedDates, loading, updateTimeSlots, addBlockedDate, removeBlockedDate } =
     useSettings();
 
-  // Local editable state for time slots
   const [slotEdits, setSlotEdits] = useState<
     Record<number, { isAvailable: boolean; startTime: string; endTime: string }>
   >({});
@@ -102,153 +99,197 @@ export default function ConfiguracoesPage() {
     <div>
       <Topbar title="Configurações" />
 
-      <div className="p-4 sm:p-6 animate-fade-in space-y-4 sm:space-y-6 max-w-3xl">
-        <PageHeader
-          title="Configurações"
-          description="Gerencie sua agenda e link público de agendamento"
-        />
-
-        {/* Public link */}
-        <div className="bg-white rounded-2xl border border-brand-100 shadow-card p-6">
-          <h2 className="font-semibold mb-4 flex items-center gap-2 text-brand-700">
-            <Link2 className="w-4 h-4" />
-            Link Público de Agendamento
-          </h2>
-          <p className="text-sm text-muted-foreground mb-4">
-            Compartilhe este link com suas clientes para que elas possam solicitar horários
-            diretamente.
-          </p>
-          <div className="flex gap-3">
-            <Input value={publicLink} readOnly className="flex-1 bg-brand-50 border-brand-200" />
-            <Button variant="outline" onClick={copyLink}>
-              {copied ? <Check className="w-4 h-4 text-emerald-500" /> : <Copy className="w-4 h-4" />}
-              {copied ? "Copiado!" : "Copiar"}
-            </Button>
-          </div>
+      <div className="p-4 sm:p-6 animate-fade-in">
+        {/* Page title */}
+        <div className="mb-6">
+          <h1 className="text-xl sm:text-2xl font-bold text-foreground">Configurações</h1>
+          <p className="text-sm text-muted-foreground mt-1">Gerencie sua agenda, link de agendamento e mensagens</p>
         </div>
 
-        {/* Working hours */}
-        <div className="bg-white rounded-2xl border border-brand-100 shadow-card p-6">
-          <h2 className="font-semibold mb-4 flex items-center gap-2 text-brand-700">
-            <Clock className="w-4 h-4" />
-            Horários de Atendimento
-          </h2>
-          {loading ? (
-            <p className="text-sm text-muted-foreground">Carregando...</p>
-          ) : (
-            <div className="space-y-3">
-              {ALL_DAYS.map((day) => {
-                const v = getSlotValue(day);
-                return (
-                  <div
-                    key={day}
-                    className="flex items-center gap-4 p-3 rounded-xl border border-brand-50 hover:border-brand-200 transition-colors"
-                  >
-                    <span className="w-8 text-sm font-semibold text-center flex-shrink-0">
-                      {DAY_NAMES[day]}
-                    </span>
-                    <button
-                      onClick={() => setSlotField(day, "isAvailable", !v.isAvailable)}
-                      className="flex-shrink-0"
-                    >
-                      {v.isAvailable ? (
-                        <Badge variant="success">Disponível</Badge>
-                      ) : (
-                        <Badge variant="muted">Fechado</Badge>
-                      )}
-                    </button>
-                    {v.isAvailable && (
-                      <div className="flex items-center gap-2 text-sm flex-1">
-                        <Input
-                          type="time"
-                          value={v.startTime}
-                          onChange={(e) => setSlotField(day, "startTime", e.target.value)}
-                          className="w-28 h-8 text-sm"
-                        />
-                        <span className="text-muted-foreground">—</span>
-                        <Input
-                          type="time"
-                          value={v.endTime}
-                          onChange={(e) => setSlotField(day, "endTime", e.target.value)}
-                          className="w-28 h-8 text-sm"
-                        />
-                      </div>
-                    )}
-                  </div>
-                );
-              })}
-            </div>
-          )}
-          <Button
-            className="mt-4"
-            onClick={handleSaveSlots}
-            disabled={savingSlots || loading}
-          >
-            {savingSlots ? "Salvando..." : "Salvar horários"}
-          </Button>
-        </div>
+        {/* Two-column grid on desktop */}
+        <div className="grid grid-cols-1 xl:grid-cols-[1fr_380px] gap-6">
 
-        {/* Blocked dates */}
-        <div className="bg-white rounded-2xl border border-brand-100 shadow-card p-6">
-          <h2 className="font-semibold mb-4 flex items-center gap-2 text-brand-700">
-            <Settings className="w-4 h-4" />
-            Datas Bloqueadas
-          </h2>
+          {/* ── Coluna esquerda: Horários ── */}
+          <div className="space-y-6">
 
-          <div className="flex gap-2 mb-4">
-            <Input
-              type="date"
-              value={newDate}
-              onChange={(e) => setNewDate(e.target.value)}
-              className="w-40"
-            />
-            <Input
-              placeholder="Motivo (opcional)"
-              value={newReason}
-              onChange={(e) => setNewReason(e.target.value)}
-              className="flex-1"
-            />
-            <Button
-              variant="outline"
-              onClick={handleAddBlockedDate}
-              disabled={!newDate || addingDate}
-            >
-              <Plus className="w-4 h-4" />
-              Bloquear
-            </Button>
-          </div>
-
-          {loading ? (
-            <p className="text-sm text-muted-foreground">Carregando...</p>
-          ) : blockedDates.length === 0 ? (
-            <p className="text-sm text-muted-foreground">Nenhuma data bloqueada</p>
-          ) : (
-            <div className="space-y-2">
-              {blockedDates.map((bd) => (
-                <div
-                  key={bd.id}
-                  className="flex items-center justify-between p-3 rounded-xl border border-red-50 bg-red-50/50"
-                >
-                  <div>
-                    <p className="text-sm font-medium">{bd.date}</p>
-                    {bd.reason && <p className="text-xs text-muted-foreground">{bd.reason}</p>}
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <Badge variant="destructive">Bloqueado</Badge>
-                    <button
-                      onClick={() => handleRemoveBlockedDate(bd.id)}
-                      className="text-muted-foreground hover:text-red-500 transition-colors"
-                    >
-                      <Trash2 className="w-4 h-4" />
-                    </button>
-                  </div>
+            {/* Working hours */}
+            <div className="bg-white rounded-2xl border border-brand-100 shadow-card overflow-hidden">
+              <div className="px-6 py-5 border-b border-brand-50 flex items-center gap-2">
+                <div className="flex items-center justify-center w-8 h-8 rounded-lg bg-brand-50">
+                  <Clock className="w-4 h-4 text-brand-600" />
                 </div>
-              ))}
-            </div>
-          )}
-        </div>
+                <div>
+                  <h2 className="font-semibold text-foreground">Horários de Atendimento</h2>
+                  <p className="text-xs text-muted-foreground mt-0.5">Defina os dias e horários disponíveis para agendamento</p>
+                </div>
+              </div>
 
-        <WhatsAppTemplatesSection />
+              <div className="p-4 sm:p-6">
+                {loading ? (
+                  <p className="text-sm text-muted-foreground py-4 text-center">Carregando...</p>
+                ) : (
+                  <div className="space-y-2">
+                    {ALL_DAYS.map((day) => {
+                      const v = getSlotValue(day);
+                      return (
+                        <div
+                          key={day}
+                          className={`rounded-xl border transition-colors ${
+                            v.isAvailable ? "border-brand-200 bg-brand-50/30" : "border-brand-50 bg-white"
+                          }`}
+                        >
+                          {/* Day header row */}
+                          <div className="flex items-center gap-3 px-4 py-3">
+                            <span className={`w-10 text-sm font-bold flex-shrink-0 ${v.isAvailable ? "text-brand-700" : "text-muted-foreground"}`}>
+                              {DAY_NAMES[day]}
+                            </span>
+                            <button
+                              onClick={() => setSlotField(day, "isAvailable", !v.isAvailable)}
+                              className="flex-shrink-0"
+                            >
+                              {v.isAvailable ? (
+                                <Badge variant="success">Disponível</Badge>
+                              ) : (
+                                <Badge variant="muted">Fechado</Badge>
+                              )}
+                            </button>
+                            {v.isAvailable && (
+                              <div className="flex items-center gap-2 flex-1 justify-end">
+                                <Input
+                                  type="time"
+                                  value={v.startTime}
+                                  onChange={(e) => setSlotField(day, "startTime", e.target.value)}
+                                  className="w-28 h-9 text-sm text-center"
+                                />
+                                <span className="text-muted-foreground text-xs flex-shrink-0">até</span>
+                                <Input
+                                  type="time"
+                                  value={v.endTime}
+                                  onChange={(e) => setSlotField(day, "endTime", e.target.value)}
+                                  className="w-28 h-9 text-sm text-center"
+                                />
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+
+                <Button
+                  className="mt-5 w-full sm:w-auto"
+                  onClick={handleSaveSlots}
+                  disabled={savingSlots || loading}
+                >
+                  {savingSlots ? "Salvando..." : "Salvar horários"}
+                </Button>
+              </div>
+            </div>
+
+            {/* WhatsApp Templates */}
+            <WhatsAppTemplatesSection />
+          </div>
+
+          {/* ── Coluna direita: Link + Datas bloqueadas ── */}
+          <div className="space-y-6">
+
+            {/* Public link */}
+            <div className="bg-white rounded-2xl border border-brand-100 shadow-card overflow-hidden">
+              <div className="px-6 py-5 border-b border-brand-50 flex items-center gap-2">
+                <div className="flex items-center justify-center w-8 h-8 rounded-lg bg-brand-50">
+                  <Link2 className="w-4 h-4 text-brand-600" />
+                </div>
+                <div>
+                  <h2 className="font-semibold text-foreground">Link de Agendamento</h2>
+                  <p className="text-xs text-muted-foreground mt-0.5">Compartilhe com suas clientes</p>
+                </div>
+              </div>
+              <div className="p-4 sm:p-6 space-y-4">
+                <p className="text-sm text-muted-foreground">
+                  Suas clientes podem solicitar horários diretamente por este link, sem precisar entrar em contato.
+                </p>
+                <div className="p-3 bg-brand-50 rounded-xl border border-brand-100 font-mono text-xs text-brand-700 break-all">
+                  {publicLink}
+                </div>
+                <Button className="w-full" onClick={copyLink}>
+                  {copied ? <Check className="w-4 h-4" /> : <Copy className="w-4 h-4" />}
+                  {copied ? "Link copiado!" : "Copiar link"}
+                </Button>
+              </div>
+            </div>
+
+            {/* Blocked dates */}
+            <div className="bg-white rounded-2xl border border-brand-100 shadow-card overflow-hidden">
+              <div className="px-6 py-5 border-b border-brand-50 flex items-center gap-2">
+                <div className="flex items-center justify-center w-8 h-8 rounded-lg bg-red-50">
+                  <CalendarOff className="w-4 h-4 text-red-500" />
+                </div>
+                <div>
+                  <h2 className="font-semibold text-foreground">Datas Bloqueadas</h2>
+                  <p className="text-xs text-muted-foreground mt-0.5">Dias sem atendimento (férias, feriados…)</p>
+                </div>
+              </div>
+
+              <div className="p-4 sm:p-6 space-y-4">
+                {/* Add form */}
+                <div className="space-y-2">
+                  <Input
+                    type="date"
+                    value={newDate}
+                    onChange={(e) => setNewDate(e.target.value)}
+                    className="w-full h-11"
+                  />
+                  <Input
+                    placeholder="Motivo (opcional)"
+                    value={newReason}
+                    onChange={(e) => setNewReason(e.target.value)}
+                    className="w-full"
+                  />
+                  <Button
+                    className="w-full"
+                    onClick={handleAddBlockedDate}
+                    disabled={!newDate || addingDate}
+                  >
+                    <Plus className="w-4 h-4" />
+                    {addingDate ? "Bloqueando..." : "Bloquear data"}
+                  </Button>
+                </div>
+
+                {/* List */}
+                {loading ? (
+                  <p className="text-sm text-muted-foreground text-center py-2">Carregando...</p>
+                ) : blockedDates.length === 0 ? (
+                  <div className="text-center py-6 text-sm text-muted-foreground border border-dashed border-brand-200 rounded-xl">
+                    Nenhuma data bloqueada
+                  </div>
+                ) : (
+                  <div className="space-y-2">
+                    {blockedDates.map((bd) => (
+                      <div
+                        key={bd.id}
+                        className="flex items-center gap-3 p-3 rounded-xl border border-red-100 bg-red-50/40"
+                      >
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm font-semibold text-red-700">{bd.date}</p>
+                          {bd.reason && <p className="text-xs text-muted-foreground mt-0.5 truncate">{bd.reason}</p>}
+                        </div>
+                        <button
+                          onClick={() => handleRemoveBlockedDate(bd.id)}
+                          className="flex-shrink-0 p-1.5 rounded-lg text-muted-foreground hover:text-red-500 hover:bg-red-100 transition-colors"
+                          title="Remover"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </div>
+
+          </div>
+        </div>
       </div>
     </div>
   );
