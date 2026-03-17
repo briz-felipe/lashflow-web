@@ -157,7 +157,7 @@ export default function ClienteProfilePage() {
           {/* Left column: Profile + Segmentation */}
           <div className="space-y-4">
             {/* Profile Card */}
-            <div className="bg-white rounded-2xl border border-brand-100 shadow-card p-6">
+            <div className="bg-white rounded-2xl border border-brand-100 shadow-card p-4 sm:p-6">
               <div className="flex flex-col items-center text-center mb-6">
                 <div className="w-20 h-20 rounded-full bg-gradient-brand flex items-center justify-center text-white text-3xl font-bold mb-3">
                   {client.name.charAt(0)}
@@ -388,7 +388,7 @@ export default function ClienteProfilePage() {
 
             {/* Upcoming Appointments */}
             {upcomingAppointments.length > 0 && (
-              <div className="bg-white rounded-2xl border border-brand-100 shadow-card p-6">
+              <div className="bg-white rounded-2xl border border-brand-100 shadow-card p-4 sm:p-6">
                 <h3 className="font-semibold mb-4 flex items-center gap-2">
                   <Clock className="w-4 h-4 text-brand-500" />
                   Próximos Agendamentos
@@ -419,7 +419,7 @@ export default function ClienteProfilePage() {
             )}
 
             {/* History */}
-            <div className="bg-white rounded-2xl border border-brand-100 shadow-card p-6">
+            <div className="bg-white rounded-2xl border border-brand-100 shadow-card p-4 sm:p-6">
               <h3 className="font-semibold mb-4">Histórico de Atendimentos</h3>
               {completedAppointments.length === 0 ? (
                 <p className="text-sm text-muted-foreground text-center py-6">

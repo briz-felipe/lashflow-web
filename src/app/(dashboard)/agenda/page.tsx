@@ -359,7 +359,7 @@ function MonthView({ date, appointments, selectedDay, onDaySelect }: {
 
 // ─── Main Page ─────────────────────────────────────────────────────────────────
 export default function AgendaPage() {
-  const [view, setView] = useState<CalendarView>("month");
+  const [view, setView] = useState<CalendarView>("day");
   const [currentDate, setCurrentDate] = useState(new Date());
   const [selectedDay, setSelectedDay] = useState<Date | null>(null);
 
@@ -406,7 +406,7 @@ export default function AgendaPage() {
     <div>
       <Topbar title="Agenda" subtitle="Calendário de atendimentos" />
 
-      <div className="p-6 animate-fade-in space-y-6">
+      <div className="p-4 sm:p-6 animate-fade-in space-y-4 sm:space-y-6">
         <PageHeader
           title="Agenda"
           action={
@@ -462,28 +462,14 @@ export default function AgendaPage() {
         )}
 
         {/* Calendar Controls */}
-        <div className="flex items-center justify-between">
-          <div className="flex rounded-xl border border-brand-100 overflow-hidden bg-white">
-            {(["day", "week", "month"] as CalendarView[]).map((v) => (
-              <button
-                key={v}
-                onClick={() => changeView(v)}
-                className={`px-4 py-2 text-sm font-medium transition-colors border-r last:border-r-0 border-brand-100 ${
-                  view === v ? "bg-brand-500 text-white" : "text-muted-foreground hover:bg-brand-50"
-                }`}
-              >
-                {v === "day" ? "Dia" : v === "week" ? "Semana" : "Mês"}
-              </button>
-            ))}
-          </div>
-
-          <div className="flex items-center gap-3">
+        <div className="flex flex-col sm:flex-row sm:items-center gap-3">
+          <div className="flex items-center gap-2 flex-1 justify-between sm:justify-start">
             <Button variant="ghost" size="icon" onClick={() => navigate(-1)}>
               <ChevronLeft className="w-4 h-4" />
             </Button>
             <button
               onClick={() => { setCurrentDate(new Date()); setSelectedDay(null); }}
-              className="text-sm font-semibold capitalize min-w-[180px] text-center hover:text-brand-600 transition-colors"
+              className="text-sm font-semibold capitalize text-center hover:text-brand-600 transition-colors"
             >
               {navLabel()}
             </button>
@@ -492,13 +478,37 @@ export default function AgendaPage() {
             </Button>
           </div>
 
-          <div className="w-[152px]" />
+          <div className="flex rounded-xl border border-brand-100 overflow-hidden bg-white self-start sm:self-auto">
+            {(["day", "week", "month"] as CalendarView[]).map((v) => (
+              <button
+                key={v}
+                onClick={() => changeView(v)}
+                className={`px-3 sm:px-4 py-2 text-sm font-medium transition-colors border-r last:border-r-0 border-brand-100 ${
+                  view === v ? "bg-brand-500 text-white" : "text-muted-foreground hover:bg-brand-50"
+                }`}
+              >
+                {v === "day" ? "Dia" : v === "week" ? "Sem" : "Mês"}
+              </button>
+            ))}
+          </div>
         </div>
 
         {/* Calendar View */}
         {view === "day" && <DayView date={currentDate} appointments={appointments} />}
-        {view === "week" && <WeekView date={currentDate} appointments={appointments} selectedDay={selectedDay} onDaySelect={toggleDay} />}
-        {view === "month" && <MonthView date={currentDate} appointments={appointments} selectedDay={selectedDay} onDaySelect={toggleDay} />}
+        {view === "week" && (
+          <div className="overflow-x-auto">
+            <div className="min-w-[480px]">
+              <WeekView date={currentDate} appointments={appointments} selectedDay={selectedDay} onDaySelect={toggleDay} />
+            </div>
+          </div>
+        )}
+        {view === "month" && (
+          <div className="overflow-x-auto">
+            <div className="min-w-[360px]">
+              <MonthView date={currentDate} appointments={appointments} selectedDay={selectedDay} onDaySelect={toggleDay} />
+            </div>
+          </div>
+        )}
 
         {/* Appointment list below calendar (month + week) */}
         {view !== "day" && (

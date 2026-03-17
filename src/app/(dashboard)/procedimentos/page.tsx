@@ -85,7 +85,7 @@ export default function ProcedimentosPage() {
     <div>
       <Topbar title="Procedimentos" />
 
-      <div className="p-6 animate-fade-in">
+      <div className="p-4 sm:p-6 animate-fade-in">
         <PageHeader
           title="Procedimentos & Técnicas"
           description="Gerencie os procedimentos e suas precificações"

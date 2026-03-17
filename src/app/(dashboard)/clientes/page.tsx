@@ -75,7 +75,7 @@ export default function ClientesPage() {
     <div>
       <Topbar title="Clientes" subtitle={`${total} cliente${total !== 1 ? "s" : ""} cadastrada${total !== 1 ? "s" : ""}`} />
 
-      <div className="p-6 animate-fade-in">
+      <div className="p-4 sm:p-6 animate-fade-in">
         <PageHeader
           title="Clientes"
           description="Gerencie sua base de clientes e CRM"

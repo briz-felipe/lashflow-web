@@ -45,7 +45,7 @@ function DashboardContent() {
     <div>
       <Topbar title="Dashboard" subtitle="Visão geral do seu estúdio" />
 
-      <div className="p-6 space-y-6 animate-fade-in">
+      <div className="p-4 sm:p-6 space-y-4 sm:space-y-6 animate-fade-in">
         <section>
           <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
             <StatsCard
@@ -81,9 +81,9 @@ function DashboardContent() {
           </div>
         </section>
 
-        <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
-          <div className="xl:col-span-2 bg-white rounded-2xl border border-brand-100 shadow-card p-6">
-            <div className="flex items-center justify-between mb-6">
+        <div className="grid grid-cols-1 xl:grid-cols-3 gap-4 sm:gap-6">
+          <div className="xl:col-span-2 bg-white rounded-2xl border border-brand-100 shadow-card p-4 sm:p-6">
+            <div className="flex items-center justify-between mb-4 sm:mb-6">
               <div>
                 <h3 className="font-semibold text-foreground">Receita Mensal</h3>
                 <p className="text-xs text-muted-foreground mt-0.5">Últimos 6 meses</p>
@@ -97,7 +97,7 @@ function DashboardContent() {
             <RevenueChart data={stats.monthlyRevenue} />
           </div>
 
-          <div className="bg-white rounded-2xl border border-brand-100 shadow-card p-6">
+          <div className="bg-white rounded-2xl border border-brand-100 shadow-card p-4 sm:p-6">
             <div className="flex items-center justify-between mb-4">
               <div className="flex items-center gap-2">
                 <AlertCircle className="w-4 h-4 text-amber-500" />
@@ -148,7 +148,7 @@ function DashboardContent() {
           </div>
         </div>
 
-        <div className="bg-white rounded-2xl border border-brand-100 shadow-card p-6">
+        <div className="bg-white rounded-2xl border border-brand-100 shadow-card p-4 sm:p-6">
           <div className="flex items-center justify-between mb-4">
             <div className="flex items-center gap-2">
               <Clock className="w-4 h-4 text-brand-500" />

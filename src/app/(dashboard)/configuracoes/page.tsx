@@ -101,7 +101,7 @@ export default function ConfiguracoesPage() {
     <div>
       <Topbar title="Configurações" />
 
-      <div className="p-6 animate-fade-in space-y-6 max-w-3xl">
+      <div className="p-4 sm:p-6 animate-fade-in space-y-4 sm:space-y-6 max-w-3xl">
         <PageHeader
           title="Configurações"
           description="Gerencie sua agenda e link público de agendamento"
