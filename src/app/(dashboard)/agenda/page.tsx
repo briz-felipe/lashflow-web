@@ -494,7 +494,7 @@ function QuickBlockModal({
   initialDate: string;
   blockedDates: BlockedDate[];
   onClose: () => void;
-  onBlock: (date: string, reason?: string) => Promise<void>;
+  onBlock: (date: string, reason?: string) => Promise<unknown>;
   onUnblock: (id: string) => Promise<void>;
 }) {
   const [date, setDate] = useState(initialDate);
