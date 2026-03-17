@@ -22,7 +22,7 @@ import { useSidebar } from "./SidebarContext";
 import { useAuth } from "@/hooks/useAuth";
 
 const navItems = [
-  { href: "/",              label: "Dashboard",    icon: LayoutDashboard, exact: true },
+  { href: "/dashboard",     label: "Dashboard",    icon: LayoutDashboard },
   { href: "/clientes",      label: "Clientes",     icon: Users },
   { href: "/agenda",        label: "Agenda",       icon: CalendarDays },
   { href: "/procedimentos", label: "Procedimentos",icon: Sparkles },
@@ -37,9 +37,8 @@ export function Sidebar() {
   const { isOpen, close } = useSidebar();
   const { user, logout } = useAuth();
 
-  const isActive = (href: string, exact?: boolean) => {
-    if (exact) return pathname === href;
-    return pathname.startsWith(href);
+  const isActive = (href: string) => {
+    return pathname === href || (href !== "/dashboard" && pathname.startsWith(href));
   };
 
   return (
@@ -90,7 +89,7 @@ export function Sidebar() {
         {/* Navigation */}
         <nav className="flex-1 px-3 py-4 space-y-1 overflow-y-auto">
           {navItems.map((item) => {
-            const active = isActive(item.href, item.exact);
+            const active = isActive(item.href);
             return (
               <Link
                 key={item.href}
