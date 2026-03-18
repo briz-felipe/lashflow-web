@@ -44,17 +44,22 @@ export function useStock(filters?: { category?: MaterialCategory; search?: strin
 export function useStockMovements(filters?: { materialId?: string; from?: Date; to?: Date }) {
   const [movements, setMovements] = useState<StockMovement[]>([]);
   const [loading, setLoading] = useState(true);
+  const filtersKey = JSON.stringify(filters);
 
-  useEffect(() => {
-    let mounted = true;
-    stockService.listMovements(filters).then((m) => {
-      if (mounted) { setMovements(m); setLoading(false); }
-    });
-    return () => { mounted = false; };
+  const load = useCallback(async () => {
+    setLoading(true);
+    try {
+      const m = await stockService.listMovements(filters);
+      setMovements(m);
+    } finally {
+      setLoading(false);
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [JSON.stringify(filters)]);
+  }, [filtersKey]);
 
-  return { movements, loading };
+  useEffect(() => { load(); }, [load]);
+
+  return { movements, loading, reload: load };
 }
 
 export function useStockAlerts() {

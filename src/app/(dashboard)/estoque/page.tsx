@@ -16,7 +16,7 @@ import { formatCurrency, formatDate } from "@/lib/formatters";
 import { toast } from "@/components/ui/toaster";
 import {
   Package, AlertTriangle, Plus, Search, ShoppingCart,
-  Minus, TrendingDown, DollarSign, ArrowUpRight, ArrowDownRight, Wrench,
+  Minus, TrendingDown, DollarSign, ArrowUpRight, ArrowDownRight, Wrench, Calculator,
 } from "lucide-react";
 import type { MaterialCategory, MaterialUnit, StockMovementType } from "@/domain/enums";
 import {
@@ -49,11 +49,30 @@ type Tab = "materials" | "movements";
 const MAT_FORM_DEFAULT = {
   name: "", category: "essenciais" as MaterialCategory, unit: "un" as MaterialUnit,
   unitCostInCents: "", minimumStock: "1", initialStock: "0", notes: "",
+  pkgItems: "", pkgTotal: "",
 };
 const MOV_FORM_DEFAULT = {
   materialId: "", type: "purchase" as StockMovementType,
   quantity: "1", unitCostInCents: "", notes: "",
+  movTotal: "", // total value of the purchase; unit cost = movTotal / quantity
 };
+
+// Units that typically come in bulk packages → show calculator instead of direct unit cost
+const PACKAGE_UNITS = new Set<MaterialUnit>(["pacote", "caixa", "kit", "rolo", "par"]);
+
+function calcFromPackage(pkgItems: string, pkgTotal: string): number {
+  const items = parseInt(pkgItems) || 0;
+  const total = parseFloat(pkgTotal) || 0;
+  if (items <= 0 || total <= 0) return 0;
+  return Math.round((total / items) * 100);
+}
+
+function calcFromTotal(quantity: string, total: string): number {
+  const qty = parseInt(quantity) || 0;
+  const totalVal = parseFloat(total) || 0;
+  if (qty <= 0 || totalVal <= 0) return 0;
+  return Math.round((totalVal / qty) * 100);
+}
 
 export default function EstoquePage() {
   const [tab, setTab] = useState<Tab>("materials");
@@ -69,7 +88,7 @@ export default function EstoquePage() {
     category: catFilter !== "all" ? catFilter : undefined,
     lowStock: lowStockOnly || undefined,
   });
-  const { movements, loading: movLoading } = useStockMovements();
+  const { movements, loading: movLoading, reload: reloadMovements } = useStockMovements();
   const { alerts } = useStockAlerts();
   const { monthlyCosts, totalValue, loading: analyticsLoading } = useStockAnalytics();
 
@@ -83,11 +102,14 @@ export default function EstoquePage() {
     }
     setSaving(true);
     try {
+      const unitCostInCents = PACKAGE_UNITS.has(matForm.unit)
+        ? calcFromPackage(matForm.pkgItems, matForm.pkgTotal)
+        : Math.round(parseFloat(matForm.unitCostInCents || "0") * 100);
       await createMaterial({
         name: matForm.name,
         category: matForm.category,
         unit: matForm.unit,
-        unitCostInCents: Math.round(parseFloat(matForm.unitCostInCents || "0") * 100),
+        unitCostInCents,
         minimumStock: parseInt(matForm.minimumStock) || 1,
         initialStock: parseInt(matForm.initialStock) || 0,
         notes: matForm.notes || undefined,
@@ -111,7 +133,9 @@ export default function EstoquePage() {
       return;
     }
     const cost = movForm.type === "purchase"
-      ? Math.round(parseFloat(movForm.unitCostInCents || "0") * 100)
+      ? movForm.movTotal
+        ? calcFromTotal(movForm.quantity, movForm.movTotal)
+        : Math.round(parseFloat(movForm.unitCostInCents || "0") * 100)
       : materials.find((m) => m.id === movForm.materialId)?.unitCostInCents ?? 0;
 
     setSaving(true);
@@ -123,6 +147,7 @@ export default function EstoquePage() {
         unitCostInCents: cost,
         notes: movForm.notes || undefined,
       });
+      await reloadMovements();
       toast({ title: `${STOCK_MOVEMENT_TYPE_LABELS[movForm.type]} registrada!`, variant: "success" });
       setMovForm(MOV_FORM_DEFAULT);
       setMovOpen(false);
@@ -495,7 +520,41 @@ export default function EstoquePage() {
                 </Select>
               </div>
             </div>
-            <div className="grid grid-cols-3 gap-3">
+            {/* Unit cost: calculator for package units, direct input for others */}
+            {PACKAGE_UNITS.has(matForm.unit) ? (
+              <div className="p-3 bg-brand-50 rounded-xl border border-brand-100 space-y-2">
+                <p className="text-xs font-semibold text-brand-700 flex items-center gap-1.5">
+                  <Calculator className="w-3.5 h-3.5" /> Calculadora de custo
+                </p>
+                <div className="grid grid-cols-2 gap-2">
+                  <div>
+                    <Label className="text-xs">Itens por embalagem</Label>
+                    <Input
+                      type="number" min="1"
+                      value={matForm.pkgItems}
+                      onChange={(e) => setMatForm((f) => ({ ...f, pkgItems: e.target.value }))}
+                      placeholder="Ex: 20"
+                      className="mt-1 h-9 text-sm"
+                    />
+                  </div>
+                  <div>
+                    <Label className="text-xs">Valor da embalagem (R$)</Label>
+                    <Input
+                      type="number" step="0.01"
+                      value={matForm.pkgTotal}
+                      onChange={(e) => setMatForm((f) => ({ ...f, pkgTotal: e.target.value }))}
+                      placeholder="Ex: 35,00"
+                      className="mt-1 h-9 text-sm"
+                    />
+                  </div>
+                </div>
+                {matForm.pkgItems && matForm.pkgTotal && parseInt(matForm.pkgItems) > 0 && parseFloat(matForm.pkgTotal) > 0 && (
+                  <p className="text-xs font-medium text-brand-600">
+                    = {formatCurrency(calcFromPackage(matForm.pkgItems, matForm.pkgTotal))} por {MATERIAL_UNIT_LABELS[matForm.unit]}
+                  </p>
+                )}
+              </div>
+            ) : (
               <div>
                 <Label>Custo Unit. (R$)</Label>
                 <Input
@@ -506,6 +565,8 @@ export default function EstoquePage() {
                   className="mt-1.5"
                 />
               </div>
+            )}
+            <div className="grid grid-cols-2 gap-3">
               <div>
                 <Label>Estoque Inicial</Label>
                 <Input
@@ -588,18 +649,33 @@ export default function EstoquePage() {
                 />
               </div>
             </div>
-            {movForm.type === "purchase" && (
-              <div>
-                <Label>Custo Unitário (R$)</Label>
-                <Input
-                  type="number" step="0.01"
-                  value={movForm.unitCostInCents}
-                  onChange={(e) => setMovForm((f) => ({ ...f, unitCostInCents: e.target.value }))}
-                  placeholder="0,00"
-                  className="mt-1.5"
-                />
-              </div>
-            )}
+            {movForm.type === "purchase" && (() => {
+              const selectedMat = materials.find((m) => m.id === movForm.materialId);
+              const unitLabel = selectedMat ? MATERIAL_UNIT_LABELS[selectedMat.unit] : "unidade";
+              const unitCost = calcFromTotal(movForm.quantity, movForm.movTotal);
+              return (
+                <div className="p-3 bg-brand-50 rounded-xl border border-brand-100 space-y-2">
+                  <p className="text-xs font-semibold text-brand-700 flex items-center gap-1.5">
+                    <Calculator className="w-3.5 h-3.5" /> Valor da compra
+                  </p>
+                  <div>
+                    <Label className="text-xs">Total pago (R$)</Label>
+                    <Input
+                      type="number" step="0.01"
+                      value={movForm.movTotal}
+                      onChange={(e) => setMovForm((f) => ({ ...f, movTotal: e.target.value }))}
+                      placeholder="Ex: 75,00"
+                      className="mt-1 h-9 text-sm"
+                    />
+                  </div>
+                  {movForm.movTotal && movForm.quantity && unitCost > 0 && (
+                    <p className="text-xs font-medium text-brand-600">
+                      = {formatCurrency(unitCost)} por {unitLabel}
+                    </p>
+                  )}
+                </div>
+              );
+            })()}
             <div>
               <Label>Observações</Label>
               <Input
