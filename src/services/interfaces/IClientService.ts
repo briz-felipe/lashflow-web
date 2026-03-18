@@ -8,6 +8,7 @@ export interface ClientFilters {
   procedureId?: string;
   minSpent?: number;
   maxSpent?: number;
+  sortBy?: "most_visited" | "least_visited" | "highest_spent" | "last_seen_asc" | "last_seen_desc";
 }
 
 export interface PaginationOptions {

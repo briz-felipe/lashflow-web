@@ -72,17 +72,20 @@ export function useClient(id: string) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  useEffect(() => {
+  const load = useCallback(async () => {
     if (!id) return;
-    let isMounted = true;
     setLoading(true);
-    clientService
-      .getClientById(id)
-      .then((c) => { if (isMounted) setClient(c); })
-      .catch(() => { if (isMounted) setError("Cliente não encontrado"); })
-      .finally(() => { if (isMounted) setLoading(false); });
-    return () => { isMounted = false; };
+    try {
+      const c = await clientService.getClientById(id);
+      setClient(c);
+    } catch {
+      setError("Cliente não encontrado");
+    } finally {
+      setLoading(false);
+    }
   }, [id]);
 
-  return { client, loading, error };
+  useEffect(() => { load(); }, [load]);
+
+  return { client, loading, error, reload: load };
 }

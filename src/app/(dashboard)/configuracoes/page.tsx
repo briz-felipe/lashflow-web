@@ -7,7 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { toast } from "@/components/ui/toaster";
 import { useSettings } from "@/hooks/useSettings";
-import { Clock, Link2, Copy, Check, Trash2, Plus, CalendarOff } from "lucide-react";
+import { Clock, Link2, Copy, Check, Trash2, Plus, CalendarOff, Users } from "lucide-react";
 import { WhatsAppTemplatesSection } from "@/components/settings/WhatsAppTemplatesSection";
 
 const DAY_NAMES = ["Dom", "Seg", "Ter", "Qua", "Qui", "Sex", "Sáb"];
@@ -19,13 +19,15 @@ export default function ConfiguracoesPage() {
   const [newReason, setNewReason] = useState("");
   const [addingDate, setAddingDate] = useState(false);
   const [savingSlots, setSavingSlots] = useState(false);
+  const [savingRules, setSavingRules] = useState(false);
+  const [rulesEdits, setRulesEdits] = useState<Record<string, string>>({});
 
   const publicLink =
     typeof window !== "undefined"
       ? `${window.location.origin}/agendar`
       : "/agendar";
 
-  const { timeSlots, blockedDates, loading, updateTimeSlots, addBlockedDate, removeBlockedDate } =
+  const { timeSlots, blockedDates, segmentRules, loading, updateTimeSlots, addBlockedDate, removeBlockedDate, updateSegmentRules } =
     useSettings();
 
   const [slotEdits, setSlotEdits] = useState<
@@ -92,6 +94,33 @@ export default function ConfiguracoesPage() {
       toast({ title: "Data desbloqueada", variant: "success" });
     } catch {
       toast({ title: "Erro ao remover data", variant: "destructive" });
+    }
+  };
+
+  const getRuleValue = (key: string): number => {
+    if (rulesEdits[key] !== undefined) return Number(rulesEdits[key]);
+    const val = segmentRules[key as keyof typeof segmentRules];
+    if (key === "vipMinSpentCents") return Math.round((val as number) / 100);
+    return val as number;
+  };
+
+  const handleSaveRules = async () => {
+    setSavingRules(true);
+    try {
+      const vipMinSpentDisplay = getRuleValue("vipMinSpentCents");
+      await updateSegmentRules({
+        vipMinAppointments: getRuleValue("vipMinAppointments"),
+        vipMinSpentCents: vipMinSpentDisplay * 100,
+        recorrenteMaxDays: getRuleValue("recorrenteMaxDays"),
+        recorrenteMinAppointments: getRuleValue("recorrenteMinAppointments"),
+        inativaMinDays: getRuleValue("inativaMinDays"),
+      });
+      setRulesEdits({});
+      toast({ title: "Regras salvas!", variant: "success" });
+    } catch {
+      toast({ title: "Erro ao salvar regras", variant: "destructive" });
+    } finally {
+      setSavingRules(false);
     }
   };
 
@@ -189,6 +218,100 @@ export default function ConfiguracoesPage() {
 
             {/* WhatsApp Templates */}
             <WhatsAppTemplatesSection />
+
+            {/* Segment Rules */}
+            <div className="bg-white rounded-2xl border border-brand-100 shadow-card overflow-hidden">
+              <div className="px-6 py-5 border-b border-brand-50 flex items-center gap-2">
+                <div className="flex items-center justify-center w-8 h-8 rounded-lg bg-brand-50">
+                  <Users className="w-4 h-4 text-brand-600" />
+                </div>
+                <div>
+                  <h2 className="font-semibold text-foreground">Regras de Segmentação</h2>
+                  <p className="text-xs text-muted-foreground mt-0.5">Critérios para classificar clientes automaticamente</p>
+                </div>
+              </div>
+              <div className="p-4 sm:p-6 space-y-5">
+                {loading ? (
+                  <p className="text-sm text-muted-foreground py-4 text-center">Carregando...</p>
+                ) : (
+                  <>
+                    <div className="space-y-3">
+                      <p className="text-xs font-semibold text-brand-700 uppercase tracking-wide">VIP</p>
+                      <div className="grid grid-cols-2 gap-3">
+                        <div className="space-y-1">
+                          <label className="text-xs text-muted-foreground">Mínimo de visitas</label>
+                          <Input
+                            type="number"
+                            min={1}
+                            value={getRuleValue("vipMinAppointments")}
+                            onChange={(e) => setRulesEdits((p) => ({ ...p, vipMinAppointments: e.target.value }))}
+                            className="h-9 text-sm"
+                          />
+                        </div>
+                        <div className="space-y-1">
+                          <label className="text-xs text-muted-foreground">Gasto mínimo (R$)</label>
+                          <Input
+                            type="number"
+                            min={1}
+                            value={getRuleValue("vipMinSpentCents")}
+                            onChange={(e) => setRulesEdits((p) => ({ ...p, vipMinSpentCents: e.target.value }))}
+                            className="h-9 text-sm"
+                          />
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="space-y-3">
+                      <p className="text-xs font-semibold text-brand-700 uppercase tracking-wide">Recorrente</p>
+                      <div className="grid grid-cols-2 gap-3">
+                        <div className="space-y-1">
+                          <label className="text-xs text-muted-foreground">Dias máx. entre visitas</label>
+                          <Input
+                            type="number"
+                            min={1}
+                            value={getRuleValue("recorrenteMaxDays")}
+                            onChange={(e) => setRulesEdits((p) => ({ ...p, recorrenteMaxDays: e.target.value }))}
+                            className="h-9 text-sm"
+                          />
+                        </div>
+                        <div className="space-y-1">
+                          <label className="text-xs text-muted-foreground">Visitas mínimas</label>
+                          <Input
+                            type="number"
+                            min={1}
+                            value={getRuleValue("recorrenteMinAppointments")}
+                            onChange={(e) => setRulesEdits((p) => ({ ...p, recorrenteMinAppointments: e.target.value }))}
+                            className="h-9 text-sm"
+                          />
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="space-y-3">
+                      <p className="text-xs font-semibold text-brand-700 uppercase tracking-wide">Inativa</p>
+                      <div className="space-y-1">
+                        <label className="text-xs text-muted-foreground">Dias sem visita</label>
+                        <Input
+                          type="number"
+                          min={1}
+                          value={getRuleValue("inativaMinDays")}
+                          onChange={(e) => setRulesEdits((p) => ({ ...p, inativaMinDays: e.target.value }))}
+                          className="h-9 text-sm max-w-[140px]"
+                        />
+                      </div>
+                    </div>
+
+                    <Button
+                      className="w-full sm:w-auto"
+                      onClick={handleSaveRules}
+                      disabled={savingRules}
+                    >
+                      {savingRules ? "Salvando..." : "Salvar regras"}
+                    </Button>
+                  </>
+                )}
+              </div>
+            </div>
           </div>
 
           {/* ── Coluna direita: Link + Datas bloqueadas ── */}

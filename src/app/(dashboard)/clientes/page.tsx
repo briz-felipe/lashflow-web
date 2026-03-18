@@ -11,11 +11,21 @@ import { ClientSegmentBadge } from "@/components/clients/ClientSegmentBadge";
 import { EmptyState } from "@/components/shared/EmptyState";
 import { LoadingSpinner } from "@/components/shared/LoadingSpinner";
 import { formatPhone, formatCurrency, formatDate } from "@/lib/formatters";
-import { Plus, Search, Users, Instagram, Mail, Phone, Lightbulb, X } from "lucide-react";
+import { Plus, Search, Users, Instagram, Mail, Phone, Lightbulb, X, ArrowUpDown } from "lucide-react";
 import Link from "next/link";
 import { mockProcedures } from "@/data";
 import type { ClientSegment } from "@/domain/enums";
 import { CLIENT_SEGMENT_LABELS } from "@/domain/enums";
+
+type SortOption = "most_visited" | "least_visited" | "highest_spent" | "last_seen_asc" | "last_seen_desc";
+const SORT_LABELS: Record<SortOption, string> = {
+  most_visited: "Mais visitas",
+  least_visited: "Menos visitas",
+  highest_spent: "Maior gasto",
+  last_seen_desc: "Visto recentemente",
+  last_seen_asc: "Sem visita há mais tempo",
+};
+const SORT_OPTIONS = Object.keys(SORT_LABELS) as SortOption[];
 
 const SEGMENT_MARKETING: Record<ClientSegment, { tip: string; color: string }> = {
   vip: {
@@ -51,6 +61,7 @@ export default function ClientesPage() {
   const [search, setSearch] = useState("");
   const [debouncedSearch, setDebouncedSearch] = useState("");
   const [activeSegments, setActiveSegments] = useState<ClientSegment[]>([]);
+  const [sortBy, setSortBy] = useState<SortOption | undefined>(undefined);
 
   useEffect(() => {
     const timer = setTimeout(() => setDebouncedSearch(search), 300);
@@ -61,6 +72,7 @@ export default function ClientesPage() {
     {
       search: debouncedSearch.length >= 2 ? debouncedSearch : undefined,
       segments: activeSegments.length > 0 ? activeSegments : undefined,
+      sortBy,
     },
     100
   );
@@ -100,6 +112,19 @@ export default function ClientesPage() {
                 onChange={(e) => setSearch(e.target.value)}
                 className="pl-9"
               />
+            </div>
+            <div className="relative">
+              <ArrowUpDown className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground pointer-events-none" />
+              <select
+                value={sortBy ?? ""}
+                onChange={(e) => setSortBy((e.target.value as SortOption) || undefined)}
+                className="h-10 pl-8 pr-8 rounded-xl border border-input bg-white text-sm text-foreground appearance-none focus:outline-none focus:ring-2 focus:ring-brand-300"
+              >
+                <option value="">Ordenar por...</option>
+                {SORT_OPTIONS.map((o) => (
+                  <option key={o} value={o}>{SORT_LABELS[o]}</option>
+                ))}
+              </select>
             </div>
           </div>
           {/* Segment filters */}

@@ -15,6 +15,7 @@ export class ApiClientService implements IClientService {
     const params = new URLSearchParams();
     if (filters?.search) params.set("search", filters.search);
     if (filters?.segments) params.set("segments", filters.segments.join(","));
+    if (filters?.sortBy) params.set("sort_by", filters.sortBy);
     if (pagination?.page) params.set("page", String(pagination.page));
     if (pagination?.perPage) params.set("per_page", String(pagination.perPage));
     const qs = params.toString();

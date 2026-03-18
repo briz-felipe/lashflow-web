@@ -1,6 +1,6 @@
 import { api } from "@/lib/api";
 import type { TimeSlot, BlockedDate } from "@/domain/entities";
-import type { ISettingsService, UpsertTimeSlotInput } from "../interfaces/ISettingsService";
+import type { ISettingsService, UpsertTimeSlotInput, SegmentRules } from "../interfaces/ISettingsService";
 
 export class ApiSettingsService implements ISettingsService {
   getTimeSlots(): Promise<TimeSlot[]> {
@@ -21,5 +21,13 @@ export class ApiSettingsService implements ISettingsService {
 
   removeBlockedDate(id: string): Promise<void> {
     return api.delete(`/settings/blocked-dates/${id}`);
+  }
+
+  getSegmentRules(): Promise<SegmentRules> {
+    return api.get("/settings/segment-rules");
+  }
+
+  updateSegmentRules(rules: Partial<SegmentRules>): Promise<SegmentRules> {
+    return api.put("/settings/segment-rules", rules);
   }
 }

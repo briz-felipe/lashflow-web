@@ -33,4 +33,6 @@ export type CreateClientInput = Pick<
   "name" | "phone" | "email" | "instagram" | "address" | "birthday" | "notes"
 >;
 
-export type UpdateClientInput = Partial<CreateClientInput>;
+export type UpdateClientInput = Partial<CreateClientInput> & {
+  segments?: ClientSegment[];
+};

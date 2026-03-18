@@ -36,6 +36,11 @@ import {
 import Link from "next/link";
 import { LashFlowStatus } from "@/components/clients/LashFlowStatus";
 import { useAnamneses } from "@/hooks/useAnamnesis";
+import { useState } from "react";
+import { clientService } from "@/services";
+import type { ClientSegment } from "@/domain/enums";
+import { CLIENT_SEGMENT_LABELS } from "@/domain/enums";
+import { toast } from "@/components/ui/toaster";
 
 const DAY_NAMES = ["Dom", "Seg", "Ter", "Qua", "Qui", "Sex", "Sáb"];
 
@@ -66,11 +71,32 @@ const SEGMENT_DESCRIPTIONS: Record<string, { description: string; action: string
   },
 };
 
+const BEHAVIORAL_SEGMENTS = new Set<ClientSegment>(["vip", "recorrente", "inativa"]);
+const TECHNIQUE_SEGMENTS: ClientSegment[] = ["volume", "classic", "hybrid"];
+
 export default function ClienteProfilePage() {
   const { id } = useParams<{ id: string }>();
-  const { client, loading } = useClient(id);
+  const { client, loading, reload: reloadClient } = useClient(id);
   const { appointments } = useAppointments({ clientId: id });
   const { anamneses } = useAnamneses(id);
+  const [savingSegments, setSavingSegments] = useState(false);
+
+  const toggleTechSegment = async (seg: ClientSegment) => {
+    if (!client) return;
+    const currentTech = client.segments.filter((s) => !BEHAVIORAL_SEGMENTS.has(s));
+    const newTech = currentTech.includes(seg)
+      ? currentTech.filter((s) => s !== seg)
+      : [...currentTech, seg];
+    setSavingSegments(true);
+    try {
+      await clientService.updateClient(client.id, { segments: newTech });
+      await reloadClient();
+    } catch {
+      toast({ title: "Erro ao salvar segmento", variant: "destructive" });
+    } finally {
+      setSavingSegments(false);
+    }
+  };
 
   if (loading) return <LoadingPage />;
   if (!client) {
@@ -221,32 +247,90 @@ export default function ClienteProfilePage() {
             </div>
 
             {/* Segmentation & Marketing Card */}
-            {client.segments.length > 0 && (
-              <div className="bg-white rounded-2xl border border-brand-100 shadow-card p-5">
-                <h3 className="font-semibold text-sm mb-3 flex items-center gap-2 text-brand-700">
-                  <Users className="w-4 h-4" />
-                  Segmentação & Marketing
-                </h3>
-                <div className="space-y-3">
-                  {client.segments.map((seg) => {
-                    const info = SEGMENT_DESCRIPTIONS[seg];
-                    if (!info) return null;
-                    return (
-                      <div key={seg} className="p-3 rounded-xl bg-brand-50 border border-brand-100">
-                        <div className="mb-1.5">
-                          <ClientSegmentBadge segment={seg} />
-                        </div>
-                        <p className="text-xs text-muted-foreground mb-1.5">{info.description}</p>
-                        <p className="text-xs font-medium text-brand-700 flex items-start gap-1">
-                          <span className="flex-shrink-0">💡</span>
-                          {info.action}
-                        </p>
+            {(() => {
+              const autoSegs = client.segments.filter((s) => BEHAVIORAL_SEGMENTS.has(s));
+              const techSegs = client.segments.filter((s) => !BEHAVIORAL_SEGMENTS.has(s));
+              return (
+                <div className="bg-white rounded-2xl border border-brand-100 shadow-card p-5">
+                  <h3 className="font-semibold text-sm mb-4 flex items-center gap-2 text-brand-700">
+                    <Users className="w-4 h-4" />
+                    Segmentação & Marketing
+                  </h3>
+
+                  {/* Auto-computed behavioral segments */}
+                  {autoSegs.length > 0 && (
+                    <div className="mb-4">
+                      <p className="text-xs text-muted-foreground mb-2 flex items-center gap-1">
+                        <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 inline-block" />
+                        Automático (baseado no histórico)
+                      </p>
+                      <div className="space-y-2">
+                        {autoSegs.map((seg) => {
+                          const info = SEGMENT_DESCRIPTIONS[seg];
+                          return (
+                            <div key={seg} className="p-3 rounded-xl bg-brand-50 border border-brand-100">
+                              <div className="mb-1.5">
+                                <ClientSegmentBadge segment={seg} />
+                              </div>
+                              {info && <>
+                                <p className="text-xs text-muted-foreground mb-1">{info.description}</p>
+                                <p className="text-xs font-medium text-brand-700 flex items-start gap-1">
+                                  <span className="flex-shrink-0">💡</span>
+                                  {info.action}
+                                </p>
+                              </>}
+                            </div>
+                          );
+                        })}
                       </div>
-                    );
-                  })}
+                    </div>
+                  )}
+
+                  {/* Manual technique tags */}
+                  <div>
+                    <p className="text-xs text-muted-foreground mb-2 flex items-center gap-1">
+                      <span className="w-1.5 h-1.5 rounded-full bg-brand-400 inline-block" />
+                      Técnica (manual)
+                    </p>
+                    <div className="flex flex-wrap gap-2">
+                      {TECHNIQUE_SEGMENTS.map((seg) => {
+                        const active = techSegs.includes(seg);
+                        return (
+                          <button
+                            key={seg}
+                            onClick={() => toggleTechSegment(seg)}
+                            disabled={savingSegments}
+                            className={`px-3 py-1.5 rounded-full text-xs font-medium transition-all border ${
+                              active
+                                ? "bg-brand-500 text-white border-brand-500"
+                                : "bg-white text-brand-600 border-brand-200 hover:bg-brand-50"
+                            } disabled:opacity-60`}
+                          >
+                            {CLIENT_SEGMENT_LABELS[seg]}
+                          </button>
+                        );
+                      })}
+                    </div>
+                    {techSegs.length > 0 && (
+                      <div className="space-y-2 mt-3">
+                        {techSegs.map((seg) => {
+                          const info = SEGMENT_DESCRIPTIONS[seg];
+                          if (!info) return null;
+                          return (
+                            <div key={seg} className="p-2.5 rounded-xl bg-brand-50 border border-brand-100">
+                              <p className="text-xs font-medium text-brand-700 flex items-start gap-1">
+                                <span className="flex-shrink-0">💡</span>
+                                {info.action}
+                              </p>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    )}
+                  </div>
                 </div>
-              </div>
-            )}
+              );
+            })()}
           </div>
 
           {/* Right columns: Stats + Analytics + History */}
