@@ -26,8 +26,24 @@ export class ApiPaymentService implements IPaymentService {
     return Array.isArray(data) ? data : data.data;
   }
 
-  getCashFlow(from: Date, to: Date): Promise<CashFlowEntry[]> {
-    return api.get(`/payments/cash-flow?from=${from.toISOString()}&to=${to.toISOString()}`);
+  async getCashFlow(from: Date, to: Date): Promise<CashFlowEntry[]> {
+    const data = await api.get<Array<{
+      paidAmountInCents: number;
+      totalAmountInCents: number;
+      method: PaymentMethod;
+      appointmentId: string;
+      clientName: string;
+      procedureName: string;
+      createdAt: string;
+    }>>(`/payments/cash-flow?from=${from.toISOString()}&to=${to.toISOString()}`);
+    return data.map((r) => ({
+      date: new Date(r.createdAt),
+      amountInCents: r.paidAmountInCents,
+      method: r.method,
+      appointmentId: r.appointmentId,
+      clientName: r.clientName,
+      procedureName: r.procedureName,
+    }));
   }
 
   getRevenueStats(): Promise<RevenueStats> {
