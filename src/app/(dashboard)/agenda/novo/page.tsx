@@ -20,6 +20,7 @@ import { LASH_SERVICE_TYPE_LABELS } from "@/domain/enums";
 import { computeCycle } from "@/components/clients/LashFlowStatus";
 import type { Client } from "@/domain/entities";
 import { clientService } from "@/services";
+import { toBackendDate } from "@/config/timezone";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 
 const REMOVAL_PROC_ID = "proc-007";
@@ -345,7 +346,7 @@ function NovoAgendamentoContent() {
     }
     setSaving(true);
     try {
-      const scheduledAt = new Date(`${form.date}T${form.time}:00`);
+      const scheduledAt = toBackendDate(form.date, form.time);
       const apt = await createAppointment({
         clientId: selectedClient.id,
         procedureId: form.procedureId,
