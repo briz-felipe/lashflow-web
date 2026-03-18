@@ -358,8 +358,11 @@ function NovoAgendamentoContent() {
       });
       toast({ title: "Agendamento criado!", variant: "success" });
       router.push(`/agenda/${apt.id}`);
-    } catch {
-      toast({ title: "Erro ao criar agendamento", variant: "destructive" });
+    } catch (err) {
+      toast({
+        title: err instanceof Error && err.message ? err.message : "Erro ao criar agendamento",
+        variant: "destructive",
+      });
     } finally {
       setSaving(false);
     }
