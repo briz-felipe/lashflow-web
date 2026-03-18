@@ -1,10 +1,12 @@
 import type { TimeSlot, BlockedDate } from "@/domain/entities";
-import type { ISettingsService, UpsertTimeSlotInput } from "../interfaces/ISettingsService";
+import type { ISettingsService, UpsertTimeSlotInput, SegmentRules } from "../interfaces/ISettingsService";
+import { DEFAULT_SEGMENT_RULES } from "../interfaces/ISettingsService";
 import { mockTimeSlots, mockBlockedDates } from "@/data";
 
 export class MockSettingsService implements ISettingsService {
   private slots: TimeSlot[] = [...mockTimeSlots];
   private blocked: BlockedDate[] = [...mockBlockedDates];
+  private segmentRules: SegmentRules = { ...DEFAULT_SEGMENT_RULES };
 
   async getTimeSlots(): Promise<TimeSlot[]> {
     return this.slots;
@@ -27,5 +29,14 @@ export class MockSettingsService implements ISettingsService {
 
   async removeBlockedDate(id: string): Promise<void> {
     this.blocked = this.blocked.filter((b) => b.id !== id);
+  }
+
+  async getSegmentRules(): Promise<SegmentRules> {
+    return { ...this.segmentRules };
+  }
+
+  async updateSegmentRules(rules: Partial<SegmentRules>): Promise<SegmentRules> {
+    this.segmentRules = { ...this.segmentRules, ...rules };
+    return { ...this.segmentRules };
   }
 }
