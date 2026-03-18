@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Topbar } from "@/components/layout/Topbar";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -24,10 +24,10 @@ export default function ConfiguracoesPage() {
   const [savingRules, setSavingRules] = useState(false);
   const [rulesEdits, setRulesEdits] = useState<Record<string, string>>({});
 
-  const publicLink =
-    typeof window !== "undefined"
-      ? `${window.location.origin}/agendar`
-      : "/agendar";
+  const [publicLink, setPublicLink] = useState("/agendar");
+  useEffect(() => {
+    setPublicLink(`${window.location.origin}/agendar`);
+  }, []);
 
   const { timeSlots, blockedDates, segmentRules, loading, updateTimeSlots, addBlockedDate, removeBlockedDate, updateSegmentRules } =
     useSettings();
