@@ -10,7 +10,7 @@ import type { PaymentMethod } from "@/domain/enums";
 
 export class ApiPaymentService implements IPaymentService {
   createPayment(input: CreatePaymentInput): Promise<Payment> {
-    return api.post("/payments", input);
+    return api.post("/payments/", input);
   }
 
   updatePayment(id: string, input: Partial<Payment>): Promise<Payment> {
