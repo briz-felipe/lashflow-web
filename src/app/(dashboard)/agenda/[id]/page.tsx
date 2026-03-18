@@ -34,6 +34,7 @@ import { PAYMENT_METHOD_LABELS, LASH_SERVICE_TYPE_LABELS } from "@/domain/enums"
 import { REMINDER_TEMPLATES } from "@/domain/entities/reminder";
 import { WhatsAppReminderService } from "@/services/WhatsAppReminderService";
 import { useWhatsAppTemplates } from "@/hooks/useWhatsAppTemplates";
+import { useAuth } from "@/hooks/useAuth";
 import { MessageCircle, ChevronDown } from "lucide-react";
 
 const SERVICE_TYPE_CONFIG: Record<LashServiceType, { bg: string; text: string; icon: React.ReactNode }> = {
@@ -55,6 +56,7 @@ export default function AgendamentoDetailPage() {
   const [savingPayment, setSavingPayment] = useState(false);
   const [reminderOpen, setReminderOpen] = useState(false);
   const { templates: apiTemplates } = useWhatsAppTemplates();
+  const { user } = useAuth();
   // Use API templates if available, fall back to built-in ones
   const reminderTemplates = apiTemplates.length > 0 ? apiTemplates : REMINDER_TEMPLATES;
 
@@ -180,6 +182,7 @@ export default function AgendamentoDetailPage() {
                             scheduledAt: apt.scheduledAt,
                             procedure: apt.procedureName ?? "procedimento",
                             durationMinutes: apt.durationMinutes,
+                            salonAddress: user?.salonAddress,
                           });
                           const message = WhatsAppReminderService.interpolate(tpl.message, vars);
                           const url = WhatsAppReminderService.buildUrl(apt.clientPhone!, message);

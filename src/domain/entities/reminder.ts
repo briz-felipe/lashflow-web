@@ -11,6 +11,7 @@ export interface ReminderVariables {
   time: string;
   procedure: string;
   duration?: string;
+  salonAddress?: string;
 }
 
 export const REMINDER_TEMPLATES: ReminderTemplate[] = [

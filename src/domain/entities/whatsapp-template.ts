@@ -18,13 +18,15 @@ export interface TemplateVariables {
   time: string;
   procedure: string;
   duration?: string;
+  salonAddress?: string;
 }
 
 /** Available placeholders the user can insert in a template message */
 export const TEMPLATE_VARIABLE_LABELS: Record<keyof TemplateVariables, string> = {
-  clientName: "{{clientName}} — Nome da cliente",
-  date:       "{{date}} — Data",
-  time:       "{{time}} — Horário",
-  procedure:  "{{procedure}} — Procedimento",
-  duration:   "{{duration}} — Duração",
+  clientName:   "{{clientName}} — Nome da cliente",
+  date:         "{{date}} — Data",
+  time:         "{{time}} — Horário",
+  procedure:    "{{procedure}} — Procedimento",
+  duration:     "{{duration}} — Duração",
+  salonAddress: "{{salonAddress}} — Endereço do salão",
 };

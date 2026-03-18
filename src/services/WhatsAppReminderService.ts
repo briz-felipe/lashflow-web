@@ -15,7 +15,8 @@ export class WhatsAppReminderService {
       .replace(/\{\{date\}\}/g, vars.date)
       .replace(/\{\{time\}\}/g, vars.time)
       .replace(/\{\{procedure\}\}/g, vars.procedure)
-      .replace(/\{\{duration\}\}/g, vars.duration ?? "");
+      .replace(/\{\{duration\}\}/g, vars.duration ?? "")
+      .replace(/\{\{salonAddress\}\}/g, vars.salonAddress ?? "");
   }
 
   static buildUrl(phone: string, message: string): string {
@@ -33,6 +34,7 @@ export class WhatsAppReminderService {
     scheduledAt: string | Date;
     procedure: string;
     durationMinutes?: number;
+    salonAddress?: string | null;
   }): ReminderVariables {
     const date = new Date(params.scheduledAt);
     let dateLabel: string;
@@ -51,6 +53,7 @@ export class WhatsAppReminderService {
       time: format(date, "HH:mm"),
       procedure: params.procedure,
       duration: params.durationMinutes ? `${params.durationMinutes} min` : undefined,
+      salonAddress: params.salonAddress ?? undefined,
     };
   }
 
