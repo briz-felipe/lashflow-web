@@ -3,6 +3,16 @@ import type { Appointment, CreateAppointmentInput } from "@/domain/entities";
 import type { IAppointmentService, AppointmentFilters } from "../interfaces/IAppointmentService";
 import type { AppointmentStatus } from "@/domain/enums";
 
+// The backend returns scheduledAt as a naive datetime string (no timezone).
+// Parsing it explicitly ensures it's a real Date object for callers
+// that call .getTime(), isSameDay(), etc.
+function parseAppointment(raw: Appointment): Appointment {
+  return {
+    ...raw,
+    scheduledAt: typeof raw.scheduledAt === "string" ? new Date(raw.scheduledAt as unknown as string) : raw.scheduledAt,
+  };
+}
+
 export class ApiAppointmentService implements IAppointmentService {
   async listAppointments(filters?: AppointmentFilters): Promise<Appointment[]> {
     const params = new URLSearchParams();
@@ -11,32 +21,37 @@ export class ApiAppointmentService implements IAppointmentService {
     if (filters?.from) params.set("from", (filters.from as Date).toISOString());
     if (filters?.to) params.set("to", (filters.to as Date).toISOString());
     const qs = params.toString();
-    return api.get(`/appointments/${qs ? `?${qs}` : ""}`);
+    const data = await api.get<Appointment[]>(`/appointments/${qs ? `?${qs}` : ""}`);
+    return data.map(parseAppointment);
   }
 
-  getAppointmentById(id: string): Promise<Appointment | null> {
-    return api.get(`/appointments/${id}`);
+  async getAppointmentById(id: string): Promise<Appointment | null> {
+    const data = await api.get<Appointment>(`/appointments/${id}`);
+    return data ? parseAppointment(data) : null;
   }
 
-  createAppointment(input: CreateAppointmentInput): Promise<Appointment> {
+  async createAppointment(input: CreateAppointmentInput): Promise<Appointment> {
     const { status, ...rest } = input;
-    return api.post("/appointments/", { ...rest, ...(status ? { status } : {}) });
+    const data = await api.post<Appointment>("/appointments/", { ...rest, ...(status ? { status } : {}) });
+    return parseAppointment(data);
   }
 
-  updateAppointmentStatus(
+  async updateAppointmentStatus(
     id: string,
     status: AppointmentStatus,
     reason?: string
   ): Promise<Appointment> {
-    return api.patch(`/appointments/${id}/status`, { status, reason });
+    const data = await api.patch<Appointment>(`/appointments/${id}/status`, { status, reason });
+    return parseAppointment(data);
   }
 
-  cancelAppointment(
+  async cancelAppointment(
     id: string,
     reason?: string,
     cancelledBy?: "professional" | "client"
   ): Promise<Appointment> {
-    return api.patch(`/appointments/${id}/cancel`, { reason, cancelled_by: cancelledBy });
+    const data = await api.patch<Appointment>(`/appointments/${id}/cancel`, { reason, cancelled_by: cancelledBy });
+    return parseAppointment(data);
   }
 
   async getAvailableSlots(date: Date, procedureId: string): Promise<Date[]> {
@@ -47,11 +62,13 @@ export class ApiAppointmentService implements IAppointmentService {
     return data.slots.map((d) => new Date(d));
   }
 
-  getPendingApprovals(): Promise<Appointment[]> {
-    return api.get("/appointments/pending-approvals");
+  async getPendingApprovals(): Promise<Appointment[]> {
+    const data = await api.get<Appointment[]>("/appointments/pending-approvals");
+    return data.map(parseAppointment);
   }
 
-  getTodayAppointments(): Promise<Appointment[]> {
-    return api.get("/appointments/today");
+  async getTodayAppointments(): Promise<Appointment[]> {
+    const data = await api.get<Appointment[]>("/appointments/today");
+    return data.map(parseAppointment);
   }
 }
