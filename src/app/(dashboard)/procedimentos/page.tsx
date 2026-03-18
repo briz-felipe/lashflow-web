@@ -31,7 +31,7 @@ export default function ProcedimentosPage() {
   const [editing, setEditing] = useState<Procedure | null>(null);
   const [saving, setSaving] = useState(false);
 
-  const defaultForm = { name: "", description: "", priceInCents: "", durationMinutes: "" };
+  const defaultForm = { name: "", description: "", priceInCents: "", durationHours: "0", durationMins: "30" };
   const [form, setForm] = useState(defaultForm);
 
   const openCreate = () => { setEditing(null); setForm(defaultForm); setShowForm(true); };
@@ -41,13 +41,15 @@ export default function ProcedimentosPage() {
       name: p.name,
       description: p.description ?? "",
       priceInCents: String(p.priceInCents / 100),
-      durationMinutes: String(p.durationMinutes),
+      durationHours: String(Math.floor(p.durationMinutes / 60)),
+      durationMins: String(p.durationMinutes % 60),
     });
     setShowForm(true);
   };
 
   const handleSave = async () => {
-    if (!form.name || !form.priceInCents || !form.durationMinutes) {
+    const totalMinutes = parseInt(form.durationHours || "0") * 60 + parseInt(form.durationMins || "0");
+    if (!form.name || !form.priceInCents || totalMinutes <= 0) {
       toast({ title: "Preencha os campos obrigatórios", variant: "destructive" });
       return;
     }
@@ -57,7 +59,7 @@ export default function ProcedimentosPage() {
         name: form.name,
         description: form.description || undefined,
         priceInCents: Math.round(parseFloat(form.priceInCents.replace(",", ".")) * 100),
-        durationMinutes: parseInt(form.durationMinutes),
+        durationMinutes: totalMinutes,
         isActive: true,
       };
       if (editing) {
@@ -163,8 +165,35 @@ export default function ProcedimentosPage() {
                 <Input value={form.priceInCents} onChange={(e) => setForm((f) => ({ ...f, priceInCents: e.target.value }))} placeholder="180,00" className="mt-1.5" />
               </div>
               <div>
-                <Label>Duração (min) *</Label>
-                <Input type="number" value={form.durationMinutes} onChange={(e) => setForm((f) => ({ ...f, durationMinutes: e.target.value }))} placeholder="90" className="mt-1.5" />
+                <Label>Duração *</Label>
+                <div className="flex gap-2 mt-1.5">
+                  <div className="relative flex-1">
+                    <Input
+                      type="number" min="0" max="23"
+                      value={form.durationHours}
+                      onChange={(e) => setForm((f) => ({ ...f, durationHours: e.target.value }))}
+                      placeholder="0"
+                      className="pr-7"
+                    />
+                    <span className="absolute right-2 top-1/2 -translate-y-1/2 text-xs text-muted-foreground pointer-events-none">h</span>
+                  </div>
+                  <div className="relative flex-1">
+                    <Input
+                      type="number" min="0" max="59"
+                      value={form.durationMins}
+                      onChange={(e) => setForm((f) => ({ ...f, durationMins: e.target.value }))}
+                      placeholder="30"
+                      className="pr-8"
+                    />
+                    <span className="absolute right-2 top-1/2 -translate-y-1/2 text-xs text-muted-foreground pointer-events-none">min</span>
+                  </div>
+                </div>
+                {(() => {
+                  const total = parseInt(form.durationHours || "0") * 60 + parseInt(form.durationMins || "0");
+                  return total > 0 ? (
+                    <p className="text-xs text-muted-foreground mt-1">= {total} minutos no total</p>
+                  ) : null;
+                })()}
               </div>
             </div>
             <div>
@@ -182,6 +211,14 @@ export default function ProcedimentosPage() {
       </Dialog>
     </div>
   );
+}
+
+function formatDuration(minutes: number): string {
+  const h = Math.floor(minutes / 60);
+  const m = minutes % 60;
+  if (h === 0) return `${m}min`;
+  if (m === 0) return `${h}h`;
+  return `${h}h ${m}min`;
 }
 
 function ProcedureCard({
@@ -220,7 +257,7 @@ function ProcedureCard({
       <div className="flex items-center justify-between mt-4 pt-4 border-t border-brand-50">
         <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
           <Clock className="w-3.5 h-3.5" />
-          <span>{procedure.durationMinutes} min</span>
+          <span>{formatDuration(procedure.durationMinutes)}</span>
         </div>
         <span className="text-base font-bold text-brand-700">
           {formatCurrency(procedure.priceInCents)}
