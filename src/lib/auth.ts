@@ -7,6 +7,13 @@ export interface AuthUser {
   isSuperuser: boolean;
   isActive: boolean;
   createdAt: string;
+  // Salon profile
+  salonName: string | null;
+  salonSlug: string | null;
+  salonAddress: string | null;
+  // Apple Calendar
+  appleCalendarConnected: boolean;
+  appleCalendarName: string | null;
 }
 
 // ─── cookie helpers ────────────────────────────────────────────────────────

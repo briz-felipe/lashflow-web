@@ -11,21 +11,27 @@ interface AuthState {
   loading: boolean;
 }
 
-export function useAuth(): AuthState & { logout: () => void } {
+export function useAuth(): AuthState & { logout: () => void; reloadProfile: () => Promise<void> } {
   const router = useRouter();
   const [state, setState] = useState<AuthState>({ user: null, loading: true });
 
-  useEffect(() => {
-    api
-      .get<AuthUser>("/auth/me")
-      .then((user) => setState({ user, loading: false }))
-      .catch(() => setState({ user: null, loading: false }));
+  const loadProfile = useCallback(async () => {
+    try {
+      const user = await api.get<AuthUser>("/auth/me");
+      setState({ user, loading: false });
+    } catch {
+      setState({ user: null, loading: false });
+    }
   }, []);
+
+  useEffect(() => {
+    loadProfile();
+  }, [loadProfile]);
 
   const logout = useCallback(() => {
     clearSession();
     router.push("/login");
   }, [router]);
 
-  return { ...state, logout };
+  return { ...state, logout, reloadProfile: loadProfile };
 }

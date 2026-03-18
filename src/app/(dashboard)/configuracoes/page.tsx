@@ -9,6 +9,8 @@ import { toast } from "@/components/ui/toaster";
 import { useSettings } from "@/hooks/useSettings";
 import { Clock, Link2, Copy, Check, Trash2, Plus, CalendarOff, Users } from "lucide-react";
 import { WhatsAppTemplatesSection } from "@/components/settings/WhatsAppTemplatesSection";
+import { SalonProfileSection } from "@/components/settings/SalonProfileSection";
+import { AppleCalendarSection } from "@/components/settings/AppleCalendarSection";
 
 const DAY_NAMES = ["Dom", "Seg", "Ter", "Qua", "Qui", "Sex", "Sáb"];
 const ALL_DAYS: (0 | 1 | 2 | 3 | 4 | 5 | 6)[] = [1, 2, 3, 4, 5, 6, 0];
@@ -314,8 +316,14 @@ export default function ConfiguracoesPage() {
             </div>
           </div>
 
-          {/* ── Coluna direita: Link + Datas bloqueadas ── */}
+          {/* ── Coluna direita: Perfil + Apple Calendar + Link + Datas bloqueadas ── */}
           <div className="space-y-6">
+
+            {/* Salon profile */}
+            <SalonProfileSection />
+
+            {/* Apple Calendar */}
+            <AppleCalendarSection />
 
             {/* Public link */}
             <div className="bg-white rounded-2xl border border-brand-100 shadow-card overflow-hidden">

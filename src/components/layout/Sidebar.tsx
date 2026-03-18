@@ -72,8 +72,8 @@ export function Sidebar() {
               <Scissors className="w-5 h-5 text-brand-200" />
             </div>
             <div>
-              <h1 className="text-lg font-bold tracking-tight">LashFlow</h1>
-              <p className="text-xs text-brand-300">Lash Design Studio</p>
+              <h1 className="text-lg font-bold tracking-tight">{user?.salonName ?? "LashFlow"}</h1>
+              <p className="text-xs text-brand-300">{user?.salonAddress ? "Lash Design Studio" : "Lash Design Studio"}</p>
             </div>
           </div>
           {/* Close button — mobile only */}
