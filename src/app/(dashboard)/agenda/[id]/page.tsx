@@ -64,10 +64,9 @@ export default function AgendamentoDetailPage() {
         const a = await appointmentService.getAppointmentById(id);
         if (!a) return;
         setApt(a);
-        if (a.paymentId) {
-          const p = await paymentService.getPaymentByAppointmentId(a.id).catch(() => null);
-          setPayment(p);
-        }
+        // Busca pagamento por appointmentId sempre (paymentId pode vir null mesmo com pagamento existente)
+        const p = await paymentService.getPaymentByAppointmentId(a.id).catch(() => null);
+        setPayment(p);
       } catch (err) {
         console.error("[agenda/detail] load error:", err);
       } finally {
@@ -110,7 +109,13 @@ export default function AgendamentoDetailPage() {
       setPayment(paid);
       toast({ title: "Pagamento registrado!", variant: "success" });
     } catch {
-      toast({ title: "Erro ao registrar pagamento", variant: "destructive" });
+      // 409 = pagamento já existe; busca e exibe sem mostrar erro
+      const existing = await paymentService.getPaymentByAppointmentId(apt.id).catch(() => null);
+      if (existing) {
+        setPayment(existing);
+      } else {
+        toast({ title: "Erro ao registrar pagamento", variant: "destructive" });
+      }
     } finally {
       setSavingPayment(false);
     }
