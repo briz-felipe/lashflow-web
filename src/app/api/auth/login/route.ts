@@ -3,8 +3,10 @@ import { NextRequest, NextResponse } from "next/server";
 export async function POST(req: NextRequest) {
   const { username, password } = await req.json();
 
-  const apiUrl = process.env.API_URL;
-  console.log("[auth/login] API_URL:", apiUrl);
+  const apiUrl = process.env.NEXT_PUBLIC_ENV === "local"
+    ? process.env.NEXT_PUBLIC_API_LOCAL
+    : process.env.NEXT_PUBLIC_API_URL;
+  console.log("[auth/login] ENV:", process.env.NEXT_PUBLIC_ENV, "→ API_URL:", apiUrl);
   console.log("[auth/login] AUTH_CLIENT_ID set:", !!process.env.AUTH_CLIENT_ID);
   console.log("[auth/login] AUTH_CLIENT_SECRET set:", !!process.env.AUTH_CLIENT_SECRET);
   console.log("[auth/login] username:", username);

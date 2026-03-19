@@ -114,4 +114,5 @@ class ApiClient {
   }
 }
 
-export const api = new ApiClient(process.env.NEXT_PUBLIC_API_URL!);
+import { API_BASE_URL } from "./config";
+export const api = new ApiClient(API_BASE_URL);

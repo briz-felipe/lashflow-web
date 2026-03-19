@@ -2,7 +2,6 @@
 
 import { useState, useEffect } from "react";
 import {
-  Apple,
   CheckCircle2,
   ChevronDown,
   ChevronUp,
@@ -112,8 +111,8 @@ export function AppleCalendarSection() {
   return (
     <div className="bg-white rounded-2xl border border-brand-100 shadow-card overflow-hidden">
       <div className="px-6 py-5 border-b border-brand-50 flex items-center gap-2">
-        <div className="flex items-center justify-center w-8 h-8 rounded-lg bg-gray-900">
-          <Apple className="w-4 h-4 text-white" />
+        <div className="flex items-center justify-center w-8 h-8 rounded-lg bg-gray-900 overflow-hidden">
+          <img src="/apple_logo.jpg" alt="Apple" className="w-6 h-6 object-contain" />
         </div>
         <div className="flex-1">
           <h2 className="font-semibold text-foreground">Apple Calendar</h2>

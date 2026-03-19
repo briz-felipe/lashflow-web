@@ -1,4 +1,5 @@
-const API = process.env.NEXT_PUBLIC_API_URL!
+import { API_BASE_URL } from "./config";
+const API = API_BASE_URL;
 
 export interface AuthUser {
   id: string;
