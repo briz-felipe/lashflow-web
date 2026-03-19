@@ -137,6 +137,7 @@ export default function ClientesPage() {
         {activeSegments.length === 1 && (() => {
           const seg = activeSegments[0];
           const info = SEGMENT_MARKETING[seg];
+          if (!info) return null;
           return (
             <div className={`flex items-start gap-3 p-4 rounded-2xl border mb-4 ${info.color}`}>
               <Lightbulb className="w-4 h-4 flex-shrink-0 mt-0.5" />
