@@ -1,27 +1,43 @@
 "use client";
 
-import { useState } from "react";
-import { Topbar } from "@/components/layout/Topbar";
-import { StatsCard } from "@/components/dashboard/StatsCard";
+import {
+  AlertTriangle,
+  ArrowDownRight,
+  ArrowUpRight,
+  Calculator,
+  DollarSign,
+  Minus,
+  Package,
+  Plus,
+  Search,
+  ShoppingCart,
+  TrendingDown,
+  Wrench,
+} from "lucide-react";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import {
+  MATERIAL_CATEGORY_LABELS,
+  MATERIAL_UNIT_LABELS,
+  STOCK_MOVEMENT_TYPE_LABELS,
+} from "@/domain/enums";
+import type { MaterialCategory, MaterialUnit, StockMovementType } from "@/domain/enums";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { formatCurrency, formatDate } from "@/lib/formatters";
+import { useStock, useStockAlerts, useStockAnalytics, useStockMovements } from "@/hooks/useStock";
+
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import {
-  Dialog, DialogContent, DialogHeader, DialogTitle,
-} from "@/components/ui/dialog";
 import { LoadingPage } from "@/components/shared/LoadingSpinner";
-import { useStock, useStockMovements, useStockAlerts, useStockAnalytics } from "@/hooks/useStock";
-import { formatCurrency, formatDate } from "@/lib/formatters";
+import { StatsCard } from "@/components/dashboard/StatsCard";
+import { Topbar } from "@/components/layout/Topbar";
 import { toast } from "@/components/ui/toaster";
-import {
-  Package, AlertTriangle, Plus, Search, ShoppingCart,
-  Minus, TrendingDown, DollarSign, ArrowUpRight, ArrowDownRight, Wrench, Calculator,
-} from "lucide-react";
-import type { MaterialCategory, MaterialUnit, StockMovementType } from "@/domain/enums";
-import {
-  MATERIAL_CATEGORY_LABELS, MATERIAL_UNIT_LABELS, STOCK_MOVEMENT_TYPE_LABELS,
-} from "@/domain/enums";
+import { useState } from "react";
 
 const CATEGORIES: MaterialCategory[] = ["cilios", "cola", "descartaveis", "outros"];
 const UNITS: MaterialUnit[] = ["un", "pacote", "caixa", "ml", "g", "par", "rolo", "kit"];
@@ -550,7 +566,7 @@ export default function EstoquePage() {
                 </div>
                 {matForm.pkgItems && matForm.pkgTotal && parseInt(matForm.pkgItems) > 0 && parseFloat(matForm.pkgTotal) > 0 && (
                   <p className="text-xs font-medium text-brand-600">
-                    = {formatCurrency(calcFromPackage(matForm.pkgItems, matForm.pkgTotal))} por {MATERIAL_UNIT_LABELS[matForm.unit]}
+                    = {formatCurrency(calcFromPackage(matForm.pkgItems, matForm.pkgTotal))} por unidade
                   </p>
                 )}
               </div>
