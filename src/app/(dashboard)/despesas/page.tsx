@@ -163,7 +163,8 @@ export default function DespesasPage() {
   });
   const { summary, loading: summaryLoading } = useExpenseSummary(currentMonth);
 
-  const monthLabel = format(new Date(currentMonth + "-01"), "MMMM yyyy", { locale: ptBR });
+  const [_y, _m] = currentMonth.split("-").map(Number);
+  const monthLabel = format(new Date(_y, _m - 1, 1), "MMMM yyyy", { locale: ptBR });
 
   const showInstallments = form.recurrence !== "one_time";
   const recurrenceUnitLabel =
@@ -299,8 +300,9 @@ export default function DespesasPage() {
             {MONTH_NAMES.map((name, i) => {
               const monthKey = `${viewYear}-${String(i + 1).padStart(2, "0")}`;
               const isSelected = monthKey === currentMonth;
-              const isToday = isSameMonth(new Date(monthKey + "-01"), new Date());
-              const isFuture = new Date(monthKey + "-01") > new Date();
+              const monthDate = new Date(viewYear, i, 1);
+              const isToday = isSameMonth(monthDate, new Date());
+              const isFuture = monthDate > new Date();
               return (
                 <button
                   key={monthKey}
