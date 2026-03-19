@@ -27,7 +27,7 @@ const SORT_LABELS: Record<SortOption, string> = {
 };
 const SORT_OPTIONS = Object.keys(SORT_LABELS) as SortOption[];
 
-const SEGMENT_MARKETING: Record<ClientSegment, { tip: string; color: string }> = {
+const SEGMENT_MARKETING: Partial<Record<ClientSegment, { tip: string; color: string }>> = {
   vip: {
     tip: "Clientes VIP merecem atenção especial. Considere oferecer um brinde surpresa, acesso antecipado a novas técnicas ou um desconto exclusivo na próxima visita.",
     color: "bg-amber-50 border-amber-200 text-amber-800",
@@ -40,21 +40,9 @@ const SEGMENT_MARKETING: Record<ClientSegment, { tip: string; color: string }> =
     tip: "Clientes inativas estão sumidas há mais de 60 dias. Uma mensagem personalizada com promoção de retorno pode reativá-las rapidamente.",
     color: "bg-red-50 border-red-200 text-red-800",
   },
-  volume: {
-    tip: "Apaixonadas por volume! Compartilhe lançamentos de técnicas como Mega Volume ou Wispy com fotos de antes/depois para engajar.",
-    color: "bg-purple-50 border-purple-200 text-purple-800",
-  },
-  classic: {
-    tip: "Clientes clássicas valorizam naturalidade. Comunique promoções de manutenção e reforço para manter o fio perfeito.",
-    color: "bg-blue-50 border-blue-200 text-blue-800",
-  },
-  hybrid: {
-    tip: "Amantes do híbrido! Mostre combinações criativas e convide para conhecer as novidades entre volume e clássico.",
-    color: "bg-brand-50 border-brand-200 text-brand-800",
-  },
 };
 
-const ALL_SEGMENTS: ClientSegment[] = ["vip", "recorrente", "inativa", "volume", "classic", "hybrid"];
+const ALL_SEGMENTS: ClientSegment[] = ["vip", "recorrente", "inativa"];
 
 export default function ClientesPage() {
   const router = useRouter();
