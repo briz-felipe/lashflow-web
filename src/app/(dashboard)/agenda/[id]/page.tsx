@@ -30,6 +30,16 @@ import type { UpdateAppointmentInput } from "@/domain/entities";
 
 const PAYMENT_METHODS: PaymentMethod[] = ["pix", "credit_card", "debit_card", "cash", "bank_transfer"];
 
+function parsePtBR(str: string): number {
+  const normalized = str.replace(/\./g, "").replace(",", ".");
+  const val = parseFloat(normalized || "0");
+  return Math.round((isNaN(val) ? 0 : val) * 100);
+}
+
+function centsToInput(cents: number): string {
+  return (cents / 100).toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+}
+
 const SERVICE_CONFIG: Record<LashServiceType, { icon: React.ReactNode; color: string; bg: string }> = {
   application:  { icon: <Sparkles className="w-4 h-4" />,  color: "text-brand-700",   bg: "bg-brand-50 border-brand-200" },
   maintenance:  { icon: <RefreshCw className="w-4 h-4" />, color: "text-emerald-700", bg: "bg-emerald-50 border-emerald-200" },
@@ -74,8 +84,8 @@ export default function AgendamentoDetailPage() {
   const [editDate, setEditDate] = useState("");
   const [editTime, setEditTime] = useState("");
   const [editNotes, setEditNotes] = useState("");
-  const [editProcedureId, setEditProcedureId] = useState("");
-  const [editPriceStr, setEditPriceStr] = useState("");
+  const [editProcedureIds, setEditProcedureIds] = useState<string[]>([]);
+  const [editProcedurePrices, setEditProcedurePrices] = useState<Record<string, string>>({});
   const [savingEdit, setSavingEdit] = useState(false);
 
   // WhatsApp
@@ -92,7 +102,7 @@ export default function AgendamentoDetailPage() {
         const a = await appointmentService.getAppointmentById(id);
         if (!a) return;
         setApt(a);
-        setCustomPriceStr((a.priceCharged / 100).toFixed(2));
+        setCustomPriceStr(centsToInput(a.priceCharged));
         const p = await paymentService.getPaymentByAppointmentId(a.id).catch(() => null);
         setPayment(p);
       } catch (err) {
@@ -105,7 +115,7 @@ export default function AgendamentoDetailPage() {
   }, [id]);
 
   // ── Totais ──────────────────────────────────────────────────────────────────
-  const basePrice = Math.round(parseFloat(customPriceStr.replace(",", ".") || "0") * 100);
+  const basePrice = parsePtBR(customPriceStr);
   const totalAdds    = lineItems.filter((i) => i.type === "add").reduce((s, i) => s + i.amountInCents, 0);
   const totalDeducts = lineItems.filter((i) => i.type === "deduct").reduce((s, i) => s + i.amountInCents, 0);
   const total = Math.max(0, basePrice + totalAdds - totalDeducts);
@@ -129,7 +139,7 @@ export default function AgendamentoDetailPage() {
   }
 
   function addCustom() {
-    const amt = Math.round(parseFloat(customAmtStr.replace(",", ".") || "0") * 100);
+    const amt = parsePtBR(customAmtStr);
     if (!customName.trim() || amt <= 0) return;
     setLineItems((prev) => [
       ...prev,
@@ -170,34 +180,45 @@ export default function AgendamentoDetailPage() {
     setEditDate(`${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`);
     setEditTime(`${pad(d.getHours())}:${pad(d.getMinutes())}`);
     setEditNotes(apt.notes ?? "");
-    setEditProcedureId(apt.procedureId);
-    setEditPriceStr((apt.priceCharged / 100).toFixed(2));
+    setEditProcedureIds([apt.procedureId]);
+    setEditProcedurePrices({ [apt.procedureId]: centsToInput(apt.priceCharged) });
     setEditMode(true);
   }
 
+  function toggleEditProcedure(proc: { id: string; priceInCents: number }) {
+    const isSelected = editProcedureIds.includes(proc.id);
+    if (isSelected) {
+      setEditProcedureIds((prev) => prev.filter((x) => x !== proc.id));
+      setEditProcedurePrices((prev) => { const n = { ...prev }; delete n[proc.id]; return n; });
+    } else {
+      setEditProcedureIds((prev) => [...prev, proc.id]);
+      setEditProcedurePrices((prev) => ({ ...prev, [proc.id]: centsToInput(proc.priceInCents) }));
+    }
+  }
+
+  const editTotalCents = editProcedureIds.reduce((s, pid) => s + parsePtBR(editProcedurePrices[pid] ?? "0"), 0);
+
   const saveEdit = async () => {
-    if (!apt || !editDate || !editTime) return;
+    if (!apt || !editDate || !editTime || editProcedureIds.length === 0) return;
     setSavingEdit(true);
     try {
-      const priceCharged = Math.round(parseFloat(editPriceStr.replace(",", ".") || "0") * 100);
       const scheduledAt = toBackendDate(editDate, editTime);
-      const selected = procedures.find((p) => p.id === editProcedureId);
-      const procedureChanged = editProcedureId !== apt.procedureId;
+      const primaryId = editProcedureIds[0];
+      const selectedProcs = procedures.filter((p) => editProcedureIds.includes(p.id));
+      const isMulti = selectedProcs.length > 1;
 
       const input: UpdateAppointmentInput = {
-        procedureId: editProcedureId,
+        procedureId: primaryId,
         scheduledAt,
-        priceCharged,
+        priceCharged: editTotalCents,
         notes: editNotes || "",
+        procedureName: isMulti ? selectedProcs.map((p) => p.name).join(" + ") : "",
+        durationMinutes: selectedProcs.reduce((s, p) => s + p.durationMinutes, 0),
       };
-      if (procedureChanged) {
-        input.durationMinutes = selected?.durationMinutes;
-        input.procedureName = ""; // clear multi-procedure override
-      }
 
       const updated = await appointmentService.updateAppointment(apt.id, input);
       setApt(updated);
-      setCustomPriceStr((updated.priceCharged / 100).toFixed(2));
+      setCustomPriceStr(centsToInput(updated.priceCharged));
       setEditMode(false);
       toast({ title: "Agendamento atualizado!", variant: "success" });
     } catch (err) {
@@ -346,48 +367,61 @@ export default function AgendamentoDetailPage() {
           {editMode ? (
             <div className="bg-white rounded-2xl border border-brand-100 shadow-card p-4 space-y-3">
               <p className="text-sm font-semibold text-brand-700">Procedimento</p>
-              <div className="space-y-1.5 max-h-52 overflow-y-auto pr-1">
-                {procedures.map((p) => (
-                  <button
-                    key={p.id}
-                    type="button"
-                    onClick={() => {
-                      setEditProcedureId(p.id);
-                      setEditPriceStr((p.priceInCents / 100).toFixed(2));
-                    }}
-                    className={`w-full flex items-center gap-3 p-3 rounded-xl border-2 text-left transition-all ${
-                      editProcedureId === p.id
-                        ? "border-brand-500 bg-brand-50"
-                        : "border-brand-50 bg-white hover:border-brand-200"
-                    }`}
-                  >
-                    {editProcedureId === p.id && (
-                      <Check className="w-3.5 h-3.5 text-brand-500 flex-shrink-0" />
-                    )}
-                    <div className="flex-1 min-w-0">
-                      <p className={`text-sm font-semibold leading-tight ${editProcedureId === p.id ? "text-brand-700" : ""}`}>
+              <div className="space-y-1.5 max-h-64 overflow-y-auto pr-1">
+                {procedures.map((p) => {
+                  const selected = editProcedureIds.includes(p.id);
+                  return (
+                    <button
+                      key={p.id}
+                      type="button"
+                      onClick={() => toggleEditProcedure(p)}
+                      className={`relative w-full text-left p-3 rounded-xl border-2 transition-all ${
+                        selected ? "border-brand-500 bg-brand-50" : "border-brand-50 bg-white hover:border-brand-200"
+                      }`}
+                    >
+                      {selected && (
+                        <span className="absolute top-2 right-2 w-4 h-4 rounded-full bg-brand-500 flex items-center justify-center">
+                          <Check className="w-2.5 h-2.5 text-white" />
+                        </span>
+                      )}
+                      <p className={`text-sm font-semibold leading-tight pr-6 ${selected ? "text-brand-700" : ""}`}>
                         {p.name}
                       </p>
-                      <p className="text-xs text-muted-foreground mt-0.5">{p.durationMinutes} min</p>
-                    </div>
-                    <span className="text-xs font-semibold text-emerald-600 flex-shrink-0">
-                      {formatCurrency(p.priceInCents)}
-                    </span>
-                  </button>
-                ))}
+                      <div className="flex items-center gap-2 mt-1.5">
+                        <span className="flex items-center gap-1 text-xs text-muted-foreground">
+                          <Clock className="w-3 h-3" />
+                          {p.durationMinutes} min
+                        </span>
+                        {selected ? (
+                          <div
+                            className="flex items-center gap-1 ml-auto"
+                            onClick={(e) => e.stopPropagation()}
+                          >
+                            <span className="text-xs text-muted-foreground">R$</span>
+                            <input
+                              type="text"
+                              inputMode="decimal"
+                              value={editProcedurePrices[p.id] ?? ""}
+                              onChange={(e) => setEditProcedurePrices((prev) => ({ ...prev, [p.id]: e.target.value }))}
+                              className="w-24 text-right text-sm font-bold border-b-2 border-brand-400 outline-none bg-transparent text-brand-700 focus:border-brand-600"
+                            />
+                          </div>
+                        ) : (
+                          <span className="text-xs font-semibold text-emerald-600 ml-auto">
+                            {formatCurrency(p.priceInCents)}
+                          </span>
+                        )}
+                      </div>
+                    </button>
+                  );
+                })}
               </div>
-              <div className="flex items-center gap-2 pt-1 border-t border-brand-50">
-                <span className="text-xs text-muted-foreground">Valor cobrado:</span>
-                <span className="text-xs text-muted-foreground">R$</span>
-                <input
-                  type="number"
-                  step="0.01"
-                  min="0"
-                  value={editPriceStr}
-                  onChange={(e) => setEditPriceStr(e.target.value)}
-                  className="flex-1 text-sm font-bold border-b-2 border-brand-400 outline-none bg-transparent text-brand-700"
-                />
-              </div>
+              {editProcedureIds.length > 1 && (
+                <div className="pt-2 border-t border-brand-50 flex justify-between text-sm">
+                  <span className="text-muted-foreground">Total dos procedimentos</span>
+                  <span className="font-bold text-brand-700">{formatCurrency(editTotalCents)}</span>
+                </div>
+              )}
             </div>
           ) : (
             <div className="bg-white rounded-2xl border border-brand-100 shadow-card overflow-hidden">
@@ -411,7 +445,8 @@ export default function AgendamentoDetailPage() {
                       <div className="flex items-center gap-1.5">
                         <span className="text-xs text-muted-foreground">R$</span>
                         <input
-                          type="number" step="0.01" min="0"
+                          type="text"
+                          inputMode="decimal"
                           className="w-24 text-right text-base font-bold border-b-2 border-brand-500 outline-none bg-transparent"
                           value={customPriceStr}
                           onChange={(e) => setCustomPriceStr(e.target.value)}
@@ -684,7 +719,8 @@ export default function AgendamentoDetailPage() {
                   <div className="relative">
                     <span className="absolute left-3 top-1/2 -translate-y-1/2 text-xs text-muted-foreground pointer-events-none">R$</span>
                     <Input
-                      type="number" step="0.01" min="0"
+                      type="text"
+                      inputMode="decimal"
                       placeholder="0,00"
                       value={customAmtStr}
                       onChange={(e) => setCustomAmtStr(e.target.value)}
@@ -764,7 +800,7 @@ export default function AgendamentoDetailPage() {
               </div>
               <button
                 onClick={saveEdit}
-                disabled={savingEdit || !editDate || !editTime || !editProcedureId}
+                disabled={savingEdit || !editDate || !editTime || editProcedureIds.length === 0}
                 className="w-full h-12 bg-brand-500 hover:bg-brand-600 disabled:opacity-40 text-white rounded-2xl font-semibold text-sm transition-colors"
               >
                 {savingEdit ? "Salvando..." : "Salvar Alterações"}
