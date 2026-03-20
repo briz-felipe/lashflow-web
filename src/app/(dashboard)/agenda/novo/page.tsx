@@ -17,7 +17,7 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 import { formatCurrency, formatPhone } from "@/lib/formatters";
-import { format, addDays } from "date-fns";
+import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import type { LashServiceType } from "@/domain/enums";
 import { LASH_SERVICE_TYPE_LABELS } from "@/domain/enums";
@@ -310,19 +310,6 @@ function ProcedureCard({
   );
 }
 
-// ─── Time slots ───────────────────────────────────────────────────────────────
-function generateTimeSlots(startHour = 8, endHour = 20, stepMin = 30): string[] {
-  const slots: string[] = [];
-  for (let h = startHour; h <= endHour; h++) {
-    for (let m = 0; m < 60; m += stepMin) {
-      if (h === endHour && m > 0) break;
-      slots.push(`${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}`);
-    }
-  }
-  return slots;
-}
-const TIME_SLOTS = generateTimeSlots();
-
 // ─── Date + Time picker card ───────────────────────────────────────────────────
 function DateTimePicker({
   date,
@@ -335,87 +322,43 @@ function DateTimePicker({
   onDateChange: (d: string) => void;
   onTimeChange: (t: string) => void;
 }) {
-  const today = new Date();
-  const shortcuts = [
-    { label: "Hoje",    value: format(today,          "yyyy-MM-dd") },
-    { label: "Amanhã",  value: format(addDays(today, 1), "yyyy-MM-dd") },
-    { label: "Em 2d",   value: format(addDays(today, 2), "yyyy-MM-dd") },
-  ];
-
   const parsedDate = date ? new Date(date + "T12:00:00") : null;
   const dateLabel = parsedDate
     ? format(parsedDate, "EEEE, d 'de' MMMM", { locale: ptBR })
-    : "Selecione uma data";
-  const isShortcut = shortcuts.some((s) => s.value === date);
+    : null;
 
   return (
-    <div className="bg-white rounded-2xl border border-brand-100 shadow-card overflow-hidden">
-      {/* ── Cabeçalho ── */}
-      <div className="px-4 pt-4 pb-3 border-b border-brand-50">
-        <h2 className="font-semibold flex items-center gap-2 text-brand-700 text-base mb-3">
-          <Calendar className="w-4 h-4" /> Data e Hora *
-        </h2>
+    <div className="bg-white rounded-2xl border border-brand-100 shadow-card p-5">
+      <h2 className="font-semibold flex items-center gap-2 text-brand-700 text-base mb-4">
+        <Calendar className="w-4 h-4" /> Data e Hora *
+      </h2>
 
-        {/* Atalhos de data */}
-        <div className="flex gap-2">
-          {shortcuts.map((s) => (
-            <button
-              key={s.value}
-              type="button"
-              onClick={() => onDateChange(s.value)}
-              className={`flex-1 py-2 rounded-xl text-xs font-semibold transition-all ${
-                date === s.value
-                  ? "bg-brand-500 text-white"
-                  : "bg-brand-50 text-brand-700 hover:bg-brand-100"
-              }`}
-            >
-              {s.label}
-            </button>
-          ))}
-          {/* Seletor de data personalizado */}
-          <label className={`flex-1 flex items-center justify-center py-2 rounded-xl text-xs font-semibold cursor-pointer transition-all ${
-            date && !isShortcut
-              ? "bg-brand-500 text-white"
-              : "bg-brand-50 text-brand-700 hover:bg-brand-100"
-          }`}>
-            <Calendar className="w-3.5 h-3.5" />
-            <input
-              type="date"
-              value={date}
-              onChange={(e) => onDateChange(e.target.value)}
-              className="absolute opacity-0 w-0 h-0"
-            />
-          </label>
+      <div className="grid grid-cols-2 gap-3">
+        {/* Data */}
+        <div className="col-span-2 sm:col-span-1">
+          <label className="text-xs font-medium text-muted-foreground block mb-1.5">Data</label>
+          <input
+            type="date"
+            value={date}
+            onChange={(e) => onDateChange(e.target.value)}
+            className="w-full h-12 px-3 rounded-xl border border-input bg-white text-sm font-medium focus:outline-none focus:ring-2 focus:ring-brand-500 focus:border-transparent"
+          />
+          {dateLabel && (
+            <p className="mt-1.5 text-xs text-brand-600 font-medium capitalize">{dateLabel}</p>
+          )}
         </div>
 
-        {/* Data selecionada */}
-        {date && (
-          <p className="mt-2.5 text-sm font-semibold text-foreground capitalize">
-            {dateLabel}
-          </p>
-        )}
-      </div>
-
-      {/* ── Grade de horários ── */}
-      <div className="p-4">
-        <p className="text-xs text-muted-foreground font-medium mb-3 flex items-center gap-1.5">
-          <Clock className="w-3.5 h-3.5" /> Horário
-        </p>
-        <div className="grid grid-cols-4 gap-1.5">
-          {TIME_SLOTS.map((slot) => (
-            <button
-              key={slot}
-              type="button"
-              onClick={() => onTimeChange(slot)}
-              className={`py-2.5 rounded-xl text-xs font-semibold transition-all ${
-                time === slot
-                  ? "bg-brand-500 text-white shadow-sm"
-                  : "bg-brand-50 text-foreground hover:bg-brand-100"
-              }`}
-            >
-              {slot}
-            </button>
-          ))}
+        {/* Hora */}
+        <div className="col-span-2 sm:col-span-1">
+          <label className="text-xs font-medium text-muted-foreground block mb-1.5">
+            <Clock className="w-3 h-3 inline mr-1" />Horário
+          </label>
+          <input
+            type="time"
+            value={time}
+            onChange={(e) => onTimeChange(e.target.value)}
+            className="w-full h-12 px-3 rounded-xl border border-input bg-white text-sm font-medium focus:outline-none focus:ring-2 focus:ring-brand-500 focus:border-transparent"
+          />
         </div>
       </div>
     </div>
