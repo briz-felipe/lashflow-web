@@ -4,7 +4,6 @@ import { useParams } from "next/navigation";
 import { useState, useEffect } from "react";
 import { Topbar } from "@/components/layout/Topbar";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { AppointmentStatusBadge } from "@/components/appointments/AppointmentStatusBadge";
 import { PaymentStatusBadge } from "@/components/payments/PaymentStatusBadge";
 import { LoadingPage } from "@/components/shared/LoadingSpinner";
@@ -187,7 +186,7 @@ export default function AgendamentoDetailPage() {
         .print-receipt { display: none; }
       `}</style>
 
-      <div className="pb-28 no-print">
+      <div className="pb-28 sm:pb-6 no-print">
         <Topbar title="Agendamento" />
 
         <div className="p-4 sm:p-5 animate-fade-in space-y-3 max-w-lg mx-auto">
@@ -558,11 +557,29 @@ export default function AgendamentoDetailPage() {
               Cancelar Agendamento
             </button>
           )}
+
+          {/* ── Confirmar Pagamento (desktop inline) ── */}
+          {isActive && !canApprove && !payment && (
+            <div className="hidden sm:block no-print">
+              <button
+                onClick={confirmPayment}
+                disabled={!paymentMethod || savingPayment}
+                className="w-full h-14 flex items-center justify-center gap-2 bg-brand-500 hover:bg-brand-600 disabled:opacity-40 disabled:cursor-not-allowed text-white rounded-2xl font-semibold text-base shadow-lg shadow-brand-500/30 transition-all"
+              >
+                <CheckCircle2 className="w-5 h-5" />
+                {savingPayment
+                  ? "Confirmando..."
+                  : paymentMethod
+                  ? `Confirmar Pagamento · ${formatCurrency(total)}`
+                  : "Selecione a forma de pagamento"}
+              </button>
+            </div>
+          )}
         </div>
 
-        {/* ── FAB: Confirmar Pagamento ── */}
+        {/* ── FAB: Confirmar Pagamento (mobile) ── */}
         {isActive && !canApprove && !payment && (
-          <div className="fixed bottom-0 left-0 right-0 p-4 bg-white/90 backdrop-blur-sm border-t border-brand-100 no-print">
+          <div className="fixed bottom-0 left-0 right-0 p-4 bg-white/90 backdrop-blur-sm border-t border-brand-100 no-print sm:hidden">
             <button
               onClick={confirmPayment}
               disabled={!paymentMethod || savingPayment}

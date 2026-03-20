@@ -33,6 +33,8 @@ export type CreateAppointmentInput = {
   scheduledAt: Date;
   serviceType?: LashServiceType;
   priceCharged?: number;
+  durationMinutes?: number;
+  procedureName?: string;
   notes?: string;
   status?: AppointmentStatus;
 };

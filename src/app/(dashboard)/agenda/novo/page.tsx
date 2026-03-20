@@ -7,23 +7,23 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useAppointments } from "@/hooks/useAppointments";
 import { useProcedures } from "@/hooks/useProcedures";
 import { useClients } from "@/hooks/useClients";
 import { toast } from "@/components/ui/toaster";
-import { ArrowLeft, Save, Calendar, User, Sparkles, RefreshCw, X, Search, CheckCircle2, UserPlus } from "lucide-react";
+import {
+  ArrowLeft, Save, Calendar, User, Sparkles, RefreshCw, X,
+  Search, CheckCircle2, UserPlus, Clock, Check,
+} from "lucide-react";
 import Link from "next/link";
 import { formatCurrency, formatPhone } from "@/lib/formatters";
 import type { LashServiceType } from "@/domain/enums";
 import { LASH_SERVICE_TYPE_LABELS } from "@/domain/enums";
 import { computeCycle } from "@/components/clients/LashFlowStatus";
-import type { Client } from "@/domain/entities";
+import type { Client, Procedure } from "@/domain/entities";
 import { clientService } from "@/services";
 import { toBackendDate } from "@/config/timezone";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-
-const REMOVAL_PROC_ID = "proc-007";
 
 const SERVICE_TYPES: Array<{
   type: LashServiceType;
@@ -35,21 +35,21 @@ const SERVICE_TYPES: Array<{
   {
     type: "application",
     label: "Aplicação",
-    description: "Nova aplicação completa de extensões",
+    description: "Nova aplicação completa",
     dot: "bg-brand-500",
     active: "border-brand-500 bg-brand-50 text-brand-700",
   },
   {
     type: "maintenance",
     label: "Manutenção",
-    description: "Reposição dentro do ciclo (até 15 dias)",
+    description: "Reposição no ciclo",
     dot: "bg-emerald-500",
     active: "border-emerald-500 bg-emerald-50 text-emerald-700",
   },
   {
     type: "removal",
     label: "Remoção",
-    description: "Remoção completa das extensões — R$30",
+    description: "Remoção completa",
     dot: "bg-red-400",
     active: "border-red-400 bg-red-50 text-red-700",
   },
@@ -71,7 +71,6 @@ function QuickRegisterModal({
   const [phone, setPhone] = useState("");
   const [saving, setSaving] = useState(false);
 
-  // Sync initial name when modal opens
   useEffect(() => {
     if (open) {
       setName(initialName);
@@ -104,7 +103,7 @@ function QuickRegisterModal({
           </DialogTitle>
         </DialogHeader>
         <p className="text-sm text-muted-foreground -mt-2">
-          Preencha nome e telefone. Os demais dados podem ser adicionados depois na aba de clientes.
+          Preencha nome e telefone. Os demais dados podem ser adicionados depois.
         </p>
         <form onSubmit={handleSubmit} className="space-y-4 mt-2">
           <div>
@@ -161,7 +160,6 @@ function ClientSearch({
     20
   );
 
-  // Close on outside click
   useEffect(() => {
     function handle(e: MouseEvent) {
       if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
@@ -234,7 +232,6 @@ function ClientSearch({
                 </button>
               ))
             )}
-            {/* Always show the "register new" option when typing */}
             <button
               type="button"
               className="w-full flex items-center gap-3 px-4 py-3 hover:bg-brand-50 transition-colors text-left border-t border-brand-50"
@@ -270,6 +267,47 @@ function ClientSearch({
   );
 }
 
+// ─── Procedure card ────────────────────────────────────────────────────────────
+function ProcedureCard({
+  proc,
+  selected,
+  onToggle,
+}: {
+  proc: Procedure;
+  selected: boolean;
+  onToggle: () => void;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onToggle}
+      className={`relative w-full text-left p-3 rounded-xl border-2 transition-all ${
+        selected
+          ? "border-brand-500 bg-brand-50"
+          : "border-brand-50 bg-white hover:border-brand-200"
+      }`}
+    >
+      {selected && (
+        <span className="absolute top-2 right-2 w-4 h-4 rounded-full bg-brand-500 flex items-center justify-center">
+          <Check className="w-2.5 h-2.5 text-white" />
+        </span>
+      )}
+      <p className={`text-sm font-semibold leading-tight pr-5 ${selected ? "text-brand-700" : ""}`}>
+        {proc.name}
+      </p>
+      <div className="flex items-center gap-2 mt-1.5">
+        <span className="flex items-center gap-1 text-xs text-muted-foreground">
+          <Clock className="w-3 h-3" />
+          {proc.durationMinutes} min
+        </span>
+        <span className={`text-xs font-semibold ml-auto ${selected ? "text-brand-600" : "text-emerald-600"}`}>
+          {formatCurrency(proc.priceInCents)}
+        </span>
+      </div>
+    </button>
+  );
+}
+
 // ─── Main page ────────────────────────────────────────────────────────────────
 export default function NovoAgendamentoPage() {
   return (
@@ -291,8 +329,8 @@ function NovoAgendamentoContent() {
   const [saving, setSaving] = useState(false);
 
   const [selectedClient, setSelectedClient] = useState<Client | null>(null);
+  const [selectedProcedureIds, setSelectedProcedureIds] = useState<string[]>([]);
   const [form, setForm] = useState({
-    procedureId: "",
     serviceType: "" as LashServiceType | "",
     date: prefilledDate,
     time: "09:00",
@@ -321,38 +359,43 @@ function NovoAgendamentoContent() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedClient?.id]);
 
-  // Auto-select removal procedure
+  // Clear procedure selection when service type changes
   useEffect(() => {
-    if (form.serviceType === "removal") {
-      setForm((f) => ({ ...f, procedureId: REMOVAL_PROC_ID }));
-    } else if (form.procedureId === REMOVAL_PROC_ID) {
-      setForm((f) => ({ ...f, procedureId: "" }));
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    setSelectedProcedureIds([]);
   }, [form.serviceType]);
 
-  const visibleProcedures =
-    form.serviceType === "removal"
-      ? procedures.filter((p) => p.id === REMOVAL_PROC_ID)
-      : procedures.filter((p) => p.id !== REMOVAL_PROC_ID);
+  function toggleProcedure(id: string) {
+    setSelectedProcedureIds((prev) =>
+      prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]
+    );
+  }
 
-  const selectedProcedure = procedures.find((p) => p.id === form.procedureId);
+  // ── Computed totals ─────────────────────────────────────────────────────────
+  const selectedProcs = procedures.filter((p) => selectedProcedureIds.includes(p.id));
+  const totalPrice = selectedProcs.reduce((s, p) => s + p.priceInCents, 0);
+  const totalDuration = selectedProcs.reduce((s, p) => s + p.durationMinutes, 0);
+  const isMulti = selectedProcs.length > 1;
+  const combinedName = selectedProcs.map((p) => p.name).join(" + ");
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!selectedClient || !form.procedureId || !form.serviceType || !form.date || !form.time) {
+    if (!selectedClient || selectedProcedureIds.length === 0 || !form.serviceType || !form.date || !form.time) {
       toast({ title: "Preencha todos os campos obrigatórios", variant: "destructive" });
       return;
     }
     setSaving(true);
     try {
       const scheduledAt = toBackendDate(form.date, form.time);
+      const primaryProcedureId = selectedProcedureIds[0];
+
       const apt = await createAppointment({
         clientId: selectedClient.id,
-        procedureId: form.procedureId,
+        procedureId: primaryProcedureId,
         scheduledAt,
         serviceType: form.serviceType as LashServiceType,
-        priceCharged: selectedProcedure?.priceInCents,
+        priceCharged: totalPrice,
+        durationMinutes: isMulti ? totalDuration : undefined,
+        procedureName: isMulti ? combinedName : undefined,
         notes: form.notes || undefined,
         status: "confirmed",
       });
@@ -393,6 +436,7 @@ function NovoAgendamentoContent() {
                   onSelect={(c) => {
                     setSelectedClient(c);
                     setForm((f) => ({ ...f, serviceType: "" }));
+                    setSelectedProcedureIds([]);
                   }}
                 />
                 {selectedClient && cycle && cycle.summary !== "no_data" && (
@@ -450,36 +494,44 @@ function NovoAgendamentoContent() {
                 </div>
               </div>
 
-              {/* Procedimento */}
+              {/* Procedimentos (multi-select) */}
               {form.serviceType && (
                 <div className="bg-white rounded-2xl border border-brand-100 shadow-card p-6 sm:p-8">
-                  <h2 className="font-semibold mb-5 flex items-center gap-2 text-brand-700 text-base">
-                    <Sparkles className="w-4 h-4" /> Procedimento *
+                  <h2 className="font-semibold mb-2 flex items-center gap-2 text-brand-700 text-base">
+                    <Sparkles className="w-4 h-4" /> Procedimentos *
                   </h2>
-                  <Select
-                    value={form.procedureId}
-                    onValueChange={(v) => setForm((f) => ({ ...f, procedureId: v }))}
-                  >
-                    <SelectTrigger>
-                      <SelectValue placeholder="Selecione o procedimento" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {visibleProcedures.map((p) => (
-                        <SelectItem key={p.id} value={p.id}>
-                          {p.name} — {formatCurrency(p.priceInCents)}
-                        </SelectItem>
+                  <p className="text-xs text-muted-foreground mb-4">
+                    Selecione um ou mais procedimentos. Os valores e tempos serão somados.
+                  </p>
+
+                  {procedures.length === 0 ? (
+                    <p className="text-sm text-muted-foreground text-center py-4">Nenhum procedimento cadastrado.</p>
+                  ) : (
+                    <div className="grid grid-cols-2 gap-2">
+                      {procedures.map((p) => (
+                        <ProcedureCard
+                          key={p.id}
+                          proc={p}
+                          selected={selectedProcedureIds.includes(p.id)}
+                          onToggle={() => toggleProcedure(p.id)}
+                        />
                       ))}
-                    </SelectContent>
-                  </Select>
-                  {selectedProcedure && (
+                    </div>
+                  )}
+
+                  {/* Totals summary */}
+                  {selectedProcs.length > 0 && (
                     <div className="mt-4 p-4 bg-brand-50 rounded-xl text-sm space-y-2">
+                      {isMulti && (
+                        <p className="text-xs font-semibold text-brand-700 truncate">{combinedName}</p>
+                      )}
                       <div className="flex justify-between">
-                        <span className="text-muted-foreground">Duração:</span>
-                        <span className="font-medium">{selectedProcedure.durationMinutes} min</span>
+                        <span className="text-muted-foreground">Duração total:</span>
+                        <span className="font-medium">{totalDuration} min</span>
                       </div>
                       <div className="flex justify-between">
-                        <span className="text-muted-foreground">Valor:</span>
-                        <span className="font-semibold text-brand-700">{formatCurrency(selectedProcedure.priceInCents)}</span>
+                        <span className="text-muted-foreground">Valor total:</span>
+                        <span className="font-bold text-brand-700">{formatCurrency(totalPrice)}</span>
                       </div>
                     </div>
                   )}
