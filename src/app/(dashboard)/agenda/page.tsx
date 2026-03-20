@@ -1,40 +1,49 @@
 "use client";
 
-import { useState } from "react";
-import { Topbar } from "@/components/layout/Topbar";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { useAppointments, usePendingApprovals } from "@/hooks/useAppointments";
-import { useSettings } from "@/hooks/useSettings";
-import { LoadingPage } from "@/components/shared/LoadingSpinner";
-import { formatTime, formatCurrency, formatRelativeDate } from "@/lib/formatters";
 import {
-  Plus,
-  CheckCircle2,
-  XCircle,
   AlertCircle,
+  CalendarOff,
+  CheckCircle2,
   ChevronLeft,
   ChevronRight,
-  CalendarOff,
-  Trash2,
   Clock,
+  Plus,
+  Trash2,
+  XCircle,
 } from "lucide-react";
-import Link from "next/link";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import type { Appointment } from "@/domain/entities";
 import type { BlockedDate, TimeSlot } from "@/domain/entities";
-import type { LashServiceType } from "@/domain/enums";
-import { LASH_SERVICE_TYPE_LABELS } from "@/domain/enums";
-import { AppointmentStatusBadge } from "@/components/appointments/AppointmentStatusBadge";
-import { toast } from "@/components/ui/toaster";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import {
-  addMonths, subMonths,
-  startOfWeek, endOfWeek, startOfMonth, endOfMonth,
+  addMonths,
   eachDayOfInterval,
-  isSameDay, isSameMonth, format, isToday, getDay,
+  endOfMonth,
+  endOfWeek,
+  format,
+  getDay,
+  isSameDay,
+  isSameMonth,
+  isToday,
+  startOfMonth,
+  startOfWeek,
+  subMonths,
 } from "date-fns";
+import { formatCurrency, formatRelativeDate, formatTime } from "@/lib/formatters";
+import { useAppointments, usePendingApprovals } from "@/hooks/useAppointments";
+
+import type { Appointment } from "@/domain/entities";
+import { AppointmentStatusBadge } from "@/components/appointments/AppointmentStatusBadge";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { LASH_SERVICE_TYPE_LABELS } from "@/domain/enums";
+import { Label } from "@/components/ui/label";
+import type { LashServiceType } from "@/domain/enums";
+import Link from "next/link";
+import { LoadingPage } from "@/components/shared/LoadingSpinner";
+import { Topbar } from "@/components/layout/Topbar";
 import { ptBR } from "date-fns/locale";
+import { toast } from "@/components/ui/toaster";
+import { useSettings } from "@/hooks/useSettings";
+import { useState } from "react";
 
 const SERVICE_DOT: Record<LashServiceType, string> = {
   application: "bg-brand-500",
@@ -501,7 +510,7 @@ export default function AgendaPage() {
       <Link href={`/agenda/novo?date=${newAptDate}`}>
         <button className="fixed bottom-28 right-4 sm:right-6 lg:bottom-6 z-40 flex items-center gap-2 bg-brand-500 hover:bg-brand-600 active:scale-95 text-white rounded-full shadow-lg shadow-brand-500/30 transition-all px-5 h-14">
           <Plus className="w-5 h-5 flex-shrink-0" />
-          <span className="text-sm font-semibold">Novo Agendamento</span>
+          <span className="text-sm font-semibold"></span>
         </button>
       </Link>
 
