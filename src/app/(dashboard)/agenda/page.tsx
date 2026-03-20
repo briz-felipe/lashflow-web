@@ -49,6 +49,7 @@ const SERVICE_DOT: Record<LashServiceType, string> = {
   application: "bg-brand-500",
   maintenance: "bg-emerald-500",
   removal: "bg-red-400",
+  removal_application: "bg-orange-500",
   lash_lifting: "bg-amber-400",
   permanent: "bg-purple-400",
 };
