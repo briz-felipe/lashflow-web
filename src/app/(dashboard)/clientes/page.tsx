@@ -7,7 +7,6 @@ import { PageHeader } from "@/components/layout/PageHeader";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useClients } from "@/hooks/useClients";
-import { ClientSegmentBadge } from "@/components/clients/ClientSegmentBadge";
 import { EmptyState } from "@/components/shared/EmptyState";
 import { LoadingSpinner } from "@/components/shared/LoadingSpinner";
 import { formatPhone, formatCurrency, formatDate } from "@/lib/formatters";
@@ -185,7 +184,7 @@ export default function ClientesPage() {
                   <tr className="border-b border-brand-50">
                     <th className="text-left text-xs font-semibold text-muted-foreground px-6 py-3">Cliente</th>
                     <th className="text-left text-xs font-semibold text-muted-foreground px-4 py-3 hidden md:table-cell">Contato</th>
-                    <th className="text-left text-xs font-semibold text-muted-foreground px-4 py-3 hidden lg:table-cell">Segmentos</th>
+
                     <th className="text-right text-xs font-semibold text-muted-foreground px-4 py-3 hidden sm:table-cell">Total Gasto</th>
                     <th className="text-right text-xs font-semibold text-muted-foreground px-4 py-3 hidden xl:table-cell">Último Agend.</th>
                     <th className="px-6 py-3" />
@@ -233,16 +232,7 @@ export default function ClientesPage() {
                             )}
                           </div>
                         </td>
-                        <td className="px-4 py-4 hidden lg:table-cell">
-                          <div className="flex flex-wrap gap-1">
-                            {client.segments.slice(0, 2).map((seg) => (
-                              <ClientSegmentBadge key={seg} segment={seg} />
-                            ))}
-                            {client.segments.length > 2 && (
-                              <span className="text-xs text-muted-foreground">+{client.segments.length - 2}</span>
-                            )}
-                          </div>
-                        </td>
+
                         <td className="px-4 py-4 hidden sm:table-cell text-right">
                           <p className="text-sm font-semibold text-foreground">
                             {formatCurrency(client.totalSpent)}

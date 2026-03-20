@@ -11,6 +11,9 @@ export interface Payment {
   id: string;
   appointmentId: string;
   clientId: string;
+  subtotalAmountInCents: number;
+  discountAmountInCents: number;
+  feeAmountInCents: number;
   totalAmountInCents: number;
   paidAmountInCents: number;
   status: PaymentStatus;
@@ -25,6 +28,9 @@ export interface Payment {
 export type CreatePaymentInput = {
   appointmentId: string;
   clientId: string;
+  subtotalAmountInCents?: number;
+  discountAmountInCents?: number;
+  feeAmountInCents?: number;
   totalAmountInCents: number;
   method?: PaymentMethod;
   notes?: string;

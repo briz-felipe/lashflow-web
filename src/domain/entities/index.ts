@@ -11,3 +11,4 @@ export type { ReminderTemplate, ReminderVariables } from "./reminder";
 export { REMINDER_TEMPLATES } from "./reminder";
 export type { WhatsAppTemplate, CreateWhatsAppTemplateInput, UpdateWhatsAppTemplateInput, TemplateVariables } from "./whatsapp-template";
 export { TEMPLATE_VARIABLE_LABELS } from "./whatsapp-template";
+export type { ExtraService, ExtraServiceType, CreateExtraServiceInput, UpdateExtraServiceInput } from "./extra-service";

@@ -3,8 +3,7 @@
 import { useParams } from "next/navigation";
 import { useState, useEffect } from "react";
 import { Topbar } from "@/components/layout/Topbar";
-import { Button } from "@/components/ui/button";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { AppointmentStatusBadge } from "@/components/appointments/AppointmentStatusBadge";
 import { PaymentStatusBadge } from "@/components/payments/PaymentStatusBadge";
@@ -13,51 +12,63 @@ import { appointmentService, paymentService } from "@/services";
 import { toast } from "@/components/ui/toaster";
 import { formatDateTime, formatCurrency, formatTime } from "@/lib/formatters";
 import {
-  ArrowLeft,
-  CheckCircle2,
-  XCircle,
-  PlayCircle,
-  User,
-  Sparkles,
-  Clock,
-  DollarSign,
-  Calendar,
-  RefreshCw,
-  Scissors,
+  ArrowLeft, CheckCircle2, XCircle, User, Sparkles, Clock,
+  DollarSign, Calendar, RefreshCw, Scissors, Edit2, FileText,
+  MessageCircle, ChevronDown, Plus, Minus, X, Tag,
 } from "lucide-react";
 import Link from "next/link";
-import type { Appointment } from "@/domain/entities";
-import type { Payment } from "@/domain/entities";
-import type { AppointmentStatus, LashServiceType } from "@/domain/enums";
-import type { PaymentMethod } from "@/domain/enums";
+import type { Appointment, Payment, ExtraService } from "@/domain/entities";
+import type { AppointmentStatus, LashServiceType, PaymentMethod } from "@/domain/enums";
 import { PAYMENT_METHOD_LABELS, LASH_SERVICE_TYPE_LABELS } from "@/domain/enums";
 import { REMINDER_TEMPLATES } from "@/domain/entities/reminder";
 import { WhatsAppReminderService } from "@/services/WhatsAppReminderService";
 import { useWhatsAppTemplates } from "@/hooks/useWhatsAppTemplates";
 import { useAuth } from "@/hooks/useAuth";
-import { MessageCircle, ChevronDown } from "lucide-react";
-
-const SERVICE_TYPE_CONFIG: Record<LashServiceType, { bg: string; text: string; icon: React.ReactNode }> = {
-  application: { bg: "bg-brand-50 border-brand-200",     text: "text-brand-700",   icon: <Sparkles className="w-3.5 h-3.5" /> },
-  maintenance:  { bg: "bg-emerald-50 border-emerald-200", text: "text-emerald-700", icon: <RefreshCw className="w-3.5 h-3.5" /> },
-  removal:      { bg: "bg-red-50 border-red-200",         text: "text-red-700",     icon: <Scissors className="w-3.5 h-3.5" /> },
-  lash_lifting: { bg: "bg-amber-50 border-amber-200",     text: "text-amber-700",   icon: <Sparkles className="w-3.5 h-3.5" /> },
-  permanent:    { bg: "bg-purple-50 border-purple-200",   text: "text-purple-700",  icon: <Sparkles className="w-3.5 h-3.5" /> },
-};
+import { useExtraServices } from "@/hooks/useExtraServices";
 
 const PAYMENT_METHODS: PaymentMethod[] = ["pix", "credit_card", "debit_card", "cash", "bank_transfer"];
+
+const SERVICE_CONFIG: Record<LashServiceType, { icon: React.ReactNode; color: string; bg: string }> = {
+  application:  { icon: <Sparkles className="w-4 h-4" />,  color: "text-brand-700",   bg: "bg-brand-50 border-brand-200" },
+  maintenance:  { icon: <RefreshCw className="w-4 h-4" />, color: "text-emerald-700", bg: "bg-emerald-50 border-emerald-200" },
+  removal:      { icon: <Scissors className="w-4 h-4" />,  color: "text-red-700",     bg: "bg-red-50 border-red-200" },
+  lash_lifting: { icon: <Sparkles className="w-4 h-4" />,  color: "text-amber-700",   bg: "bg-amber-50 border-amber-200" },
+  permanent:    { icon: <Sparkles className="w-4 h-4" />,  color: "text-purple-700",  bg: "bg-purple-50 border-purple-200" },
+};
+
+interface LineItem {
+  key: string;     // unique id for React key
+  name: string;
+  type: "add" | "deduct";
+  amountInCents: number;
+}
 
 export default function AgendamentoDetailPage() {
   const { id } = useParams<{ id: string }>();
   const [apt, setApt] = useState<Appointment | null>(null);
   const [payment, setPayment] = useState<Payment | null>(null);
   const [loading, setLoading] = useState(true);
-  const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>("pix");
+
+  // Preço base do procedimento (editável)
+  const [customPriceStr, setCustomPriceStr] = useState("0");
+  const [editingPrice, setEditingPrice] = useState(false);
+
+  // Extra services como line items
+  const [lineItems, setLineItems] = useState<LineItem[]>([]);
+  const [showExtraPanel, setShowExtraPanel] = useState(false);
+  const [customName, setCustomName] = useState("");
+  const [customAmtStr, setCustomAmtStr] = useState("");
+  const [customType, setCustomType] = useState<"add" | "deduct">("add");
+
+  // Pagamento
+  const [paymentMethod, setPaymentMethod] = useState<PaymentMethod | "">("");
   const [savingPayment, setSavingPayment] = useState(false);
+
+  // WhatsApp
   const [reminderOpen, setReminderOpen] = useState(false);
   const { templates: apiTemplates } = useWhatsAppTemplates();
   const { user } = useAuth();
-  // Use API templates if available, fall back to built-in ones
+  const { services: extraCatalog } = useExtraServices();
   const reminderTemplates = apiTemplates.length > 0 ? apiTemplates : REMINDER_TEMPLATES;
 
   useEffect(() => {
@@ -66,17 +77,51 @@ export default function AgendamentoDetailPage() {
         const a = await appointmentService.getAppointmentById(id);
         if (!a) return;
         setApt(a);
-        // Busca pagamento por appointmentId sempre (paymentId pode vir null mesmo com pagamento existente)
+        setCustomPriceStr((a.priceCharged / 100).toFixed(2));
         const p = await paymentService.getPaymentByAppointmentId(a.id).catch(() => null);
         setPayment(p);
       } catch (err) {
-        console.error("[agenda/detail] load error:", err);
+        console.error("[agenda/detail]", err);
       } finally {
         setLoading(false);
       }
     }
     load();
   }, [id]);
+
+  // ── Totais ──────────────────────────────────────────────────────────────────
+  const basePrice = Math.round(parseFloat(customPriceStr.replace(",", ".") || "0") * 100);
+  const totalAdds    = lineItems.filter((i) => i.type === "add").reduce((s, i) => s + i.amountInCents, 0);
+  const totalDeducts = lineItems.filter((i) => i.type === "deduct").reduce((s, i) => s + i.amountInCents, 0);
+  const total = Math.max(0, basePrice + totalAdds - totalDeducts);
+
+  // ── Line item helpers ────────────────────────────────────────────────────────
+  function addFromCatalog(svc: ExtraService) {
+    setLineItems((prev) => [
+      ...prev,
+      { key: `${svc.id}-${Date.now()}`, name: svc.name, type: svc.type, amountInCents: svc.defaultAmountInCents },
+    ]);
+  }
+
+  function addCustom() {
+    const amt = Math.round(parseFloat(customAmtStr.replace(",", ".") || "0") * 100);
+    if (!customName.trim() || amt <= 0) return;
+    setLineItems((prev) => [
+      ...prev,
+      { key: `custom-${Date.now()}`, name: customName.trim(), type: customType, amountInCents: amt },
+    ]);
+    setCustomName("");
+    setCustomAmtStr("");
+    setShowExtraPanel(false);
+  }
+
+  function removeLineItem(key: string) {
+    setLineItems((prev) => prev.filter((i) => i.key !== key));
+  }
+
+  // ── Status helpers ───────────────────────────────────────────────────────────
+  const isActive   = apt ? !["completed", "cancelled", "no_show"].includes(apt.status) : false;
+  const canApprove = apt?.status === "pending_approval";
 
   const updateStatus = async (status: AppointmentStatus, reason?: string) => {
     if (!apt) return;
@@ -87,249 +132,523 @@ export default function AgendamentoDetailPage() {
 
   const cancel = async () => {
     if (!apt) return;
-    const updated = await appointmentService.cancelAppointment(apt.id, "Cancelado pela profissional", "professional");
-    setApt(updated);
+    await appointmentService.cancelAppointment(apt.id, "Cancelado pela profissional", "professional");
     toast({ title: "Agendamento cancelado", variant: "destructive" });
+    window.history.back();
   };
 
-  const registerPayment = async () => {
-    if (!apt) return;
+  // ── Confirmar pagamento ──────────────────────────────────────────────────────
+  const confirmPayment = async () => {
+    if (!apt || !paymentMethod) return;
     setSavingPayment(true);
     try {
+      if (apt.status !== "completed") {
+        const updated = await appointmentService.updateAppointmentStatus(apt.id, "completed");
+        setApt(updated);
+      }
       const newPayment = await paymentService.createPayment({
         appointmentId: apt.id,
         clientId: apt.clientId,
-        totalAmountInCents: apt.priceCharged,
-        method: paymentMethod,
+        subtotalAmountInCents: basePrice,
+        discountAmountInCents: totalDeducts,
+        feeAmountInCents: totalAdds,
+        totalAmountInCents: total,
+        method: paymentMethod as PaymentMethod,
       });
       const paid = await paymentService.updatePayment(newPayment.id, {
         status: "paid",
-        paidAmountInCents: apt.priceCharged,
+        paidAmountInCents: total,
         paidAt: new Date(),
-        method: paymentMethod,
+        method: paymentMethod as PaymentMethod,
       });
       setPayment(paid);
-      toast({ title: "Pagamento registrado!", variant: "success" });
+      toast({ title: "Pagamento confirmado!", variant: "success" });
     } catch {
-      // 409 = pagamento já existe; busca e exibe sem mostrar erro
       const existing = await paymentService.getPaymentByAppointmentId(apt.id).catch(() => null);
-      if (existing) {
-        setPayment(existing);
-      } else {
-        toast({ title: "Erro ao registrar pagamento", variant: "destructive" });
-      }
+      if (existing) setPayment(existing);
+      else toast({ title: "Erro ao registrar pagamento", variant: "destructive" });
     } finally {
       setSavingPayment(false);
     }
   };
 
   if (loading) return <LoadingPage />;
-  if (!apt) return <div className="p-6"><p>Agendamento não encontrado.</p></div>;
+  if (!apt) return <div className="p-6 text-sm text-muted-foreground">Agendamento não encontrado.</div>;
 
-  const serviceTypeCfg = apt.serviceType ? SERVICE_TYPE_CONFIG[apt.serviceType] : null;
+  const svcCfg = apt.serviceType ? SERVICE_CONFIG[apt.serviceType] : null;
 
   return (
-    <div>
-      <Topbar title="Detalhes do Agendamento" />
+    <>
+      <style>{`
+        @media print {
+          .no-print { display: none !important; }
+          .print-receipt { display: block !important; }
+        }
+        .print-receipt { display: none; }
+      `}</style>
 
-      <div className="p-4 sm:p-6 animate-fade-in space-y-6">
-        {/* Header */}
-        <div className="flex items-center gap-3">
-          <Link href="/agenda">
-            <Button variant="ghost" size="icon"><ArrowLeft className="w-4 h-4" /></Button>
-          </Link>
-          <h1 className="text-xl font-bold flex-1">Detalhes do Agendamento</h1>
-          <AppointmentStatusBadge status={apt.status} />
-        </div>
+      <div className="pb-28 no-print">
+        <Topbar title="Agendamento" />
 
-        {/* Row 1: 3 colunas */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-6">
+        <div className="p-4 sm:p-5 animate-fade-in space-y-3 max-w-lg mx-auto">
+
+          {/* ── Header ── */}
+          <div className="flex items-center gap-3">
+            <Link href="/agenda">
+              <button className="w-9 h-9 flex items-center justify-center rounded-full hover:bg-brand-50 transition-colors">
+                <ArrowLeft className="w-4 h-4 text-muted-foreground" />
+              </button>
+            </Link>
+            <div className="flex-1 min-w-0">
+              <p className="font-semibold truncate">{apt.clientName ?? "Cliente"}</p>
+              <p className="text-xs text-muted-foreground">{formatDateTime(apt.scheduledAt)}</p>
+            </div>
+            <AppointmentStatusBadge status={apt.status} />
+          </div>
 
           {/* ── Cliente ── */}
-          <div className="bg-white rounded-2xl border border-brand-100 shadow-card p-6 sm:p-8">
-            <h3 className="font-semibold mb-5 flex items-center gap-2 text-brand-700 text-base">
-              <User className="w-4 h-4" /> Cliente
-            </h3>
-            {apt.clientName ? (
-              <div className="space-y-3">
-                <Link href={`/clientes/${apt.clientId}`} className="flex items-center gap-4 hover:bg-brand-50 rounded-xl p-3 -mx-3 transition-colors">
-                  <div className="w-12 h-12 rounded-full bg-gradient-brand flex items-center justify-center text-white text-lg font-bold flex-shrink-0">
-                    {apt.clientName.charAt(0)}
-                  </div>
-                  <div>
-                    <p className="font-semibold text-base">{apt.clientName}</p>
-                    {apt.clientPhone && <p className="text-sm text-muted-foreground mt-0.5">{apt.clientPhone}</p>}
-                  </div>
+          <div className="bg-white rounded-2xl border border-brand-100 shadow-card p-4">
+            <div className="flex items-center gap-3 mb-3">
+              <div className="w-10 h-10 rounded-full bg-gradient-brand flex items-center justify-center text-white text-sm font-bold flex-shrink-0">
+                {(apt.clientName ?? "?").charAt(0)}
+              </div>
+              <div className="flex-1 min-w-0">
+                <Link href={`/clientes/${apt.clientId}`} className="text-sm font-semibold hover:text-brand-600 transition-colors">
+                  {apt.clientName ?? "—"}
                 </Link>
+                {apt.clientPhone && <p className="text-xs text-muted-foreground">{apt.clientPhone}</p>}
+              </div>
+              <User className="w-4 h-4 text-muted-foreground flex-shrink-0" />
+            </div>
 
-                {apt.clientPhone && apt.status !== "cancelled" && apt.status !== "no_show" && (
-                  <div className="relative">
-                    <Button
-                      variant="outline"
-                      className="w-full border-green-200 text-green-700 hover:bg-green-50 hover:border-green-300 gap-2"
-                      onClick={() => setReminderOpen((o) => !o)}
-                    >
-                      <MessageCircle className="w-4 h-4" />
-                      Lembrete via WhatsApp
-                      <ChevronDown className={`w-3.5 h-3.5 ml-auto transition-transform ${reminderOpen ? "rotate-180" : ""}`} />
-                    </Button>
-
-                    {reminderOpen && (
-                      <div className="absolute z-20 top-full left-0 right-0 mt-1 bg-white rounded-xl border border-brand-100 shadow-lg overflow-hidden">
-                        {reminderTemplates.map((tpl) => {
-                          const vars = WhatsAppReminderService.buildVariables({
-                            clientName: apt.clientName!,
-                            scheduledAt: apt.scheduledAt,
-                            procedure: apt.procedureName ?? "procedimento",
-                            durationMinutes: apt.durationMinutes,
-                            salonAddress: user?.salonAddress,
-                          });
-                          const message = WhatsAppReminderService.interpolate(tpl.message, vars);
-                          const url = WhatsAppReminderService.buildUrl(apt.clientPhone!, message);
-                          return (
-                            <a
-                              key={tpl.id}
-                              href={url}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              onClick={() => setReminderOpen(false)}
-                              className="flex flex-col px-4 py-3 hover:bg-green-50 transition-colors border-b last:border-0 border-brand-50"
-                            >
-                              <span className="text-sm font-medium text-foreground">{tpl.name}</span>
-                              <span className="text-xs text-muted-foreground mt-0.5">{tpl.description}</span>
-                            </a>
-                          );
-                        })}
-                      </div>
-                    )}
+            {apt.clientPhone && apt.status !== "cancelled" && (
+              <div className="relative">
+                <button
+                  onClick={() => setReminderOpen((o) => !o)}
+                  className="w-full flex items-center gap-2 px-3 py-2.5 rounded-xl border border-green-200 text-green-700 text-sm font-medium hover:bg-green-50 transition-colors"
+                >
+                  <MessageCircle className="w-4 h-4" />
+                  Lembrete WhatsApp
+                  <ChevronDown className={`w-3.5 h-3.5 ml-auto transition-transform ${reminderOpen ? "rotate-180" : ""}`} />
+                </button>
+                {reminderOpen && (
+                  <div className="absolute z-20 top-full left-0 right-0 mt-1 bg-white rounded-xl border border-brand-100 shadow-lg overflow-hidden">
+                    {reminderTemplates.map((tpl) => {
+                      const vars = WhatsAppReminderService.buildVariables({
+                        clientName: apt.clientName!,
+                        scheduledAt: apt.scheduledAt,
+                        procedure: apt.procedureName ?? "procedimento",
+                        durationMinutes: apt.durationMinutes,
+                        salonAddress: user?.salonAddress,
+                      });
+                      const message = WhatsAppReminderService.interpolate(tpl.message, vars);
+                      const url = WhatsAppReminderService.buildUrl(apt.clientPhone!, message);
+                      return (
+                        <a key={tpl.id} href={url} target="_blank" rel="noopener noreferrer"
+                          onClick={() => setReminderOpen(false)}
+                          className="flex flex-col px-4 py-3 hover:bg-green-50 transition-colors border-b last:border-0 border-brand-50">
+                          <span className="text-sm font-medium">{tpl.name}</span>
+                          <span className="text-xs text-muted-foreground mt-0.5">{tpl.description}</span>
+                        </a>
+                      );
+                    })}
                   </div>
                 )}
               </div>
-            ) : <p className="text-muted-foreground">—</p>}
+            )}
           </div>
 
-          {/* ── Tipo de Atendimento + Procedimento ── */}
+          {/* ── Procedimento ── */}
           <div className="bg-white rounded-2xl border border-brand-100 shadow-card overflow-hidden">
-            {/* Hero colorido do tipo */}
-            {serviceTypeCfg ? (
-              <div className={`px-6 sm:px-8 py-5 border-b ${serviceTypeCfg.bg}`}>
-                <p className="text-xs font-medium text-muted-foreground mb-2">Tipo de Atendimento</p>
-                <div className={`flex items-center gap-3 ${serviceTypeCfg.text}`}>
-                  <span className="scale-150">{serviceTypeCfg.icon}</span>
-                  <span className="text-xl font-bold">{LASH_SERVICE_TYPE_LABELS[apt.serviceType!]}</span>
-                </div>
-              </div>
-            ) : (
-              <div className="px-6 sm:px-8 py-5 border-b bg-brand-50">
-                <p className="text-xs font-medium text-muted-foreground mb-1">Tipo de Atendimento</p>
-                <p className="text-sm text-muted-foreground italic">Não informado</p>
+            {svcCfg && (
+              <div className={`px-4 py-2.5 border-b flex items-center gap-2 ${svcCfg.bg}`}>
+                <span className={svcCfg.color}>{svcCfg.icon}</span>
+                <span className={`text-xs font-semibold ${svcCfg.color}`}>
+                  {LASH_SERVICE_TYPE_LABELS[apt.serviceType!]}
+                </span>
               </div>
             )}
-            {/* Procedimento */}
-            <div className="p-6 sm:p-8">
-              <h3 className="font-semibold mb-4 flex items-center gap-2 text-brand-700 text-base">
-                <Sparkles className="w-4 h-4" /> Procedimento
-              </h3>
-              {apt.procedureName ? (
-                <div className="space-y-3">
-                  <p className="font-semibold text-lg leading-tight">{apt.procedureName}</p>
-
-                  <div className="flex items-center justify-between pt-1">
-                    <div className="flex items-center gap-1.5 text-sm text-muted-foreground">
-                      <Clock className="w-3.5 h-3.5" />
-                      {apt.durationMinutes} min
-                    </div>
-                    <span className="text-base font-bold text-emerald-600">{formatCurrency(apt.priceCharged)}</span>
-                  </div>
+            <div className="p-4">
+              <p className="font-semibold text-base leading-tight">{apt.procedureName ?? "—"}</p>
+              <div className="flex items-center justify-between mt-3">
+                <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                  <Clock className="w-3 h-3" />
+                  {apt.durationMinutes} min
                 </div>
-              ) : <p className="text-muted-foreground">—</p>}
+                {isActive ? (
+                  editingPrice ? (
+                    <div className="flex items-center gap-1.5">
+                      <span className="text-xs text-muted-foreground">R$</span>
+                      <input
+                        type="number" step="0.01" min="0"
+                        className="w-24 text-right text-base font-bold border-b-2 border-brand-500 outline-none bg-transparent"
+                        value={customPriceStr}
+                        onChange={(e) => setCustomPriceStr(e.target.value)}
+                        onBlur={() => setEditingPrice(false)}
+                        autoFocus
+                      />
+                    </div>
+                  ) : (
+                    <button onClick={() => setEditingPrice(true)} className="flex items-center gap-1.5 group">
+                      <span className="text-lg font-bold text-emerald-600">{formatCurrency(basePrice)}</span>
+                      <Edit2 className="w-3 h-3 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity" />
+                    </button>
+                  )
+                ) : (
+                  <span className="text-lg font-bold text-emerald-600">{formatCurrency(apt.priceCharged)}</span>
+                )}
+              </div>
+              {isActive && basePrice !== apt.priceCharged && (
+                <p className="text-xs text-muted-foreground mt-1 text-right">
+                  Preço original: {formatCurrency(apt.priceCharged)}
+                </p>
+              )}
             </div>
           </div>
 
           {/* ── Data e Hora ── */}
-          <div className="bg-white rounded-2xl border border-brand-100 shadow-card p-6 sm:p-8">
-            <h3 className="font-semibold mb-5 flex items-center gap-2 text-brand-700 text-base">
-              <Calendar className="w-4 h-4" /> Data e Hora
-            </h3>
-            <p className="text-lg font-bold">{formatDateTime(apt.scheduledAt)}</p>
-            <div className="flex items-center gap-2 mt-3 text-sm text-muted-foreground">
-              <Clock className="w-4 h-4 flex-shrink-0" />
-              <span>{formatTime(apt.scheduledAt)} — {formatTime(apt.endsAt)}</span>
-            </div>
-            <p className="text-xs text-muted-foreground mt-1 ml-6">{apt.durationMinutes} minutos de duração</p>
-
-            {/* Ações inline quando aplicável */}
-            {apt.status !== "completed" && apt.status !== "cancelled" && apt.status !== "no_show" && (
-              <div className="mt-6 pt-5 border-t border-brand-50 space-y-2">
-                <p className="text-xs font-semibold text-brand-700 mb-3">Ações</p>
-                {apt.status === "pending_approval" && (
-                  <Button className="w-full bg-emerald-500 hover:bg-emerald-600" onClick={() => updateStatus("confirmed")}>
-                    <CheckCircle2 className="w-4 h-4" /> Aprovar Agendamento
-                  </Button>
-                )}
-                {apt.status === "confirmed" && (
-                  <Button className="w-full bg-blue-500 hover:bg-blue-600" onClick={() => updateStatus("in_progress")}>
-                    <PlayCircle className="w-4 h-4" /> Iniciar Atendimento
-                  </Button>
-                )}
-                {apt.status === "in_progress" && (
-                  <Button className="w-full bg-emerald-500 hover:bg-emerald-600" onClick={() => updateStatus("completed")}>
-                    <CheckCircle2 className="w-4 h-4" /> Concluir Atendimento
-                  </Button>
-                )}
-                <Button variant="outline" className="w-full text-red-600 border-red-200 hover:bg-red-50" onClick={cancel}>
-                  <XCircle className="w-4 h-4" /> Cancelar Agendamento
-                </Button>
+          <div className="bg-white rounded-2xl border border-brand-100 shadow-card p-4">
+            <div className="flex items-center gap-3">
+              <Calendar className="w-4 h-4 text-brand-500 flex-shrink-0" />
+              <div>
+                <p className="text-sm font-semibold">{formatDateTime(apt.scheduledAt)}</p>
+                <p className="text-xs text-muted-foreground">
+                  {formatTime(apt.scheduledAt)} — {formatTime(apt.endsAt)} · {apt.durationMinutes} min
+                </p>
               </div>
-            )}
+            </div>
+          </div>
+
+          {/* ── Aprovação pendente ── */}
+          {canApprove && (
+            <div className="bg-amber-50 border border-amber-200 rounded-2xl p-4 space-y-3">
+              <p className="text-sm font-semibold text-amber-800">Aguardando sua aprovação</p>
+              <div className="flex gap-2">
+                <button className="flex-1 flex items-center justify-center gap-2 h-11 bg-emerald-500 hover:bg-emerald-600 text-white rounded-xl font-semibold text-sm transition-colors"
+                  onClick={() => updateStatus("confirmed")}>
+                  <CheckCircle2 className="w-4 h-4" /> Aprovar
+                </button>
+                <button className="flex-1 flex items-center justify-center gap-2 h-11 border border-red-200 text-red-600 hover:bg-red-50 rounded-xl font-semibold text-sm transition-colors"
+                  onClick={cancel}>
+                  <XCircle className="w-4 h-4" /> Recusar
+                </button>
+              </div>
+            </div>
+          )}
+
+          {/* ── Pagamento já registrado ── */}
+          {payment && (
+            <div className="bg-white rounded-2xl border border-brand-100 shadow-card p-4">
+              <div className="flex items-center gap-2 mb-3">
+                <CheckCircle2 className="w-4 h-4 text-emerald-500" />
+                <span className="text-sm font-semibold text-emerald-700">Pagamento confirmado</span>
+              </div>
+
+              {/* Breakdown se tiver desconto ou taxa */}
+              {(payment.discountAmountInCents > 0 || payment.feeAmountInCents > 0) && (
+                <div className="bg-brand-50 rounded-xl p-3 mb-3 space-y-1.5 text-sm">
+                  <div className="flex justify-between text-muted-foreground">
+                    <span>Subtotal</span>
+                    <span>{formatCurrency(payment.subtotalAmountInCents || payment.totalAmountInCents)}</span>
+                  </div>
+                  {payment.feeAmountInCents > 0 && (
+                    <div className="flex justify-between text-amber-600">
+                      <span>Taxas / extras</span>
+                      <span>+ {formatCurrency(payment.feeAmountInCents)}</span>
+                    </div>
+                  )}
+                  {payment.discountAmountInCents > 0 && (
+                    <div className="flex justify-between text-red-600">
+                      <span>Descontos</span>
+                      <span>− {formatCurrency(payment.discountAmountInCents)}</span>
+                    </div>
+                  )}
+                  <div className="border-t border-brand-100 pt-1.5 flex justify-between font-bold">
+                    <span>Total</span>
+                    <span>{formatCurrency(payment.totalAmountInCents)}</span>
+                  </div>
+                </div>
+              )}
+
+              <div className="grid grid-cols-3 gap-2">
+                <div className="p-3 bg-brand-50 rounded-xl text-center">
+                  <p className="text-xs text-muted-foreground mb-1">Total</p>
+                  <p className="font-bold text-sm">{formatCurrency(payment.paidAmountInCents)}</p>
+                </div>
+                <div className="p-3 bg-brand-50 rounded-xl text-center">
+                  <p className="text-xs text-muted-foreground mb-1">Método</p>
+                  <p className="font-semibold text-xs">{payment.method ? PAYMENT_METHOD_LABELS[payment.method] : "—"}</p>
+                </div>
+                <div className="p-3 bg-brand-50 rounded-xl text-center">
+                  <p className="text-xs text-muted-foreground mb-1">Status</p>
+                  <PaymentStatusBadge status={payment.status} />
+                </div>
+              </div>
+              <button
+                onClick={() => window.print()}
+                className="w-full mt-3 flex items-center justify-center gap-2 py-2.5 rounded-xl border border-brand-200 text-brand-700 text-sm font-medium hover:bg-brand-50 transition-colors"
+              >
+                <FileText className="w-4 h-4" />
+                Extrato PDF
+              </button>
+            </div>
+          )}
+
+          {/* ── Serviços adicionais + Pagamento ── */}
+          {isActive && !canApprove && !payment && (
+            <div className="bg-white rounded-2xl border border-brand-100 shadow-card p-4 space-y-4">
+
+              {/* Line items já adicionados */}
+              {lineItems.length > 0 && (
+                <div className="space-y-1.5">
+                  <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Serviços adicionados</p>
+                  {lineItems.map((item) => (
+                    <div key={item.key} className="flex items-center gap-2 px-3 py-2 rounded-xl bg-brand-50">
+                      <span className={`w-4 h-4 flex-shrink-0 font-bold text-sm ${item.type === "add" ? "text-amber-500" : "text-red-500"}`}>
+                        {item.type === "add" ? "+" : "−"}
+                      </span>
+                      <span className="text-sm flex-1 min-w-0 truncate">{item.name}</span>
+                      <span className={`text-sm font-semibold flex-shrink-0 ${item.type === "add" ? "text-amber-600" : "text-red-600"}`}>
+                        {formatCurrency(item.amountInCents)}
+                      </span>
+                      <button onClick={() => removeLineItem(item.key)} className="text-muted-foreground hover:text-red-500 transition-colors flex-shrink-0">
+                        <X className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              {/* Botão de adicionar serviço */}
+              {!showExtraPanel ? (
+                <button
+                  onClick={() => setShowExtraPanel(true)}
+                  className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl border border-dashed border-brand-300 text-brand-600 text-sm font-medium hover:bg-brand-50 transition-colors"
+                >
+                  <Tag className="w-4 h-4" />
+                  Adicionar taxa / desconto / extra
+                </button>
+              ) : (
+                <div className="p-3 bg-brand-50 rounded-xl border border-brand-100 space-y-3">
+                  <div className="flex items-center justify-between">
+                    <p className="text-xs font-semibold text-brand-700">Adicionar serviço</p>
+                    <button onClick={() => setShowExtraPanel(false)} className="text-muted-foreground hover:text-foreground">
+                      <X className="w-4 h-4" />
+                    </button>
+                  </div>
+
+                  {/* Catálogo rápido */}
+                  {extraCatalog.length > 0 && (
+                    <div className="flex flex-wrap gap-1.5">
+                      {extraCatalog.map((svc) => (
+                        <button
+                          key={svc.id}
+                          onClick={() => { addFromCatalog(svc); setShowExtraPanel(false); }}
+                          className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-white border border-brand-200 text-xs font-medium hover:bg-brand-100 transition-colors"
+                        >
+                          <span className={svc.type === "add" ? "text-amber-500" : "text-red-500"}>
+                            {svc.type === "add" ? "+" : "−"}
+                          </span>
+                          {svc.name}
+                          {svc.defaultAmountInCents > 0 && (
+                            <span className="text-muted-foreground">· {formatCurrency(svc.defaultAmountInCents)}</span>
+                          )}
+                        </button>
+                      ))}
+                    </div>
+                  )}
+
+                  {/* Entrada customizada */}
+                  <div className="space-y-2">
+                    <Input
+                      placeholder="Nome do serviço"
+                      value={customName}
+                      onChange={(e) => setCustomName(e.target.value)}
+                      className="h-9 text-sm"
+                    />
+                    <div className="flex gap-2">
+                      <div className="flex rounded-xl border border-input overflow-hidden flex-shrink-0">
+                        <button
+                          onClick={() => setCustomType("add")}
+                          className={`flex items-center gap-1 px-3 py-2 text-xs font-semibold transition-colors ${customType === "add" ? "bg-amber-100 text-amber-700" : "bg-white text-muted-foreground hover:bg-gray-50"}`}
+                        >
+                          <Plus className="w-3 h-3" /> Taxa
+                        </button>
+                        <button
+                          onClick={() => setCustomType("deduct")}
+                          className={`flex items-center gap-1 px-3 py-2 text-xs font-semibold transition-colors border-l ${customType === "deduct" ? "bg-red-100 text-red-700" : "bg-white text-muted-foreground hover:bg-gray-50"}`}
+                        >
+                          <Minus className="w-3 h-3" /> Desconto
+                        </button>
+                      </div>
+                      <Input
+                        type="number" step="0.01" min="0"
+                        placeholder="R$ 0,00"
+                        value={customAmtStr}
+                        onChange={(e) => setCustomAmtStr(e.target.value)}
+                        className="h-9 text-sm flex-1"
+                      />
+                      <button
+                        onClick={addCustom}
+                        disabled={!customName.trim() || !customAmtStr}
+                        className="h-9 px-3 bg-brand-500 text-white rounded-xl text-sm font-semibold disabled:opacity-40 hover:bg-brand-600 transition-colors flex-shrink-0"
+                      >
+                        Adicionar
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* Forma de pagamento */}
+              <div>
+                <p className="text-sm font-semibold flex items-center gap-2 mb-3">
+                  <DollarSign className="w-4 h-4 text-brand-500" />
+                  Forma de Pagamento
+                </p>
+                <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+                  {PAYMENT_METHODS.map((m) => (
+                    <button
+                      key={m}
+                      onClick={() => setPaymentMethod(m)}
+                      className={`px-3 py-2.5 rounded-xl border text-xs font-semibold transition-all ${
+                        paymentMethod === m
+                          ? "bg-brand-500 border-brand-500 text-white shadow-sm"
+                          : "bg-white border-brand-100 text-foreground hover:border-brand-300"
+                      }`}
+                    >
+                      {PAYMENT_METHOD_LABELS[m]}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Breakdown final */}
+              <div className="space-y-1.5 pt-1 border-t border-brand-50">
+                {lineItems.length > 0 && (
+                  <>
+                    <div className="flex justify-between text-sm text-muted-foreground">
+                      <span>Subtotal (procedimento)</span>
+                      <span>{formatCurrency(basePrice)}</span>
+                    </div>
+                    {lineItems.map((item) => (
+                      <div key={item.key} className={`flex justify-between text-sm ${item.type === "add" ? "text-amber-600" : "text-red-600"}`}>
+                        <span>{item.name}</span>
+                        <span>{item.type === "add" ? "+" : "−"} {formatCurrency(item.amountInCents)}</span>
+                      </div>
+                    ))}
+                    <div className="h-px bg-brand-100" />
+                  </>
+                )}
+                <div className="flex justify-between font-bold text-base">
+                  <span>Total</span>
+                  <span className="text-emerald-600">{formatCurrency(total)}</span>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* ── Cancelar ── */}
+          {isActive && !canApprove && (
+            <button
+              onClick={cancel}
+              className="w-full flex items-center justify-center gap-2 py-3 rounded-2xl border border-red-200 text-red-600 text-sm font-medium hover:bg-red-50 transition-colors"
+            >
+              <XCircle className="w-4 h-4" />
+              Cancelar Agendamento
+            </button>
+          )}
+        </div>
+
+        {/* ── FAB: Confirmar Pagamento ── */}
+        {isActive && !canApprove && !payment && (
+          <div className="fixed bottom-0 left-0 right-0 p-4 bg-white/90 backdrop-blur-sm border-t border-brand-100 no-print">
+            <button
+              onClick={confirmPayment}
+              disabled={!paymentMethod || savingPayment}
+              className="w-full h-14 flex items-center justify-center gap-2 bg-brand-500 hover:bg-brand-600 disabled:opacity-40 disabled:cursor-not-allowed text-white rounded-2xl font-semibold text-base shadow-lg shadow-brand-500/30 transition-all"
+            >
+              <CheckCircle2 className="w-5 h-5" />
+              {savingPayment
+                ? "Confirmando..."
+                : paymentMethod
+                ? `Confirmar Pagamento · ${formatCurrency(total)}`
+                : "Selecione a forma de pagamento"}
+            </button>
+          </div>
+        )}
+      </div>
+
+      {/* ── Extrato para impressão ── */}
+      <div className="print-receipt p-8 max-w-xs mx-auto font-sans">
+        <h1 className="text-xl font-bold text-center">{user?.salonName ?? "LashFlow"}</h1>
+        {user?.salonAddress && (
+          <p className="text-xs text-center text-gray-500 mt-1 mb-6">{user.salonAddress}</p>
+        )}
+        <div className="border-t border-gray-300 mb-4" />
+        <h2 className="text-sm font-bold mb-3 uppercase tracking-wide text-gray-600">Extrato do Atendimento</h2>
+
+        <div className="space-y-2 text-sm">
+          <div className="flex justify-between">
+            <span className="text-gray-500">Cliente</span>
+            <span className="font-medium">{apt.clientName ?? "—"}</span>
+          </div>
+          <div className="flex justify-between">
+            <span className="text-gray-500">Data</span>
+            <span className="font-medium">{formatDateTime(apt.scheduledAt)}</span>
+          </div>
+          <div className="flex justify-between">
+            <span className="text-gray-500">Horário</span>
+            <span className="font-medium">{formatTime(apt.scheduledAt)} — {formatTime(apt.endsAt)}</span>
+          </div>
+          <div className="flex justify-between">
+            <span className="text-gray-500">Procedimento</span>
+            <span className="font-medium">{apt.procedureName ?? "—"}</span>
+          </div>
+          {apt.serviceType && (
+            <div className="flex justify-between">
+              <span className="text-gray-500">Tipo</span>
+              <span className="font-medium">{LASH_SERVICE_TYPE_LABELS[apt.serviceType]}</span>
+            </div>
+          )}
+        </div>
+
+        <div className="border-t border-gray-300 my-4" />
+
+        <div className="space-y-2 text-sm">
+          <div className="flex justify-between">
+            <span className="text-gray-500">Procedimento</span>
+            <span>{formatCurrency(payment?.subtotalAmountInCents || payment?.totalAmountInCents || apt.priceCharged)}</span>
+          </div>
+          {payment && payment.feeAmountInCents > 0 && (
+            <div className="flex justify-between text-amber-600">
+              <span>Taxas / extras</span>
+              <span>+ {formatCurrency(payment.feeAmountInCents)}</span>
+            </div>
+          )}
+          {payment && payment.discountAmountInCents > 0 && (
+            <div className="flex justify-between text-red-600">
+              <span>Descontos</span>
+              <span>− {formatCurrency(payment.discountAmountInCents)}</span>
+            </div>
+          )}
+          {payment?.method && (
+            <div className="flex justify-between">
+              <span className="text-gray-500">Forma de pgto.</span>
+              <span>{PAYMENT_METHOD_LABELS[payment.method]}</span>
+            </div>
+          )}
+          <div className="border-t border-gray-300 my-1" />
+          <div className="flex justify-between font-bold text-base">
+            <span>Total pago</span>
+            <span>{formatCurrency(payment?.paidAmountInCents ?? apt.priceCharged)}</span>
           </div>
         </div>
 
-        {/* Row 2: Pagamento (full width) */}
-        <div className="bg-white rounded-2xl border border-brand-100 shadow-card p-6 sm:p-8">
-          <h3 className="font-semibold mb-5 flex items-center gap-2 text-brand-700 text-base">
-            <DollarSign className="w-4 h-4" /> Pagamento
-          </h3>
-          {payment ? (
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-              <div className="p-4 bg-brand-50 rounded-xl">
-                <p className="text-xs text-muted-foreground mb-1">Status</p>
-                <PaymentStatusBadge status={payment.status} />
-              </div>
-              <div className="p-4 bg-brand-50 rounded-xl">
-                <p className="text-xs text-muted-foreground mb-1">Valor pago</p>
-                <p className="font-bold text-lg">{formatCurrency(payment.paidAmountInCents)}</p>
-              </div>
-              {payment.method && (
-                <div className="p-4 bg-brand-50 rounded-xl">
-                  <p className="text-xs text-muted-foreground mb-1">Método</p>
-                  <p className="font-semibold">{PAYMENT_METHOD_LABELS[payment.method]}</p>
-                </div>
-              )}
-            </div>
-          ) : apt.status === "completed" ? (
-            <div className="max-w-sm space-y-3">
-              <Label>Método de pagamento</Label>
-              <Select value={paymentMethod} onValueChange={(v) => setPaymentMethod(v as PaymentMethod)}>
-                <SelectTrigger className="mt-1.5">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {PAYMENT_METHODS.map((m) => (
-                    <SelectItem key={m} value={m}>{PAYMENT_METHOD_LABELS[m]}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              <Button className="w-full h-11" onClick={registerPayment} disabled={savingPayment}>
-                <DollarSign className="w-4 h-4" />
-                {savingPayment ? "Registrando..." : `Confirmar ${formatCurrency(apt.priceCharged)}`}
-              </Button>
-            </div>
-          ) : (
-            <p className="text-sm text-muted-foreground">Pagamento será registrado após o atendimento.</p>
-          )}
+        <div className="border-t border-gray-300 mt-6 pt-4 text-center">
+          <p className="text-xs text-gray-400">Obrigada pela preferência! 💜</p>
         </div>
       </div>
-    </div>
+    </>
   );
 }
