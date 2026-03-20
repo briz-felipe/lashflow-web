@@ -333,29 +333,29 @@ function DateTimePicker({
         <Calendar className="w-4 h-4" /> Data e Hora *
       </h2>
 
-      <div className="flex gap-2">
+      <div className="space-y-3">
         {/* Data */}
-        <div className="flex-1 min-w-0">
+        <div>
           <label className="text-xs text-muted-foreground block mb-1">Data</label>
           <input
             type="date"
             value={date}
             onChange={(e) => onDateChange(e.target.value)}
-            className="w-full h-10 px-2 rounded-xl border border-input bg-white text-sm focus:outline-none focus:ring-2 focus:ring-brand-500 focus:border-transparent"
+            className="w-full h-11 px-3 rounded-xl border border-input bg-white text-sm focus:outline-none focus:ring-2 focus:ring-brand-500 focus:border-transparent"
           />
           {dateLabel && (
-            <p className="mt-1 text-[11px] text-brand-600 font-medium capitalize truncate">{dateLabel}</p>
+            <p className="mt-1 text-[11px] text-brand-600 font-medium capitalize">{dateLabel}</p>
           )}
         </div>
 
         {/* Hora */}
-        <div className="w-28 flex-shrink-0">
+        <div>
           <label className="text-xs text-muted-foreground block mb-1">Horário</label>
           <input
             type="time"
             value={time}
             onChange={(e) => onTimeChange(e.target.value)}
-            className="w-full h-10 px-2 rounded-xl border border-input bg-white text-sm focus:outline-none focus:ring-2 focus:ring-brand-500 focus:border-transparent"
+            className="w-full h-11 px-3 rounded-xl border border-input bg-white text-sm focus:outline-none focus:ring-2 focus:ring-brand-500 focus:border-transparent"
           />
         </div>
       </div>

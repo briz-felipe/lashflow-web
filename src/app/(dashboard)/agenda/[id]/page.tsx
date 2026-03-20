@@ -13,7 +13,7 @@ import { formatDateTime, formatCurrency, formatTime } from "@/lib/formatters";
 import {
   ArrowLeft, CheckCircle2, XCircle, User, Sparkles, Clock,
   DollarSign, Calendar, RefreshCw, Scissors, Edit2, FileText,
-  MessageCircle, ChevronDown, Plus, Minus, X, Tag,
+  MessageCircle, ChevronDown, Plus, Minus, X, Tag, Check,
 } from "lucide-react";
 import Link from "next/link";
 import type { Appointment, Payment, ExtraService } from "@/domain/entities";
@@ -55,6 +55,7 @@ export default function AgendamentoDetailPage() {
   // Extra services como line items
   const [lineItems, setLineItems] = useState<LineItem[]>([]);
   const [showExtraPanel, setShowExtraPanel] = useState(false);
+  const [catalogSelected, setCatalogSelected] = useState<string[]>([]);
   const [customName, setCustomName] = useState("");
   const [customAmtStr, setCustomAmtStr] = useState("");
   const [customType, setCustomType] = useState<"add" | "deduct">("add");
@@ -95,11 +96,18 @@ export default function AgendamentoDetailPage() {
   const total = Math.max(0, basePrice + totalAdds - totalDeducts);
 
   // ── Line item helpers ────────────────────────────────────────────────────────
-  function addFromCatalog(svc: ExtraService) {
+  function toggleCatalogItem(id: string) {
+    setCatalogSelected((prev) => prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]);
+  }
+
+  function addCatalogSelected() {
+    const toAdd = extraCatalog.filter((s) => catalogSelected.includes(s.id));
     setLineItems((prev) => [
       ...prev,
-      { key: `${svc.id}-${Date.now()}`, name: svc.name, type: svc.type, amountInCents: svc.defaultAmountInCents },
+      ...toAdd.map((s) => ({ key: `${s.id}-${Date.now()}`, name: s.name, type: s.type, amountInCents: s.defaultAmountInCents })),
     ]);
+    setCatalogSelected([]);
+    setShowExtraPanel(false);
   }
 
   function addCustom() {
@@ -142,7 +150,12 @@ export default function AgendamentoDetailPage() {
     setSavingPayment(true);
     try {
       if (apt.status !== "completed") {
-        const updated = await appointmentService.updateAppointmentStatus(apt.id, "completed");
+        // Backend requires: confirmed → in_progress → completed
+        let current = apt;
+        if (current.status === "confirmed") {
+          current = await appointmentService.updateAppointmentStatus(apt.id, "in_progress");
+        }
+        const updated = await appointmentService.updateAppointmentStatus(current.id, "completed");
         setApt(updated);
       }
       const newPayment = await paymentService.createPayment({
@@ -436,24 +449,53 @@ export default function AgendamentoDetailPage() {
                     </button>
                   </div>
 
-                  {/* Catálogo rápido */}
+                  {/* Catálogo — multi-select por checkbox */}
                   {extraCatalog.length > 0 && (
-                    <div className="flex flex-wrap gap-1.5">
-                      {extraCatalog.map((svc) => (
+                    <div className="space-y-1">
+                      {extraCatalog.map((svc) => {
+                        const checked = catalogSelected.includes(svc.id);
+                        return (
+                          <button
+                            key={svc.id}
+                            type="button"
+                            onClick={() => toggleCatalogItem(svc.id)}
+                            className={`w-full flex items-center gap-2.5 px-3 py-2 rounded-xl border text-sm transition-all ${
+                              checked
+                                ? "bg-brand-50 border-brand-300"
+                                : "bg-white border-brand-100 hover:border-brand-200"
+                            }`}
+                          >
+                            {/* checkbox */}
+                            <span className={`w-4 h-4 rounded border-2 flex items-center justify-center flex-shrink-0 transition-colors ${
+                              checked ? "bg-brand-500 border-brand-500" : "border-input"
+                            }`}>
+                              {checked && <Check className="w-2.5 h-2.5 text-white" />}
+                            </span>
+                            <span className={`font-bold text-xs flex-shrink-0 ${svc.type === "add" ? "text-amber-500" : "text-red-500"}`}>
+                              {svc.type === "add" ? "+" : "−"}
+                            </span>
+                            <span className="flex-1 text-left">{svc.name}</span>
+                            <span className="text-xs text-muted-foreground flex-shrink-0">{formatCurrency(svc.defaultAmountInCents)}</span>
+                          </button>
+                        );
+                      })}
+                      {catalogSelected.length > 0 && (
                         <button
-                          key={svc.id}
-                          onClick={() => { addFromCatalog(svc); setShowExtraPanel(false); }}
-                          className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-white border border-brand-200 text-xs font-medium hover:bg-brand-100 transition-colors"
+                          type="button"
+                          onClick={addCatalogSelected}
+                          className="mt-1 w-full h-9 bg-brand-500 hover:bg-brand-600 text-white rounded-xl text-sm font-semibold transition-colors"
                         >
-                          <span className={svc.type === "add" ? "text-amber-500" : "text-red-500"}>
-                            {svc.type === "add" ? "+" : "−"}
-                          </span>
-                          {svc.name}
-                          {svc.defaultAmountInCents > 0 && (
-                            <span className="text-muted-foreground">· {formatCurrency(svc.defaultAmountInCents)}</span>
-                          )}
+                          Adicionar {catalogSelected.length} serviço{catalogSelected.length > 1 ? "s" : ""}
                         </button>
-                      ))}
+                      )}
+                    </div>
+                  )}
+
+                  {extraCatalog.length > 0 && (
+                    <div className="flex items-center gap-2 py-1">
+                      <div className="flex-1 h-px bg-brand-100" />
+                      <span className="text-xs text-muted-foreground">ou adicionar manualmente</span>
+                      <div className="flex-1 h-px bg-brand-100" />
                     </div>
                   )}
 
@@ -558,32 +600,12 @@ export default function AgendamentoDetailPage() {
             </button>
           )}
 
-          {/* ── Confirmar Pagamento (desktop inline) ── */}
+          {/* ── Confirmar Pagamento (inline, abaixo do cancelar) ── */}
           {isActive && !canApprove && !payment && (
-            <div className="hidden sm:block no-print">
-              <button
-                onClick={confirmPayment}
-                disabled={!paymentMethod || savingPayment}
-                className="w-full h-14 flex items-center justify-center gap-2 bg-brand-500 hover:bg-brand-600 disabled:opacity-40 disabled:cursor-not-allowed text-white rounded-2xl font-semibold text-base shadow-lg shadow-brand-500/30 transition-all"
-              >
-                <CheckCircle2 className="w-5 h-5" />
-                {savingPayment
-                  ? "Confirmando..."
-                  : paymentMethod
-                  ? `Confirmar Pagamento · ${formatCurrency(total)}`
-                  : "Selecione a forma de pagamento"}
-              </button>
-            </div>
-          )}
-        </div>
-
-        {/* ── FAB: Confirmar Pagamento (mobile) ── */}
-        {isActive && !canApprove && !payment && (
-          <div className="fixed bottom-0 left-0 right-0 z-50 p-4 bg-white/95 backdrop-blur-sm border-t border-brand-100 no-print sm:hidden">
             <button
               onClick={confirmPayment}
               disabled={!paymentMethod || savingPayment}
-              className="w-full h-14 flex items-center justify-center gap-2 bg-brand-500 hover:bg-brand-600 disabled:opacity-40 disabled:cursor-not-allowed text-white rounded-2xl font-semibold text-base shadow-lg shadow-brand-500/30 transition-all"
+              className="w-full h-14 flex items-center justify-center gap-2 bg-brand-500 hover:bg-brand-600 disabled:opacity-40 disabled:cursor-not-allowed text-white rounded-2xl font-semibold text-base shadow-lg shadow-brand-500/30 transition-all no-print"
             >
               <CheckCircle2 className="w-5 h-5" />
               {savingPayment
@@ -592,8 +614,8 @@ export default function AgendamentoDetailPage() {
                 ? `Confirmar Pagamento · ${formatCurrency(total)}`
                 : "Selecione a forma de pagamento"}
             </button>
-          </div>
-        )}
+          )}
+        </div>
       </div>
 
       {/* ── Extrato para impressão ── */}

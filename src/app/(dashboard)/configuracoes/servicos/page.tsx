@@ -79,51 +79,49 @@ export default function ServicosPage() {
             />
           </div>
 
-          <div className="flex gap-2">
-            {/* Tipo */}
-            <div className="flex-shrink-0">
-              <label className="text-xs font-medium text-muted-foreground block mb-1">Tipo</label>
-              <div className="flex rounded-xl border border-input overflow-hidden h-10">
-                <button
-                  type="button"
-                  onClick={() => setForm((f) => ({ ...f, type: "add" }))}
-                  className={`flex items-center gap-1.5 px-3 text-xs font-semibold transition-colors ${
-                    form.type === "add"
-                      ? "bg-amber-100 text-amber-700"
-                      : "bg-white text-muted-foreground hover:bg-gray-50"
-                  }`}
-                >
-                  <Plus className="w-3.5 h-3.5" /> Taxa
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setForm((f) => ({ ...f, type: "deduct" }))}
-                  className={`flex items-center gap-1.5 px-3 text-xs font-semibold border-l transition-colors ${
-                    form.type === "deduct"
-                      ? "bg-red-100 text-red-700"
-                      : "bg-white text-muted-foreground hover:bg-gray-50"
-                  }`}
-                >
-                  <Minus className="w-3.5 h-3.5" /> Desconto
-                </button>
-              </div>
+          {/* Tipo */}
+          <div>
+            <label className="text-xs font-medium text-muted-foreground block mb-1">Tipo</label>
+            <div className="flex rounded-xl border border-input overflow-hidden h-11">
+              <button
+                type="button"
+                onClick={() => setForm((f) => ({ ...f, type: "add" }))}
+                className={`flex-1 flex items-center justify-center gap-1.5 text-xs font-semibold transition-colors ${
+                  form.type === "add"
+                    ? "bg-amber-100 text-amber-700"
+                    : "bg-white text-muted-foreground hover:bg-gray-50"
+                }`}
+              >
+                <Plus className="w-3.5 h-3.5" /> Taxa / Acréscimo
+              </button>
+              <button
+                type="button"
+                onClick={() => setForm((f) => ({ ...f, type: "deduct" }))}
+                className={`flex-1 flex items-center justify-center gap-1.5 text-xs font-semibold border-l transition-colors ${
+                  form.type === "deduct"
+                    ? "bg-red-100 text-red-700"
+                    : "bg-white text-muted-foreground hover:bg-gray-50"
+                }`}
+              >
+                <Minus className="w-3.5 h-3.5" /> Desconto
+              </button>
             </div>
+          </div>
 
-            {/* Valor */}
-            <div className="flex-1 min-w-0">
-              <label className="text-xs font-medium text-muted-foreground block mb-1">Valor (R$) *</label>
-              <div className="relative">
-                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-xs text-muted-foreground pointer-events-none">R$</span>
-                <input
-                  type="number"
-                  min="0"
-                  step="0.01"
-                  placeholder="0,00"
-                  value={form.amount}
-                  onChange={(e) => setForm((f) => ({ ...f, amount: e.target.value }))}
-                  className="w-full h-10 pl-8 pr-3 rounded-xl border border-input bg-white text-sm focus:outline-none focus:ring-2 focus:ring-brand-500 focus:border-transparent"
-                />
-              </div>
+          {/* Valor */}
+          <div>
+            <label className="text-xs font-medium text-muted-foreground block mb-1">Valor (R$) *</label>
+            <div className="relative">
+              <span className="absolute left-3 top-1/2 -translate-y-1/2 text-xs text-muted-foreground pointer-events-none">R$</span>
+              <input
+                type="number"
+                min="0"
+                step="0.01"
+                placeholder="0,00"
+                value={form.amount}
+                onChange={(e) => setForm((f) => ({ ...f, amount: e.target.value }))}
+                className="w-full h-11 pl-8 pr-3 rounded-xl border border-input bg-white text-sm focus:outline-none focus:ring-2 focus:ring-brand-500 focus:border-transparent"
+              />
             </div>
           </div>
 
