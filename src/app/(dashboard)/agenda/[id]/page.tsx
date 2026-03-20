@@ -186,7 +186,7 @@ export default function AgendamentoDetailPage() {
         .print-receipt { display: none; }
       `}</style>
 
-      <div className="pb-28 sm:pb-6 no-print">
+      <div className="pb-32 sm:pb-6 no-print">
         <Topbar title="Agendamento" />
 
         <div className="p-4 sm:p-5 animate-fade-in space-y-3 max-w-lg mx-auto">

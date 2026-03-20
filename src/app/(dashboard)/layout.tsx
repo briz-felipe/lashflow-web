@@ -13,8 +13,8 @@ export default function DashboardLayout({
     <SidebarProvider>
       <div className="flex h-screen overflow-hidden bg-brand-50">
         <Sidebar />
-        {/* pb-16 on mobile to clear the bottom nav bar */}
-        <main className="flex-1 overflow-y-auto min-w-0 pb-16 lg:pb-0">
+        {/* pb-20 on mobile to clear the bottom nav (h-16) + safe area buffer */}
+        <main className="flex-1 overflow-y-auto min-w-0 pb-20 lg:pb-0">
           {children}
         </main>
       </div>
