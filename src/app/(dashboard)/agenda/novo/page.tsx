@@ -328,36 +328,34 @@ function DateTimePicker({
     : null;
 
   return (
-    <div className="bg-white rounded-2xl border border-brand-100 shadow-card p-5">
-      <h2 className="font-semibold flex items-center gap-2 text-brand-700 text-base mb-4">
+    <div className="bg-white rounded-2xl border border-brand-100 shadow-card p-4">
+      <h2 className="font-semibold flex items-center gap-2 text-brand-700 text-sm mb-3">
         <Calendar className="w-4 h-4" /> Data e Hora *
       </h2>
 
-      <div className="grid grid-cols-2 gap-3">
+      <div className="flex gap-2">
         {/* Data */}
-        <div className="col-span-2 sm:col-span-1">
-          <label className="text-xs font-medium text-muted-foreground block mb-1.5">Data</label>
+        <div className="flex-1 min-w-0">
+          <label className="text-xs text-muted-foreground block mb-1">Data</label>
           <input
             type="date"
             value={date}
             onChange={(e) => onDateChange(e.target.value)}
-            className="w-full h-12 px-3 rounded-xl border border-input bg-white text-sm font-medium focus:outline-none focus:ring-2 focus:ring-brand-500 focus:border-transparent"
+            className="w-full h-10 px-2 rounded-xl border border-input bg-white text-sm focus:outline-none focus:ring-2 focus:ring-brand-500 focus:border-transparent"
           />
           {dateLabel && (
-            <p className="mt-1.5 text-xs text-brand-600 font-medium capitalize">{dateLabel}</p>
+            <p className="mt-1 text-[11px] text-brand-600 font-medium capitalize truncate">{dateLabel}</p>
           )}
         </div>
 
         {/* Hora */}
-        <div className="col-span-2 sm:col-span-1">
-          <label className="text-xs font-medium text-muted-foreground block mb-1.5">
-            <Clock className="w-3 h-3 inline mr-1" />Horário
-          </label>
+        <div className="w-28 flex-shrink-0">
+          <label className="text-xs text-muted-foreground block mb-1">Horário</label>
           <input
             type="time"
             value={time}
             onChange={(e) => onTimeChange(e.target.value)}
-            className="w-full h-12 px-3 rounded-xl border border-input bg-white text-sm font-medium focus:outline-none focus:ring-2 focus:ring-brand-500 focus:border-transparent"
+            className="w-full h-10 px-2 rounded-xl border border-input bg-white text-sm focus:outline-none focus:ring-2 focus:ring-brand-500 focus:border-transparent"
           />
         </div>
       </div>

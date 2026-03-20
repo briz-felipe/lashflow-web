@@ -579,7 +579,7 @@ export default function AgendamentoDetailPage() {
 
         {/* ── FAB: Confirmar Pagamento (mobile) ── */}
         {isActive && !canApprove && !payment && (
-          <div className="fixed bottom-0 left-0 right-0 p-4 bg-white/90 backdrop-blur-sm border-t border-brand-100 no-print sm:hidden">
+          <div className="fixed bottom-0 left-0 right-0 z-50 p-4 bg-white/95 backdrop-blur-sm border-t border-brand-100 no-print sm:hidden">
             <button
               onClick={confirmPayment}
               disabled={!paymentMethod || savingPayment}

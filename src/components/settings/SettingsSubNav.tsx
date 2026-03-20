@@ -3,10 +3,11 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { cn } from "@/lib/utils";
-import { Clock, MessageSquare, Users, User, Plug } from "lucide-react";
+import { Clock, MessageSquare, Users, User, Plug, Tag } from "lucide-react";
 
 const SETTINGS_TABS = [
   { href: "/configuracoes/horarios",    label: "Horários",    icon: Clock },
+  { href: "/configuracoes/servicos",    label: "Serviços",    icon: Tag },
   { href: "/configuracoes/mensagens",   label: "Mensagens",   icon: MessageSquare },
   { href: "/configuracoes/clientes",    label: "Clientes",    icon: Users },
   { href: "/configuracoes/perfil",      label: "Perfil",      icon: User },
