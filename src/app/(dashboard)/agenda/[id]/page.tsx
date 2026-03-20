@@ -36,7 +36,8 @@ const SERVICE_CONFIG: Record<LashServiceType, { icon: React.ReactNode; color: st
 };
 
 interface LineItem {
-  key: string;     // unique id for React key
+  key: string;       // unique id for React key
+  catalogId?: string; // set when originated from global catalog — prevents duplicates
   name: string;
   type: "add" | "deduct";
   amountInCents: number;
@@ -96,15 +97,18 @@ export default function AgendamentoDetailPage() {
   const total = Math.max(0, basePrice + totalAdds - totalDeducts);
 
   // ── Line item helpers ────────────────────────────────────────────────────────
+  const addedCatalogIds = new Set(lineItems.map((i) => i.catalogId).filter(Boolean) as string[]);
+
   function toggleCatalogItem(id: string) {
+    if (addedCatalogIds.has(id)) return; // já adicionado — bloqueia duplicata
     setCatalogSelected((prev) => prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]);
   }
 
   function addCatalogSelected() {
-    const toAdd = extraCatalog.filter((s) => catalogSelected.includes(s.id));
+    const toAdd = extraCatalog.filter((s) => catalogSelected.includes(s.id) && !addedCatalogIds.has(s.id));
     setLineItems((prev) => [
       ...prev,
-      ...toAdd.map((s) => ({ key: `${s.id}-${Date.now()}`, name: s.name, type: s.type, amountInCents: s.defaultAmountInCents })),
+      ...toAdd.map((s) => ({ key: `${s.id}-${Date.now()}`, catalogId: s.id, name: s.name, type: s.type, amountInCents: s.defaultAmountInCents })),
     ]);
     setCatalogSelected([]);
     setShowExtraPanel(false);
@@ -434,26 +438,35 @@ export default function AgendamentoDetailPage() {
               ) : (
                 <div className="space-y-1.5">
                   {extraCatalog.map((svc) => {
+                    const alreadyAdded = addedCatalogIds.has(svc.id);
                     const checked = catalogSelected.includes(svc.id);
                     return (
                       <button
                         key={svc.id}
                         type="button"
                         onClick={() => toggleCatalogItem(svc.id)}
+                        disabled={alreadyAdded}
                         className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl border transition-all ${
-                          checked ? "bg-brand-50 border-brand-400" : "bg-white border-brand-100 hover:border-brand-200"
+                          alreadyAdded
+                            ? "bg-gray-50 border-gray-100 opacity-50 cursor-not-allowed"
+                            : checked
+                            ? "bg-brand-50 border-brand-400"
+                            : "bg-white border-brand-100 hover:border-brand-200"
                         }`}
                       >
                         <span className={`w-4 h-4 rounded border-2 flex items-center justify-center flex-shrink-0 transition-colors ${
-                          checked ? "bg-brand-500 border-brand-500" : "border-input"
+                          alreadyAdded ? "bg-gray-300 border-gray-300" : checked ? "bg-brand-500 border-brand-500" : "border-input"
                         }`}>
-                          {checked && <Check className="w-2.5 h-2.5 text-white" />}
+                          {(checked || alreadyAdded) && <Check className="w-2.5 h-2.5 text-white" />}
                         </span>
                         <span className={`text-xs font-bold flex-shrink-0 ${svc.type === "add" ? "text-amber-500" : "text-red-500"}`}>
                           {svc.type === "add" ? "+" : "−"}
                         </span>
                         <span className="flex-1 text-sm text-left">{svc.name}</span>
-                        <span className="text-sm font-semibold flex-shrink-0 text-muted-foreground">{formatCurrency(svc.defaultAmountInCents)}</span>
+                        {alreadyAdded
+                          ? <span className="text-xs text-muted-foreground flex-shrink-0">adicionado</span>
+                          : <span className="text-sm font-semibold flex-shrink-0 text-muted-foreground">{formatCurrency(svc.defaultAmountInCents)}</span>
+                        }
                       </button>
                     );
                   })}
