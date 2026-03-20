@@ -78,7 +78,7 @@ function CompactCalendar({
   blockedDates: BlockedDate[];
   timeSlots: TimeSlot[];
   onDaySelect: (day: Date) => void;
-  onNavigate: (dir: 1 | -1) => void;
+  onNavigate: (dir: 1 | -1 | 0) => void;
 }) {
   const monthStart = startOfMonth(date);
   const monthEnd = endOfMonth(date);
