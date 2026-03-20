@@ -45,8 +45,8 @@ export function computeCycle(appointments: Appointment[], maxGapDays = DEFAULT_C
     return { steps: [], needsRemoval: false, summary: "no_data", nextSuggestedService: "application" };
   }
 
-  // Find the most recent application (completed or upcoming)
-  const lastApp = [...relevant].reverse().find((a) => a.serviceType === "application");
+  // Find the most recent application or removal+application (both reset the cycle)
+  const lastApp = [...relevant].reverse().find((a) => a.serviceType === "application" || a.serviceType === "removal_application");
 
   if (!lastApp) {
     return { steps: [], needsRemoval: false, summary: "no_data", nextSuggestedService: "application" };

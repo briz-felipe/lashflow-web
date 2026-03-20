@@ -87,6 +87,7 @@ export type LashServiceType =
   | "application"
   | "maintenance"
   | "removal"
+  | "removal_application"
   | "lash_lifting"
   | "permanent";
 
@@ -94,6 +95,7 @@ export const LASH_SERVICE_TYPE_LABELS: Record<LashServiceType, string> = {
   application: "Aplicação",
   maintenance: "Manutenção",
   removal: "Remoção",
+  removal_application: "Remoção + Aplicação",
   lash_lifting: "Lash Lifting",
   permanent: "Permanente de Cílios",
 };

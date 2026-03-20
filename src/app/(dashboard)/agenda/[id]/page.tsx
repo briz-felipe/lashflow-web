@@ -33,9 +33,10 @@ const PAYMENT_METHODS: PaymentMethod[] = ["pix", "credit_card", "debit_card", "c
 const SERVICE_CONFIG: Record<LashServiceType, { icon: React.ReactNode; color: string; bg: string }> = {
   application:  { icon: <Sparkles className="w-4 h-4" />,  color: "text-brand-700",   bg: "bg-brand-50 border-brand-200" },
   maintenance:  { icon: <RefreshCw className="w-4 h-4" />, color: "text-emerald-700", bg: "bg-emerald-50 border-emerald-200" },
-  removal:      { icon: <Scissors className="w-4 h-4" />,  color: "text-red-700",     bg: "bg-red-50 border-red-200" },
-  lash_lifting: { icon: <Sparkles className="w-4 h-4" />,  color: "text-amber-700",   bg: "bg-amber-50 border-amber-200" },
-  permanent:    { icon: <Sparkles className="w-4 h-4" />,  color: "text-purple-700",  bg: "bg-purple-50 border-purple-200" },
+  removal:             { icon: <Scissors className="w-4 h-4" />,  color: "text-red-700",     bg: "bg-red-50 border-red-200" },
+  removal_application: { icon: <Scissors className="w-4 h-4" />,  color: "text-orange-700",  bg: "bg-orange-50 border-orange-200" },
+  lash_lifting:        { icon: <Sparkles className="w-4 h-4" />,  color: "text-amber-700",   bg: "bg-amber-50 border-amber-200" },
+  permanent:           { icon: <Sparkles className="w-4 h-4" />,  color: "text-purple-700",  bg: "bg-purple-50 border-purple-200" },
 };
 
 interface LineItem {

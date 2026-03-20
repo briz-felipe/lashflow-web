@@ -1,31 +1,42 @@
 "use client";
 
-import { Suspense, useState, useEffect, useRef } from "react";
+import {
+  ArrowLeft,
+  Calendar,
+  Check,
+  CheckCircle2,
+  Clock,
+  RefreshCw,
+  Save,
+  Search,
+  Sparkles,
+  User,
+  UserPlus,
+  X,
+} from "lucide-react";
+import type { Client, Procedure } from "@/domain/entities";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Suspense, useEffect, useRef, useState } from "react";
+import { formatCurrency, formatPhone } from "@/lib/formatters";
 import { useRouter, useSearchParams } from "next/navigation";
-import { Topbar } from "@/components/layout/Topbar";
+
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { LASH_SERVICE_TYPE_LABELS } from "@/domain/enums";
 import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
-import { useAppointments } from "@/hooks/useAppointments";
-import { useProcedures } from "@/hooks/useProcedures";
-import { useClients } from "@/hooks/useClients";
-import { toast } from "@/components/ui/toaster";
-import {
-  ArrowLeft, Save, Calendar, User, Sparkles, RefreshCw, X,
-  Search, CheckCircle2, UserPlus, Clock, Check,
-} from "lucide-react";
+import type { LashServiceType } from "@/domain/enums";
 import Link from "next/link";
-import { formatCurrency, formatPhone } from "@/lib/formatters";
+import { Textarea } from "@/components/ui/textarea";
+import { Topbar } from "@/components/layout/Topbar";
+import { clientService } from "@/services";
+import { computeCycle } from "@/components/clients/LashFlowStatus";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
-import type { LashServiceType } from "@/domain/enums";
-import { LASH_SERVICE_TYPE_LABELS } from "@/domain/enums";
-import { computeCycle } from "@/components/clients/LashFlowStatus";
-import type { Client, Procedure } from "@/domain/entities";
-import { clientService } from "@/services";
 import { toBackendDate } from "@/config/timezone";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { toast } from "@/components/ui/toaster";
+import { useAppointments } from "@/hooks/useAppointments";
+import { useClients } from "@/hooks/useClients";
+import { useProcedures } from "@/hooks/useProcedures";
 
 const SERVICE_TYPES: Array<{
   type: LashServiceType;
@@ -54,6 +65,13 @@ const SERVICE_TYPES: Array<{
     description: "Remoção completa",
     dot: "bg-red-400",
     active: "border-red-400 bg-red-50 text-red-700",
+  },
+  {
+    type: "removal_application",
+    label: "Remoção + Aplicação",
+    description: "Remove e aplica na mesma sessão",
+    dot: "bg-orange-500",
+    active: "border-orange-500 bg-orange-50 text-orange-700",
   },
 ];
 
@@ -666,6 +684,7 @@ function NovoAgendamentoContent() {
                   {saving ? "Salvando..." : "Criar Agendamento"}
                 </Button>
               </div>
+              
             </div>
           </div>
         </form>
