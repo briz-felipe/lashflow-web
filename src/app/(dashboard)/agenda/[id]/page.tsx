@@ -13,7 +13,7 @@ import { formatDateTime, formatCurrency, formatTime } from "@/lib/formatters";
 import {
   ArrowLeft, CheckCircle2, XCircle, User, Sparkles, Clock,
   DollarSign, Calendar, RefreshCw, Scissors, Edit2, FileText,
-  MessageCircle, ChevronDown, Plus, Minus, X, Tag, Check,
+  MessageCircle, ChevronDown, Plus, Minus, X, Tag, Check, Settings,
 } from "lucide-react";
 import Link from "next/link";
 import type { Appointment, Payment, ExtraService } from "@/domain/entities";
@@ -410,13 +410,72 @@ export default function AgendamentoDetailPage() {
           {isActive && !canApprove && !payment && (
             <div className="bg-white rounded-2xl border border-brand-100 shadow-card p-4 space-y-4">
 
+              {/* Header catálogo */}
+              <div className="flex items-center justify-between">
+                <p className="text-sm font-semibold flex items-center gap-2">
+                  <Tag className="w-4 h-4 text-brand-500" />
+                  Taxas & Descontos
+                </p>
+                <Link href="/configuracoes/servicos" className="flex items-center gap-1 text-xs text-brand-600 hover:text-brand-700 transition-colors">
+                  <Settings className="w-3 h-3" /> Gerenciar
+                </Link>
+              </div>
+
+              {/* Catálogo global — sempre visível */}
+              {extraCatalog.length === 0 ? (
+                <Link
+                  href="/configuracoes/servicos"
+                  className="flex flex-col items-center gap-1 py-4 rounded-xl border border-dashed border-brand-200 text-center hover:bg-brand-50 transition-colors"
+                >
+                  <Tag className="w-5 h-5 text-brand-400" />
+                  <span className="text-xs font-medium text-brand-600">Criar catálogo de serviços</span>
+                  <span className="text-xs text-muted-foreground">Taxa de cartão, desconto fidelidade...</span>
+                </Link>
+              ) : (
+                <div className="space-y-1.5">
+                  {extraCatalog.map((svc) => {
+                    const checked = catalogSelected.includes(svc.id);
+                    return (
+                      <button
+                        key={svc.id}
+                        type="button"
+                        onClick={() => toggleCatalogItem(svc.id)}
+                        className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl border transition-all ${
+                          checked ? "bg-brand-50 border-brand-400" : "bg-white border-brand-100 hover:border-brand-200"
+                        }`}
+                      >
+                        <span className={`w-4 h-4 rounded border-2 flex items-center justify-center flex-shrink-0 transition-colors ${
+                          checked ? "bg-brand-500 border-brand-500" : "border-input"
+                        }`}>
+                          {checked && <Check className="w-2.5 h-2.5 text-white" />}
+                        </span>
+                        <span className={`text-xs font-bold flex-shrink-0 ${svc.type === "add" ? "text-amber-500" : "text-red-500"}`}>
+                          {svc.type === "add" ? "+" : "−"}
+                        </span>
+                        <span className="flex-1 text-sm text-left">{svc.name}</span>
+                        <span className="text-sm font-semibold flex-shrink-0 text-muted-foreground">{formatCurrency(svc.defaultAmountInCents)}</span>
+                      </button>
+                    );
+                  })}
+                  {catalogSelected.length > 0 && (
+                    <button
+                      type="button"
+                      onClick={addCatalogSelected}
+                      className="w-full h-10 bg-brand-500 hover:bg-brand-600 text-white rounded-xl text-sm font-semibold transition-colors"
+                    >
+                      Adicionar {catalogSelected.length} selecionado{catalogSelected.length > 1 ? "s" : ""}
+                    </button>
+                  )}
+                </div>
+              )}
+
               {/* Line items já adicionados */}
               {lineItems.length > 0 && (
                 <div className="space-y-1.5">
-                  <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Serviços adicionados</p>
+                  <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Adicionados</p>
                   {lineItems.map((item) => (
                     <div key={item.key} className="flex items-center gap-2 px-3 py-2 rounded-xl bg-brand-50">
-                      <span className={`w-4 h-4 flex-shrink-0 font-bold text-sm ${item.type === "add" ? "text-amber-500" : "text-red-500"}`}>
+                      <span className={`font-bold text-xs flex-shrink-0 ${item.type === "add" ? "text-amber-500" : "text-red-500"}`}>
                         {item.type === "add" ? "+" : "−"}
                       </span>
                       <span className="text-sm flex-1 min-w-0 truncate">{item.name}</span>
@@ -431,114 +490,59 @@ export default function AgendamentoDetailPage() {
                 </div>
               )}
 
-              {/* Botão de adicionar serviço */}
+              {/* Valor avulso (secundário) */}
               {!showExtraPanel ? (
                 <button
                   onClick={() => setShowExtraPanel(true)}
-                  className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl border border-dashed border-brand-300 text-brand-600 text-sm font-medium hover:bg-brand-50 transition-colors"
+                  className="w-full flex items-center justify-center gap-1.5 py-2 rounded-xl border border-dashed border-brand-200 text-xs text-muted-foreground hover:text-brand-600 hover:border-brand-300 transition-colors"
                 >
-                  <Tag className="w-4 h-4" />
-                  Adicionar taxa / desconto / extra
+                  <Plus className="w-3.5 h-3.5" /> Valor avulso
                 </button>
               ) : (
-                <div className="p-3 bg-brand-50 rounded-xl border border-brand-100 space-y-3">
-                  <div className="flex items-center justify-between">
-                    <p className="text-xs font-semibold text-brand-700">Adicionar serviço</p>
+                <div className="space-y-2 p-3 bg-brand-50 rounded-xl border border-brand-100">
+                  <div className="flex items-center justify-between mb-1">
+                    <p className="text-xs font-semibold text-brand-700">Valor avulso</p>
                     <button onClick={() => setShowExtraPanel(false)} className="text-muted-foreground hover:text-foreground">
                       <X className="w-4 h-4" />
                     </button>
                   </div>
-
-                  {/* Catálogo — multi-select por checkbox */}
-                  {extraCatalog.length > 0 && (
-                    <div className="space-y-1">
-                      {extraCatalog.map((svc) => {
-                        const checked = catalogSelected.includes(svc.id);
-                        return (
-                          <button
-                            key={svc.id}
-                            type="button"
-                            onClick={() => toggleCatalogItem(svc.id)}
-                            className={`w-full flex items-center gap-2.5 px-3 py-2 rounded-xl border text-sm transition-all ${
-                              checked
-                                ? "bg-brand-50 border-brand-300"
-                                : "bg-white border-brand-100 hover:border-brand-200"
-                            }`}
-                          >
-                            {/* checkbox */}
-                            <span className={`w-4 h-4 rounded border-2 flex items-center justify-center flex-shrink-0 transition-colors ${
-                              checked ? "bg-brand-500 border-brand-500" : "border-input"
-                            }`}>
-                              {checked && <Check className="w-2.5 h-2.5 text-white" />}
-                            </span>
-                            <span className={`font-bold text-xs flex-shrink-0 ${svc.type === "add" ? "text-amber-500" : "text-red-500"}`}>
-                              {svc.type === "add" ? "+" : "−"}
-                            </span>
-                            <span className="flex-1 text-left">{svc.name}</span>
-                            <span className="text-xs text-muted-foreground flex-shrink-0">{formatCurrency(svc.defaultAmountInCents)}</span>
-                          </button>
-                        );
-                      })}
-                      {catalogSelected.length > 0 && (
-                        <button
-                          type="button"
-                          onClick={addCatalogSelected}
-                          className="mt-1 w-full h-9 bg-brand-500 hover:bg-brand-600 text-white rounded-xl text-sm font-semibold transition-colors"
-                        >
-                          Adicionar {catalogSelected.length} serviço{catalogSelected.length > 1 ? "s" : ""}
-                        </button>
-                      )}
-                    </div>
-                  )}
-
-                  {extraCatalog.length > 0 && (
-                    <div className="flex items-center gap-2 py-1">
-                      <div className="flex-1 h-px bg-brand-100" />
-                      <span className="text-xs text-muted-foreground">ou adicionar manualmente</span>
-                      <div className="flex-1 h-px bg-brand-100" />
-                    </div>
-                  )}
-
-                  {/* Entrada customizada */}
-                  <div className="space-y-2">
-                    <Input
-                      placeholder="Nome do serviço"
-                      value={customName}
-                      onChange={(e) => setCustomName(e.target.value)}
-                      className="h-9 text-sm"
-                    />
-                    <div className="flex rounded-xl border border-input overflow-hidden h-9">
-                      <button
-                        onClick={() => setCustomType("add")}
-                        className={`flex-1 flex items-center justify-center gap-1 text-xs font-semibold transition-colors ${customType === "add" ? "bg-amber-100 text-amber-700" : "bg-white text-muted-foreground hover:bg-gray-50"}`}
-                      >
-                        <Plus className="w-3 h-3" /> Taxa
-                      </button>
-                      <button
-                        onClick={() => setCustomType("deduct")}
-                        className={`flex-1 flex items-center justify-center gap-1 text-xs font-semibold border-l transition-colors ${customType === "deduct" ? "bg-red-100 text-red-700" : "bg-white text-muted-foreground hover:bg-gray-50"}`}
-                      >
-                        <Minus className="w-3 h-3" /> Desconto
-                      </button>
-                    </div>
-                    <div className="relative">
-                      <span className="absolute left-3 top-1/2 -translate-y-1/2 text-xs text-muted-foreground pointer-events-none">R$</span>
-                      <Input
-                        type="number" step="0.01" min="0"
-                        placeholder="0,00"
-                        value={customAmtStr}
-                        onChange={(e) => setCustomAmtStr(e.target.value)}
-                        className="h-9 text-sm pl-8"
-                      />
-                    </div>
+                  <Input
+                    placeholder="Nome do serviço"
+                    value={customName}
+                    onChange={(e) => setCustomName(e.target.value)}
+                    className="h-9 text-sm"
+                  />
+                  <div className="flex rounded-xl border border-input overflow-hidden h-9">
                     <button
-                      onClick={addCustom}
-                      disabled={!customName.trim() || !customAmtStr}
-                      className="w-full h-9 bg-brand-500 text-white rounded-xl text-sm font-semibold disabled:opacity-40 hover:bg-brand-600 transition-colors"
+                      onClick={() => setCustomType("add")}
+                      className={`flex-1 flex items-center justify-center gap-1 text-xs font-semibold transition-colors ${customType === "add" ? "bg-amber-100 text-amber-700" : "bg-white text-muted-foreground hover:bg-gray-50"}`}
                     >
-                      Adicionar
+                      <Plus className="w-3 h-3" /> Taxa
+                    </button>
+                    <button
+                      onClick={() => setCustomType("deduct")}
+                      className={`flex-1 flex items-center justify-center gap-1 text-xs font-semibold border-l transition-colors ${customType === "deduct" ? "bg-red-100 text-red-700" : "bg-white text-muted-foreground hover:bg-gray-50"}`}
+                    >
+                      <Minus className="w-3 h-3" /> Desconto
                     </button>
                   </div>
+                  <div className="relative">
+                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-xs text-muted-foreground pointer-events-none">R$</span>
+                    <Input
+                      type="number" step="0.01" min="0"
+                      placeholder="0,00"
+                      value={customAmtStr}
+                      onChange={(e) => setCustomAmtStr(e.target.value)}
+                      className="h-9 text-sm pl-8"
+                    />
+                  </div>
+                  <button
+                    onClick={addCustom}
+                    disabled={!customName.trim() || !customAmtStr}
+                    className="w-full h-9 bg-brand-500 text-white rounded-xl text-sm font-semibold disabled:opacity-40 hover:bg-brand-600 transition-colors"
+                  >
+                    Adicionar
+                  </button>
                 </div>
               )}
 
