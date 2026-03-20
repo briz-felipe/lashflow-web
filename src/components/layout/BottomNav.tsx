@@ -21,9 +21,13 @@ export function BottomNav() {
     pathname === href || (href !== "/dashboard" && pathname.startsWith(href));
 
   return (
-    <nav className="fixed bottom-0 left-0 right-0 z-40 lg:hidden bg-white border-t border-brand-100">
-      {/* Tabs — altura fixa de 64px */}
-      <div className="flex items-stretch">
+    /* Wrapper que respeita a safe area e empurra o pill para cima */
+    <div
+      className="fixed bottom-0 left-0 right-0 z-40 lg:hidden"
+      style={{ paddingBottom: "calc(env(safe-area-inset-bottom) + 12px)" }}
+    >
+      {/* Pill flutuante */}
+      <div className="mx-3 bg-white rounded-2xl shadow-lg border border-brand-100 flex items-stretch overflow-hidden">
         {tabs.map(({ href, label, icon: Icon }) => {
           const active = isActive(href);
           return (
@@ -51,9 +55,6 @@ export function BottomNav() {
           <span className="text-[10px] font-medium">Mais</span>
         </button>
       </div>
-
-      {/* Faixa extra cobrindo a safe area (home indicator iPhone / gestos Android) */}
-      <div style={{ height: "env(safe-area-inset-bottom)" }} />
-    </nav>
+    </div>
   );
 }
