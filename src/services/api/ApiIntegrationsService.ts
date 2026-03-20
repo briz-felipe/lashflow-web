@@ -36,7 +36,7 @@ export const integrationsService = {
     return api.put("/integrations/apple-calendar/calendar", { calendarName });
   },
 
-  updateProfile(data: { salonName?: string; salonSlug?: string; salonAddress?: string }) {
+  updateProfile(data: { salonName?: string; salonSlug?: string; salonAddress?: string; maintenanceCycleDays?: number }) {
     return api.put("/auth/profile", data);
   },
 };
