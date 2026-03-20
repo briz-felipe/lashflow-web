@@ -1,5 +1,5 @@
 import { api } from "@/lib/api";
-import type { Appointment, CreateAppointmentInput } from "@/domain/entities";
+import type { Appointment, CreateAppointmentInput, UpdateAppointmentInput } from "@/domain/entities";
 import type { IAppointmentService, AppointmentFilters } from "../interfaces/IAppointmentService";
 import type { AppointmentStatus } from "@/domain/enums";
 
@@ -33,6 +33,19 @@ export class ApiAppointmentService implements IAppointmentService {
   async createAppointment(input: CreateAppointmentInput): Promise<Appointment> {
     const { status, ...rest } = input;
     const data = await api.post<Appointment>("/appointments/", { ...rest, ...(status ? { status } : {}) });
+    return parseAppointment(data);
+  }
+
+  async updateAppointment(id: string, input: UpdateAppointmentInput): Promise<Appointment> {
+    const body: Record<string, unknown> = {};
+    if (input.procedureId !== undefined) body.procedureId = input.procedureId;
+    if (input.scheduledAt !== undefined) body.scheduledAt = input.scheduledAt.toISOString();
+    if (input.serviceType !== undefined) body.serviceType = input.serviceType;
+    if (input.priceCharged !== undefined) body.priceCharged = input.priceCharged;
+    if (input.durationMinutes !== undefined) body.durationMinutes = input.durationMinutes;
+    if (input.procedureName !== undefined) body.procedureName = input.procedureName;
+    if (input.notes !== undefined) body.notes = input.notes;
+    const data = await api.patch<Appointment>(`/appointments/${id}`, body);
     return parseAppointment(data);
   }
 

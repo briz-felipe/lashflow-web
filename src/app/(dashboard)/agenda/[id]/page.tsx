@@ -24,6 +24,9 @@ import { WhatsAppReminderService } from "@/services/WhatsAppReminderService";
 import { useWhatsAppTemplates } from "@/hooks/useWhatsAppTemplates";
 import { useAuth } from "@/hooks/useAuth";
 import { useExtraServices } from "@/hooks/useExtraServices";
+import { useProcedures } from "@/hooks/useProcedures";
+import { toBackendDate } from "@/config/timezone";
+import type { UpdateAppointmentInput } from "@/domain/entities";
 
 const PAYMENT_METHODS: PaymentMethod[] = ["pix", "credit_card", "debit_card", "cash", "bank_transfer"];
 
@@ -65,11 +68,21 @@ export default function AgendamentoDetailPage() {
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod | "">("");
   const [savingPayment, setSavingPayment] = useState(false);
 
+  // Edit mode
+  const [editMode, setEditMode] = useState(false);
+  const [editDate, setEditDate] = useState("");
+  const [editTime, setEditTime] = useState("");
+  const [editNotes, setEditNotes] = useState("");
+  const [editProcedureId, setEditProcedureId] = useState("");
+  const [editPriceStr, setEditPriceStr] = useState("");
+  const [savingEdit, setSavingEdit] = useState(false);
+
   // WhatsApp
   const [reminderOpen, setReminderOpen] = useState(false);
   const { templates: apiTemplates } = useWhatsAppTemplates();
   const { user } = useAuth();
   const { services: extraCatalog } = useExtraServices();
+  const { procedures } = useProcedures(true);
   const reminderTemplates = apiTemplates.length > 0 ? apiTemplates : REMINDER_TEMPLATES;
 
   useEffect(() => {
@@ -148,6 +161,51 @@ export default function AgendamentoDetailPage() {
     window.history.back();
   };
 
+  // ── Edit mode ────────────────────────────────────────────────────────────────
+  function enterEditMode() {
+    if (!apt) return;
+    const d = apt.scheduledAt instanceof Date ? apt.scheduledAt : new Date(apt.scheduledAt as unknown as string);
+    const pad = (n: number) => String(n).padStart(2, "0");
+    setEditDate(`${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`);
+    setEditTime(`${pad(d.getHours())}:${pad(d.getMinutes())}`);
+    setEditNotes(apt.notes ?? "");
+    setEditProcedureId(apt.procedureId);
+    setEditPriceStr((apt.priceCharged / 100).toFixed(2));
+    setEditMode(true);
+  }
+
+  const saveEdit = async () => {
+    if (!apt || !editDate || !editTime) return;
+    setSavingEdit(true);
+    try {
+      const priceCharged = Math.round(parseFloat(editPriceStr.replace(",", ".") || "0") * 100);
+      const scheduledAt = toBackendDate(editDate, editTime);
+      const selected = procedures.find((p) => p.id === editProcedureId);
+      const procedureChanged = editProcedureId !== apt.procedureId;
+
+      const input: UpdateAppointmentInput = {
+        procedureId: editProcedureId,
+        scheduledAt,
+        priceCharged,
+        notes: editNotes || "",
+      };
+      if (procedureChanged) {
+        input.durationMinutes = selected?.durationMinutes;
+        input.procedureName = ""; // clear multi-procedure override
+      }
+
+      const updated = await appointmentService.updateAppointment(apt.id, input);
+      setApt(updated);
+      setCustomPriceStr((updated.priceCharged / 100).toFixed(2));
+      setEditMode(false);
+      toast({ title: "Agendamento atualizado!", variant: "success" });
+    } catch (err) {
+      toast({ title: err instanceof Error && err.message ? err.message : "Erro ao salvar", variant: "destructive" });
+    } finally {
+      setSavingEdit(false);
+    }
+  };
+
   // ── Confirmar pagamento ──────────────────────────────────────────────────────
   const confirmPayment = async () => {
     if (!apt || !paymentMethod) return;
@@ -219,6 +277,15 @@ export default function AgendamentoDetailPage() {
               <p className="font-semibold truncate">{apt.clientName ?? "Cliente"}</p>
               <p className="text-xs text-muted-foreground">{formatDateTime(apt.scheduledAt)}</p>
             </div>
+            {isActive && !editMode && (
+              <button
+                onClick={enterEditMode}
+                className="w-9 h-9 flex items-center justify-center rounded-full hover:bg-brand-50 transition-colors flex-shrink-0"
+                title="Editar agendamento"
+              >
+                <Edit2 className="w-4 h-4 text-muted-foreground" />
+              </button>
+            )}
             <AppointmentStatusBadge status={apt.status} />
           </div>
 
@@ -275,65 +342,139 @@ export default function AgendamentoDetailPage() {
           </div>
 
           {/* ── Procedimento ── */}
-          <div className="bg-white rounded-2xl border border-brand-100 shadow-card overflow-hidden">
-            {svcCfg && (
-              <div className={`px-4 py-2.5 border-b flex items-center gap-2 ${svcCfg.bg}`}>
-                <span className={svcCfg.color}>{svcCfg.icon}</span>
-                <span className={`text-xs font-semibold ${svcCfg.color}`}>
-                  {LASH_SERVICE_TYPE_LABELS[apt.serviceType!]}
-                </span>
-              </div>
-            )}
-            <div className="p-4">
-              <p className="font-semibold text-base leading-tight">{apt.procedureName ?? "—"}</p>
-              <div className="flex items-center justify-between mt-3">
-                <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
-                  <Clock className="w-3 h-3" />
-                  {apt.durationMinutes} min
-                </div>
-                {isActive ? (
-                  editingPrice ? (
-                    <div className="flex items-center gap-1.5">
-                      <span className="text-xs text-muted-foreground">R$</span>
-                      <input
-                        type="number" step="0.01" min="0"
-                        className="w-24 text-right text-base font-bold border-b-2 border-brand-500 outline-none bg-transparent"
-                        value={customPriceStr}
-                        onChange={(e) => setCustomPriceStr(e.target.value)}
-                        onBlur={() => setEditingPrice(false)}
-                        autoFocus
-                      />
+          {editMode ? (
+            <div className="bg-white rounded-2xl border border-brand-100 shadow-card p-4 space-y-3">
+              <p className="text-sm font-semibold text-brand-700">Procedimento</p>
+              <div className="space-y-1.5 max-h-52 overflow-y-auto pr-1">
+                {procedures.map((p) => (
+                  <button
+                    key={p.id}
+                    type="button"
+                    onClick={() => {
+                      setEditProcedureId(p.id);
+                      setEditPriceStr((p.priceInCents / 100).toFixed(2));
+                    }}
+                    className={`w-full flex items-center gap-3 p-3 rounded-xl border-2 text-left transition-all ${
+                      editProcedureId === p.id
+                        ? "border-brand-500 bg-brand-50"
+                        : "border-brand-50 bg-white hover:border-brand-200"
+                    }`}
+                  >
+                    {editProcedureId === p.id && (
+                      <Check className="w-3.5 h-3.5 text-brand-500 flex-shrink-0" />
+                    )}
+                    <div className="flex-1 min-w-0">
+                      <p className={`text-sm font-semibold leading-tight ${editProcedureId === p.id ? "text-brand-700" : ""}`}>
+                        {p.name}
+                      </p>
+                      <p className="text-xs text-muted-foreground mt-0.5">{p.durationMinutes} min</p>
                     </div>
+                    <span className="text-xs font-semibold text-emerald-600 flex-shrink-0">
+                      {formatCurrency(p.priceInCents)}
+                    </span>
+                  </button>
+                ))}
+              </div>
+              <div className="flex items-center gap-2 pt-1 border-t border-brand-50">
+                <span className="text-xs text-muted-foreground">Valor cobrado:</span>
+                <span className="text-xs text-muted-foreground">R$</span>
+                <input
+                  type="number"
+                  step="0.01"
+                  min="0"
+                  value={editPriceStr}
+                  onChange={(e) => setEditPriceStr(e.target.value)}
+                  className="flex-1 text-sm font-bold border-b-2 border-brand-400 outline-none bg-transparent text-brand-700"
+                />
+              </div>
+            </div>
+          ) : (
+            <div className="bg-white rounded-2xl border border-brand-100 shadow-card overflow-hidden">
+              {svcCfg && (
+                <div className={`px-4 py-2.5 border-b flex items-center gap-2 ${svcCfg.bg}`}>
+                  <span className={svcCfg.color}>{svcCfg.icon}</span>
+                  <span className={`text-xs font-semibold ${svcCfg.color}`}>
+                    {LASH_SERVICE_TYPE_LABELS[apt.serviceType!]}
+                  </span>
+                </div>
+              )}
+              <div className="p-4">
+                <p className="font-semibold text-base leading-tight">{apt.procedureName ?? "—"}</p>
+                <div className="flex items-center justify-between mt-3">
+                  <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                    <Clock className="w-3 h-3" />
+                    {apt.durationMinutes} min
+                  </div>
+                  {isActive ? (
+                    editingPrice ? (
+                      <div className="flex items-center gap-1.5">
+                        <span className="text-xs text-muted-foreground">R$</span>
+                        <input
+                          type="number" step="0.01" min="0"
+                          className="w-24 text-right text-base font-bold border-b-2 border-brand-500 outline-none bg-transparent"
+                          value={customPriceStr}
+                          onChange={(e) => setCustomPriceStr(e.target.value)}
+                          onBlur={() => setEditingPrice(false)}
+                          autoFocus
+                        />
+                      </div>
+                    ) : (
+                      <button onClick={() => setEditingPrice(true)} className="flex items-center gap-1.5 group">
+                        <span className="text-lg font-bold text-emerald-600">{formatCurrency(basePrice)}</span>
+                        <Edit2 className="w-3 h-3 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity" />
+                      </button>
+                    )
                   ) : (
-                    <button onClick={() => setEditingPrice(true)} className="flex items-center gap-1.5 group">
-                      <span className="text-lg font-bold text-emerald-600">{formatCurrency(basePrice)}</span>
-                      <Edit2 className="w-3 h-3 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity" />
-                    </button>
-                  )
-                ) : (
-                  <span className="text-lg font-bold text-emerald-600">{formatCurrency(apt.priceCharged)}</span>
+                    <span className="text-lg font-bold text-emerald-600">{formatCurrency(apt.priceCharged)}</span>
+                  )}
+                </div>
+                {isActive && basePrice !== apt.priceCharged && (
+                  <p className="text-xs text-muted-foreground mt-1 text-right">
+                    Preço original: {formatCurrency(apt.priceCharged)}
+                  </p>
                 )}
               </div>
-              {isActive && basePrice !== apt.priceCharged && (
-                <p className="text-xs text-muted-foreground mt-1 text-right">
-                  Preço original: {formatCurrency(apt.priceCharged)}
-                </p>
-              )}
             </div>
-          </div>
+          )}
 
           {/* ── Data e Hora ── */}
-          <div className="bg-white rounded-2xl border border-brand-100 shadow-card p-4">
-            <div className="flex items-center gap-3">
-              <Calendar className="w-4 h-4 text-brand-500 flex-shrink-0" />
+          {editMode ? (
+            <div className="bg-white rounded-2xl border border-brand-100 shadow-card p-4 space-y-3">
+              <p className="text-sm font-semibold text-brand-700 flex items-center gap-2">
+                <Calendar className="w-4 h-4" /> Data e Hora
+              </p>
               <div>
-                <p className="text-sm font-semibold">{formatDateTime(apt.scheduledAt)}</p>
-                <p className="text-xs text-muted-foreground">
-                  {formatTime(apt.scheduledAt)} — {formatTime(apt.endsAt)} · {apt.durationMinutes} min
-                </p>
+                <label className="text-xs text-muted-foreground block mb-1">Data</label>
+                <input
+                  type="date"
+                  value={editDate}
+                  onChange={(e) => setEditDate(e.target.value)}
+                  className="w-full h-11 px-3 rounded-xl border border-input bg-white text-sm focus:outline-none focus:ring-2 focus:ring-brand-500 focus:border-transparent"
+                />
+              </div>
+              <div>
+                <label className="text-xs text-muted-foreground block mb-1">Horário</label>
+                <input
+                  type="time"
+                  value={editTime}
+                  onChange={(e) => setEditTime(e.target.value)}
+                  className="w-full h-11 px-3 rounded-xl border border-input bg-white text-sm focus:outline-none focus:ring-2 focus:ring-brand-500 focus:border-transparent"
+                />
               </div>
             </div>
-          </div>
+          ) : (
+            <div className="bg-white rounded-2xl border border-brand-100 shadow-card p-4">
+              <div className="flex items-center gap-3">
+                <Calendar className="w-4 h-4 text-brand-500 flex-shrink-0" />
+                <div>
+                  <p className="text-sm font-semibold">{formatDateTime(apt.scheduledAt)}</p>
+                  <p className="text-xs text-muted-foreground">
+                    {formatTime(apt.scheduledAt)} — {formatTime(apt.endsAt)} · {apt.durationMinutes} min
+                  </p>
+                </div>
+              </div>
+            </div>
+          )}
 
           {/* ── Aprovação pendente ── */}
           {canApprove && (
@@ -411,7 +552,7 @@ export default function AgendamentoDetailPage() {
           )}
 
           {/* ── Serviços adicionais + Pagamento ── */}
-          {isActive && !canApprove && !payment && (
+          {isActive && !canApprove && !payment && !editMode && (
             <div className="bg-white rounded-2xl border border-brand-100 shadow-card p-4 space-y-4">
 
               {/* Header catálogo */}
@@ -607,8 +748,37 @@ export default function AgendamentoDetailPage() {
             </div>
           )}
 
+          {/* ── Edit mode: notas + salvar ── */}
+          {editMode && (
+            <>
+              <div className="bg-white rounded-2xl border border-brand-100 shadow-card p-4">
+                <p className="text-sm font-semibold text-brand-700 mb-2">Observações</p>
+                <textarea
+                  value={editNotes}
+                  onChange={(e) => setEditNotes(e.target.value)}
+                  rows={3}
+                  placeholder="Observações sobre o atendimento..."
+                  className="w-full px-3 py-2 rounded-xl border border-input bg-white text-sm focus:outline-none focus:ring-2 focus:ring-brand-500 resize-none"
+                />
+              </div>
+              <button
+                onClick={saveEdit}
+                disabled={savingEdit || !editDate || !editTime || !editProcedureId}
+                className="w-full h-12 bg-brand-500 hover:bg-brand-600 disabled:opacity-40 text-white rounded-2xl font-semibold text-sm transition-colors"
+              >
+                {savingEdit ? "Salvando..." : "Salvar Alterações"}
+              </button>
+              <button
+                onClick={() => setEditMode(false)}
+                className="w-full flex items-center justify-center py-2 text-sm text-muted-foreground hover:text-foreground transition-colors"
+              >
+                Cancelar edição
+              </button>
+            </>
+          )}
+
           {/* ── Cancelar ── */}
-          {isActive && !canApprove && (
+          {isActive && !canApprove && !editMode && (
             <button
               onClick={cancel}
               className="w-full flex items-center justify-center gap-2 py-3 rounded-2xl border border-red-200 text-red-600 text-sm font-medium hover:bg-red-50 transition-colors"
@@ -619,7 +789,7 @@ export default function AgendamentoDetailPage() {
           )}
 
           {/* ── Confirmar Pagamento (inline, abaixo do cancelar) ── */}
-          {isActive && !canApprove && !payment && (
+          {isActive && !canApprove && !payment && !editMode && (
             <button
               onClick={confirmPayment}
               disabled={!paymentMethod || savingPayment}

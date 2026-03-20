@@ -38,3 +38,13 @@ export type CreateAppointmentInput = {
   notes?: string;
   status?: AppointmentStatus;
 };
+
+export type UpdateAppointmentInput = {
+  procedureId?: string;
+  scheduledAt?: Date;
+  serviceType?: LashServiceType;
+  priceCharged?: number;
+  durationMinutes?: number;
+  procedureName?: string; // empty string = clear override
+  notes?: string;
+};

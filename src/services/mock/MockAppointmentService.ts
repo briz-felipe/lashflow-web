@@ -1,4 +1,4 @@
-import type { Appointment, CreateAppointmentInput } from "@/domain/entities";
+import type { Appointment, CreateAppointmentInput, UpdateAppointmentInput } from "@/domain/entities";
 import type { IAppointmentService, AppointmentFilters } from "../interfaces/IAppointmentService";
 import type { AppointmentStatus } from "@/domain/enums";
 import { mockAppointments } from "@/data";
@@ -60,6 +60,13 @@ export class MockAppointmentService implements IAppointmentService {
 
     this.appointments.push(newAppointment);
     return newAppointment;
+  }
+
+  async updateAppointment(id: string, input: UpdateAppointmentInput): Promise<Appointment> {
+    const idx = this.appointments.findIndex((a) => a.id === id);
+    if (idx === -1) throw new Error("Agendamento não encontrado");
+    this.appointments[idx] = { ...this.appointments[idx], ...input, updatedAt: new Date() };
+    return this.appointments[idx];
   }
 
   async updateAppointmentStatus(
