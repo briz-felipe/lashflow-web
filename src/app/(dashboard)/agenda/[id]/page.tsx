@@ -507,36 +507,37 @@ export default function AgendamentoDetailPage() {
                       onChange={(e) => setCustomName(e.target.value)}
                       className="h-9 text-sm"
                     />
-                    <div className="flex gap-2">
-                      <div className="flex rounded-xl border border-input overflow-hidden flex-shrink-0">
-                        <button
-                          onClick={() => setCustomType("add")}
-                          className={`flex items-center gap-1 px-3 py-2 text-xs font-semibold transition-colors ${customType === "add" ? "bg-amber-100 text-amber-700" : "bg-white text-muted-foreground hover:bg-gray-50"}`}
-                        >
-                          <Plus className="w-3 h-3" /> Taxa
-                        </button>
-                        <button
-                          onClick={() => setCustomType("deduct")}
-                          className={`flex items-center gap-1 px-3 py-2 text-xs font-semibold transition-colors border-l ${customType === "deduct" ? "bg-red-100 text-red-700" : "bg-white text-muted-foreground hover:bg-gray-50"}`}
-                        >
-                          <Minus className="w-3 h-3" /> Desconto
-                        </button>
-                      </div>
-                      <Input
-                        type="number" step="0.01" min="0"
-                        placeholder="R$ 0,00"
-                        value={customAmtStr}
-                        onChange={(e) => setCustomAmtStr(e.target.value)}
-                        className="h-9 text-sm flex-1"
-                      />
+                    <div className="flex rounded-xl border border-input overflow-hidden h-9">
                       <button
-                        onClick={addCustom}
-                        disabled={!customName.trim() || !customAmtStr}
-                        className="h-9 px-3 bg-brand-500 text-white rounded-xl text-sm font-semibold disabled:opacity-40 hover:bg-brand-600 transition-colors flex-shrink-0"
+                        onClick={() => setCustomType("add")}
+                        className={`flex-1 flex items-center justify-center gap-1 text-xs font-semibold transition-colors ${customType === "add" ? "bg-amber-100 text-amber-700" : "bg-white text-muted-foreground hover:bg-gray-50"}`}
                       >
-                        Adicionar
+                        <Plus className="w-3 h-3" /> Taxa
+                      </button>
+                      <button
+                        onClick={() => setCustomType("deduct")}
+                        className={`flex-1 flex items-center justify-center gap-1 text-xs font-semibold border-l transition-colors ${customType === "deduct" ? "bg-red-100 text-red-700" : "bg-white text-muted-foreground hover:bg-gray-50"}`}
+                      >
+                        <Minus className="w-3 h-3" /> Desconto
                       </button>
                     </div>
+                    <div className="relative">
+                      <span className="absolute left-3 top-1/2 -translate-y-1/2 text-xs text-muted-foreground pointer-events-none">R$</span>
+                      <Input
+                        type="number" step="0.01" min="0"
+                        placeholder="0,00"
+                        value={customAmtStr}
+                        onChange={(e) => setCustomAmtStr(e.target.value)}
+                        className="h-9 text-sm pl-8"
+                      />
+                    </div>
+                    <button
+                      onClick={addCustom}
+                      disabled={!customName.trim() || !customAmtStr}
+                      className="w-full h-9 bg-brand-500 text-white rounded-xl text-sm font-semibold disabled:opacity-40 hover:bg-brand-600 transition-colors"
+                    >
+                      Adicionar
+                    </button>
                   </div>
                 </div>
               )}
