@@ -508,9 +508,8 @@ export default function AgendaPage() {
 
       {/* FAB — Novo Agendamento */}
       <Link href={`/agenda/novo?date=${newAptDate}`}>
-        <button className="fixed bottom-28 right-4 sm:right-6 lg:bottom-6 z-40 flex items-center gap-2 bg-brand-500 hover:bg-brand-600 active:scale-95 text-white rounded-full shadow-lg shadow-brand-500/30 transition-all px-5 h-14">
-          <Plus className="w-5 h-5 flex-shrink-0" />
-          <span className="text-sm font-semibold"></span>
+        <button className="fixed bottom-28 right-4 sm:right-6 lg:bottom-6 z-40 w-12 h-12 flex items-center justify-center bg-brand-500 hover:bg-brand-600 active:scale-95 text-white rounded-full shadow-lg shadow-brand-500/30 transition-all">
+          <Plus className="w-5 h-5" />
         </button>
       </Link>
 

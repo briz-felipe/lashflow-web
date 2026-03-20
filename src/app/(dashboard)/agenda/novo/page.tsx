@@ -13,7 +13,7 @@ import { useClients } from "@/hooks/useClients";
 import { toast } from "@/components/ui/toaster";
 import {
   ArrowLeft, Save, Calendar, User, Sparkles, RefreshCw, X,
-  Search, CheckCircle2, UserPlus, Clock, Check, Edit2,
+  Search, CheckCircle2, UserPlus, Clock, Check,
 } from "lucide-react";
 import Link from "next/link";
 import { formatCurrency, formatPhone } from "@/lib/formatters";
@@ -269,15 +269,19 @@ function ClientSearch({
   );
 }
 
-// ─── Procedure card ────────────────────────────────────────────────────────────
-function ProcedureCard({
+// ─── Procedure row card ────────────────────────────────────────────────────────
+function ProcedureRow({
   proc,
   selected,
+  priceStr,
   onToggle,
+  onPriceChange,
 }: {
   proc: Procedure;
   selected: boolean;
+  priceStr: string;
   onToggle: () => void;
+  onPriceChange: (val: string) => void;
 }) {
   return (
     <button
@@ -294,7 +298,7 @@ function ProcedureCard({
           <Check className="w-2.5 h-2.5 text-white" />
         </span>
       )}
-      <p className={`text-sm font-semibold leading-tight pr-5 ${selected ? "text-brand-700" : ""}`}>
+      <p className={`text-sm font-semibold leading-tight pr-6 ${selected ? "text-brand-700" : ""}`}>
         {proc.name}
       </p>
       <div className="flex items-center gap-2 mt-1.5">
@@ -302,9 +306,26 @@ function ProcedureCard({
           <Clock className="w-3 h-3" />
           {proc.durationMinutes} min
         </span>
-        <span className={`text-xs font-semibold ml-auto ${selected ? "text-brand-600" : "text-emerald-600"}`}>
-          {formatCurrency(proc.priceInCents)}
-        </span>
+        {selected ? (
+          <div
+            className="flex items-center gap-1 ml-auto"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <span className="text-xs text-muted-foreground">R$</span>
+            <input
+              type="number"
+              step="0.01"
+              min="0"
+              value={priceStr}
+              onChange={(e) => onPriceChange(e.target.value)}
+              className="w-20 text-right text-sm font-bold border-b-2 border-brand-400 outline-none bg-transparent text-brand-700 focus:border-brand-600"
+            />
+          </div>
+        ) : (
+          <span className="text-xs font-semibold text-emerald-600 ml-auto">
+            {formatCurrency(proc.priceInCents)}
+          </span>
+        )}
       </div>
     </button>
   );
@@ -385,8 +406,7 @@ function NovoAgendamentoContent() {
 
   const [selectedClient, setSelectedClient] = useState<Client | null>(null);
   const [selectedProcedureIds, setSelectedProcedureIds] = useState<string[]>([]);
-  const [customPriceStr, setCustomPriceStr] = useState("");
-  const [editingPrice, setEditingPrice] = useState(false);
+  const [procedurePrices, setProcedurePrices] = useState<Record<string, string>>({});
   const [form, setForm] = useState({
     serviceType: "" as LashServiceType | "",
     date: prefilledDate,
@@ -419,29 +439,30 @@ function NovoAgendamentoContent() {
   // Clear procedure selection when service type changes
   useEffect(() => {
     setSelectedProcedureIds([]);
+    setProcedurePrices({});
   }, [form.serviceType]);
 
-  function toggleProcedure(id: string) {
-    setSelectedProcedureIds((prev) =>
-      prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]
-    );
+  function toggleProcedure(proc: Procedure) {
+    const isSelected = selectedProcedureIds.includes(proc.id);
+    if (isSelected) {
+      setSelectedProcedureIds((prev) => prev.filter((x) => x !== proc.id));
+      setProcedurePrices((prev) => { const next = { ...prev }; delete next[proc.id]; return next; });
+    } else {
+      setSelectedProcedureIds((prev) => [...prev, proc.id]);
+      setProcedurePrices((prev) => ({ ...prev, [proc.id]: (proc.priceInCents / 100).toFixed(2) }));
+    }
   }
 
   // ── Computed totals ─────────────────────────────────────────────────────────
   const selectedProcs = procedures.filter((p) => selectedProcedureIds.includes(p.id));
-  const totalPrice = selectedProcs.reduce((s, p) => s + p.priceInCents, 0);
+  const defaultTotal = selectedProcs.reduce((s, p) => s + p.priceInCents, 0);
   const totalDuration = selectedProcs.reduce((s, p) => s + p.durationMinutes, 0);
   const isMulti = selectedProcs.length > 1;
   const combinedName = selectedProcs.map((p) => p.name).join(" + ");
-
-  // Sync customPriceStr when totalPrice changes (procedures selected/removed)
-  useEffect(() => {
-    if (!editingPrice) {
-      setCustomPriceStr((totalPrice / 100).toFixed(2));
-    }
-  }, [totalPrice, editingPrice]);
-
-  const priceCharged = Math.round(parseFloat(customPriceStr.replace(",", ".") || "0") * 100);
+  const priceCharged = selectedProcs.reduce((s, p) => {
+    const val = parseFloat((procedurePrices[p.id] || "0").replace(",", "."));
+    return s + Math.round((isNaN(val) ? 0 : val) * 100);
+  }, 0);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -567,19 +588,21 @@ function NovoAgendamentoContent() {
                     <Sparkles className="w-4 h-4" /> Procedimentos *
                   </h2>
                   <p className="text-xs text-muted-foreground mb-4">
-                    Selecione um ou mais procedimentos. Os valores e tempos serão somados.
+                    Selecione um ou mais. Edite o valor direto na linha para personalizar.
                   </p>
 
                   {procedures.length === 0 ? (
                     <p className="text-sm text-muted-foreground text-center py-4">Nenhum procedimento cadastrado.</p>
                   ) : (
-                    <div className="grid grid-cols-2 gap-2">
+                    <div className="space-y-1.5">
                       {procedures.map((p) => (
-                        <ProcedureCard
+                        <ProcedureRow
                           key={p.id}
                           proc={p}
                           selected={selectedProcedureIds.includes(p.id)}
-                          onToggle={() => toggleProcedure(p.id)}
+                          priceStr={procedurePrices[p.id] ?? ""}
+                          onToggle={() => toggleProcedure(p)}
+                          onPriceChange={(val) => setProcedurePrices((prev) => ({ ...prev, [p.id]: val }))}
                         />
                       ))}
                     </div>
@@ -595,36 +618,13 @@ function NovoAgendamentoContent() {
                         <span className="text-muted-foreground">Duração total:</span>
                         <span className="font-medium">{totalDuration} min</span>
                       </div>
-                      <div className="flex justify-between items-center">
-                        <span className="text-muted-foreground">Valor cobrado:</span>
-                        {editingPrice ? (
-                          <div className="flex items-center gap-1">
-                            <span className="text-xs text-muted-foreground">R$</span>
-                            <input
-                              type="number"
-                              step="0.01"
-                              min="0"
-                              autoFocus
-                              value={customPriceStr}
-                              onChange={(e) => setCustomPriceStr(e.target.value)}
-                              onBlur={() => setEditingPrice(false)}
-                              className="w-24 text-right text-base font-bold border-b-2 border-brand-500 outline-none bg-transparent text-brand-700"
-                            />
-                          </div>
-                        ) : (
-                          <button
-                            type="button"
-                            onClick={() => setEditingPrice(true)}
-                            className="flex items-center gap-1.5 group"
-                          >
-                            <span className="font-bold text-brand-700">{formatCurrency(priceCharged)}</span>
-                            <Edit2 className="w-3 h-3 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity" />
-                          </button>
-                        )}
+                      <div className="flex justify-between items-center font-bold">
+                        <span>Total cobrado:</span>
+                        <span className="text-brand-700">{formatCurrency(priceCharged)}</span>
                       </div>
-                      {priceCharged !== totalPrice && totalPrice > 0 && (
+                      {priceCharged !== defaultTotal && defaultTotal > 0 && (
                         <p className="text-xs text-muted-foreground text-right">
-                          Tabela: {formatCurrency(totalPrice)}
+                          Tabela: {formatCurrency(defaultTotal)}
                         </p>
                       )}
                     </div>
