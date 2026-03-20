@@ -13,7 +13,7 @@ import { useClients } from "@/hooks/useClients";
 import { toast } from "@/components/ui/toaster";
 import {
   ArrowLeft, Save, Calendar, User, Sparkles, RefreshCw, X,
-  Search, CheckCircle2, UserPlus, Clock, Check,
+  Search, CheckCircle2, UserPlus, Clock, Check, Edit2,
 } from "lucide-react";
 import Link from "next/link";
 import { formatCurrency, formatPhone } from "@/lib/formatters";
@@ -385,6 +385,8 @@ function NovoAgendamentoContent() {
 
   const [selectedClient, setSelectedClient] = useState<Client | null>(null);
   const [selectedProcedureIds, setSelectedProcedureIds] = useState<string[]>([]);
+  const [customPriceStr, setCustomPriceStr] = useState("");
+  const [editingPrice, setEditingPrice] = useState(false);
   const [form, setForm] = useState({
     serviceType: "" as LashServiceType | "",
     date: prefilledDate,
@@ -432,6 +434,15 @@ function NovoAgendamentoContent() {
   const isMulti = selectedProcs.length > 1;
   const combinedName = selectedProcs.map((p) => p.name).join(" + ");
 
+  // Sync customPriceStr when totalPrice changes (procedures selected/removed)
+  useEffect(() => {
+    if (!editingPrice) {
+      setCustomPriceStr((totalPrice / 100).toFixed(2));
+    }
+  }, [totalPrice, editingPrice]);
+
+  const priceCharged = Math.round(parseFloat(customPriceStr.replace(",", ".") || "0") * 100);
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!selectedClient || selectedProcedureIds.length === 0 || !form.serviceType || !form.date || !form.time) {
@@ -448,7 +459,7 @@ function NovoAgendamentoContent() {
         procedureId: primaryProcedureId,
         scheduledAt,
         serviceType: form.serviceType as LashServiceType,
-        priceCharged: totalPrice,
+        priceCharged,
         durationMinutes: isMulti ? totalDuration : undefined,
         procedureName: isMulti ? combinedName : undefined,
         notes: form.notes || undefined,
@@ -580,14 +591,42 @@ function NovoAgendamentoContent() {
                       {isMulti && (
                         <p className="text-xs font-semibold text-brand-700 truncate">{combinedName}</p>
                       )}
-                      <div className="flex justify-between">
+                      <div className="flex justify-between items-center">
                         <span className="text-muted-foreground">Duração total:</span>
                         <span className="font-medium">{totalDuration} min</span>
                       </div>
-                      <div className="flex justify-between">
-                        <span className="text-muted-foreground">Valor total:</span>
-                        <span className="font-bold text-brand-700">{formatCurrency(totalPrice)}</span>
+                      <div className="flex justify-between items-center">
+                        <span className="text-muted-foreground">Valor cobrado:</span>
+                        {editingPrice ? (
+                          <div className="flex items-center gap-1">
+                            <span className="text-xs text-muted-foreground">R$</span>
+                            <input
+                              type="number"
+                              step="0.01"
+                              min="0"
+                              autoFocus
+                              value={customPriceStr}
+                              onChange={(e) => setCustomPriceStr(e.target.value)}
+                              onBlur={() => setEditingPrice(false)}
+                              className="w-24 text-right text-base font-bold border-b-2 border-brand-500 outline-none bg-transparent text-brand-700"
+                            />
+                          </div>
+                        ) : (
+                          <button
+                            type="button"
+                            onClick={() => setEditingPrice(true)}
+                            className="flex items-center gap-1.5 group"
+                          >
+                            <span className="font-bold text-brand-700">{formatCurrency(priceCharged)}</span>
+                            <Edit2 className="w-3 h-3 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity" />
+                          </button>
+                        )}
                       </div>
+                      {priceCharged !== totalPrice && totalPrice > 0 && (
+                        <p className="text-xs text-muted-foreground text-right">
+                          Tabela: {formatCurrency(totalPrice)}
+                        </p>
+                      )}
                     </div>
                   )}
                 </div>
