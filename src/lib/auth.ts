@@ -12,6 +12,8 @@ export interface AuthUser {
   salonName: string | null;
   salonSlug: string | null;
   salonAddress: string | null;
+  // LashFlow settings
+  maintenanceCycleDays: number;
   // Apple Calendar
   appleCalendarConnected: boolean;
   appleCalendarName: string | null;

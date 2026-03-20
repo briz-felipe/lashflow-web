@@ -1,9 +1,8 @@
 "use client";
 
-import { Bell, Menu } from "lucide-react";
+import { Bell } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { usePendingApprovals } from "@/hooks/useAppointments";
-import { useSidebar } from "./SidebarContext";
 import Link from "next/link";
 
 interface TopbarProps {
@@ -13,22 +12,10 @@ interface TopbarProps {
 
 export function Topbar({ title, subtitle }: TopbarProps) {
   const { appointments: pending } = usePendingApprovals();
-  const { toggle } = useSidebar();
 
   return (
     <header className="h-14 sm:h-16 border-b border-brand-100 bg-white/80 backdrop-blur-sm flex items-center justify-between px-4 sm:px-6 sticky top-0 z-10">
       <div className="flex items-center gap-3 min-w-0">
-        {/* Hamburger — mobile only */}
-        <Button
-          variant="ghost"
-          size="icon"
-          className="lg:hidden flex-shrink-0 -ml-1"
-          onClick={toggle}
-          aria-label="Abrir menu"
-        >
-          <Menu className="w-5 h-5" />
-        </Button>
-
         <div className="min-w-0">
           <h2 className="text-base sm:text-lg font-semibold text-foreground truncate">{title}</h2>
           {subtitle && (

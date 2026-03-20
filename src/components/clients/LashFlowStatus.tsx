@@ -5,8 +5,9 @@ import { ptBR } from "date-fns/locale";
 import type { Appointment } from "@/domain/entities";
 import type { LashServiceType } from "@/domain/enums";
 import { AlertTriangle, CheckCircle2, Clock, RefreshCw, Circle, Scissors, Sparkles } from "lucide-react";
+import { useAuth } from "@/hooks/useAuth";
 
-export const MAX_GAP_DAYS = 15;
+export const DEFAULT_CYCLE_DAYS = 15;
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -28,7 +29,7 @@ export interface CycleResult {
 }
 
 // ─── Core logic ───────────────────────────────────────────────────────────────
-export function computeCycle(appointments: Appointment[]): CycleResult {
+export function computeCycle(appointments: Appointment[], maxGapDays = DEFAULT_CYCLE_DAYS): CycleResult {
   const today = new Date();
 
   // All non-cancelled appointments that have a service type, sorted ASC
@@ -67,16 +68,16 @@ export function computeCycle(appointments: Appointment[]): CycleResult {
   const m2 = maintenances[1];
 
   // Projected dates from application
-  const m1Proj = addDays(appDate, MAX_GAP_DAYS);
-  const m2Proj = addDays(m1?.scheduledAt ?? m1Proj, MAX_GAP_DAYS);
-  const newAppProj = addDays(m2?.scheduledAt ?? m2Proj, MAX_GAP_DAYS);
+  const m1Proj = addDays(appDate, maxGapDays);
+  const m2Proj = addDays(m1?.scheduledAt ?? m1Proj, maxGapDays);
+  const newAppProj = addDays(m2?.scheduledAt ?? m2Proj, maxGapDays);
 
-  // Removal check: last completed apt was more than MAX_GAP_DAYS ago
+  // Removal check: last completed apt was more than maxGapDays ago
   const lastCompleted = [...relevant].reverse().find(
     (a) => a.status === "completed" || a.status === "in_progress"
   );
   const daysSinceLast = lastCompleted ? differenceInDays(today, lastCompleted.scheduledAt) : 0;
-  const needsRemoval = !!lastCompleted && daysSinceLast > MAX_GAP_DAYS;
+  const needsRemoval = !!lastCompleted && daysSinceLast > maxGapDays;
 
   if (needsRemoval) {
     // Check if removal already scheduled/done
@@ -218,7 +219,9 @@ function DayNote({ step }: { step: FlowStep }) {
 
 // ─── Component ────────────────────────────────────────────────────────────────
 export function LashFlowStatus({ appointments }: { appointments: Appointment[] }) {
-  const cycle = computeCycle(appointments);
+  const { user } = useAuth();
+  const maxGapDays = user?.maintenanceCycleDays ?? DEFAULT_CYCLE_DAYS;
+  const cycle = computeCycle(appointments, maxGapDays);
 
   if (cycle.summary === "no_data" || cycle.steps.length === 0) {
     return (
@@ -285,13 +288,13 @@ export function LashFlowStatus({ appointments }: { appointments: Appointment[] }
           <div className="flex items-start gap-2 p-3 bg-red-50 rounded-xl border border-red-200">
             <AlertTriangle className="w-4 h-4 text-red-500 flex-shrink-0 mt-0.5" />
             <p className="text-xs text-red-700">
-              <strong>Remoção necessária.</strong> Intervalo superior a {MAX_GAP_DAYS} dias. Agende remoção (R$30) antes de nova aplicação.
+              <strong>Remoção necessária.</strong> Intervalo superior a {maxGapDays} dias. Agende remoção (R$30) antes de nova aplicação.
             </p>
           </div>
         )}
         {!cycle.needsRemoval && cycle.summary === "ok" && (
           <p className="text-xs text-emerald-700 bg-emerald-50 px-3 py-2 rounded-xl">
-            Ciclo em dia — agende a próxima manutenção em até {MAX_GAP_DAYS} dias.
+            Ciclo em dia — agende a próxima manutenção em até {maxGapDays} dias.
           </p>
         )}
         {!cycle.needsRemoval && cycle.summary === "complete" && (
