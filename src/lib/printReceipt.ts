@@ -34,56 +34,75 @@ export function openPdfReceipt(
   user: ReceiptUser | null,
   procedures: Procedure[]
 ): void {
-  const primaryProc = procedures.find((p) => p.id === apt.procedureId);
-  const originalPrice = primaryProc?.priceInCents ?? apt.priceCharged;
-  const isCustomPrice = apt.priceCharged !== originalPrice;
-
-  // Procedure names (may be "A + B")
-  const procNames = apt.procedureName
-    ? apt.procedureName.split(" + ")
-    : primaryProc
-    ? [primaryProc.name]
-    : ["—"];
-
   const subtotal = payment?.subtotalAmountInCents ?? apt.priceCharged;
   const fees = payment?.feeAmountInCents ?? 0;
   const discounts = payment?.discountAmountInCents ?? 0;
   const total = payment?.paidAmountInCents ?? apt.priceCharged;
 
-  const procRows = procNames
-    .map((name) => {
-      const isMulti = procNames.length > 1;
-      // For single procedure, show original vs charged diff
-      const priceNote =
-        !isMulti && isCustomPrice
-          ? `<span style="color:#9ca3af;font-size:11px;text-decoration:line-through;margin-right:4px">${formatCurrency(originalPrice)}</span>`
-          : "";
-      const priceDisplay = !isMulti
-        ? `${priceNote}<span style="color:#059669;font-weight:600">${formatCurrency(apt.priceCharged)}</span>`
-        : "";
-      return `
+  // Build procedure rows from junction data or legacy fallback
+  let procSection: string;
+
+  if (apt.procedures && apt.procedures.length > 0) {
+    // New path: individual procedure rows with correct prices
+    const procRows = apt.procedures
+      .map((p) => `
+        <tr>
+          <td style="padding:5px 0;font-size:13px;color:#374151;width:60%">${p.procedureName}</td>
+          <td style="padding:5px 0;font-size:12px;color:#9ca3af;text-align:center">${formatDuration(p.durationMinutes)}</td>
+          <td style="padding:5px 0;text-align:right">
+            <span style="color:#059669;font-weight:600">${formatCurrency(p.effectivePriceInCents)}</span>
+          </td>
+        </tr>`)
+      .join("");
+
+    const isMulti = apt.procedures.length > 1;
+    const totalRow = isMulti
+      ? `<tr>
+          <td colspan="2" style="padding:8px 0 4px;border-top:1px solid #f3f4f6;font-size:13px;font-weight:600;color:#374151">Total</td>
+          <td style="padding:8px 0 4px;border-top:1px solid #f3f4f6;text-align:right;font-size:14px;font-weight:700;color:#059669">${formatCurrency(apt.priceCharged)}</td>
+        </tr>`
+      : "";
+
+    procSection = `
+      <div style="margin-bottom:20px">
+        <p style="font-size:10px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:#9ca3af;margin:0 0 8px">Procedimento${isMulti ? "s" : ""}</p>
+        <table style="width:100%;border-collapse:collapse">
+          ${procRows}
+          ${totalRow}
+        </table>
+        <p style="font-size:12px;color:#9ca3af;margin-top:6px">⏱ ${formatDuration(apt.durationMinutes)}</p>
+      </div>`;
+  } else {
+    // Legacy fallback
+    const primaryProc = procedures.find((p) => p.id === apt.procedureId);
+    const procNames = apt.procedureName
+      ? apt.procedureName.split(" + ")
+      : primaryProc
+      ? [primaryProc.name]
+      : ["—"];
+
+    const procRows = procNames
+      .map((name) => `
         <tr>
           <td style="padding:5px 0;font-size:13px;color:#374151;width:70%">${name}</td>
-          <td style="padding:5px 0;text-align:right">${priceDisplay}</td>
-        </tr>`;
-    })
-    .join("");
-
-  const procSection = `
-    <div style="margin-bottom:20px">
-      <p style="font-size:10px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:#9ca3af;margin:0 0 8px">Procedimento${procNames.length > 1 ? "s" : ""}</p>
-      <table style="width:100%;border-collapse:collapse">
-        ${procRows}
-        <tr>
-          <td style="padding:4px 0;font-size:12px;color:#9ca3af">
-            <span style="display:inline-flex;align-items:center;gap:4px">
-              ⏱ ${formatDuration(apt.durationMinutes)}
-            </span>
+          <td style="padding:5px 0;text-align:right">
+            ${procNames.length === 1 ? `<span style="color:#059669;font-weight:600">${formatCurrency(apt.priceCharged)}</span>` : ""}
           </td>
-          ${procNames.length > 1 ? `<td style="text-align:right;font-size:13px;font-weight:600;color:#059669">${formatCurrency(apt.priceCharged)}</td>` : "<td></td>"}
-        </tr>
-      </table>
-    </div>`;
+        </tr>`)
+      .join("");
+
+    procSection = `
+      <div style="margin-bottom:20px">
+        <p style="font-size:10px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:#9ca3af;margin:0 0 8px">Procedimento${procNames.length > 1 ? "s" : ""}</p>
+        <table style="width:100%;border-collapse:collapse">
+          ${procRows}
+          <tr>
+            <td style="padding:4px 0;font-size:12px;color:#9ca3af">⏱ ${formatDuration(apt.durationMinutes)}</td>
+            ${procNames.length > 1 ? `<td style="text-align:right;font-size:13px;font-weight:600;color:#059669">${formatCurrency(apt.priceCharged)}</td>` : "<td></td>"}
+          </tr>
+        </table>
+      </div>`;
+  }
 
   const financialRows = [
     subtotal !== total || fees > 0 || discounts > 0

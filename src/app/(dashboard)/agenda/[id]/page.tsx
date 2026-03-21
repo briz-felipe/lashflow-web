@@ -17,7 +17,7 @@ import {
   MessageCircle, ChevronDown, Plus, Minus, X, Tag, Check, Settings,
 } from "lucide-react";
 import Link from "next/link";
-import type { Appointment, Payment, ExtraService } from "@/domain/entities";
+import type { Appointment, Payment, ExtraService, ProcedureInput } from "@/domain/entities";
 import type { AppointmentStatus, LashServiceType, PaymentMethod } from "@/domain/enums";
 import { PAYMENT_METHOD_LABELS, LASH_SERVICE_TYPE_LABELS } from "@/domain/enums";
 import { REMINDER_TEMPLATES } from "@/domain/entities/reminder";
@@ -78,6 +78,7 @@ export default function AgendamentoDetailPage() {
   const [editTime, setEditTime] = useState("");
   const [editNotes, setEditNotes] = useState("");
   const [editProcs, setEditProcs] = useState<SelectedProcedure[]>([]);
+  const [editServiceType, setEditServiceType] = useState<LashServiceType | "">("");
   const [savingEdit, setSavingEdit] = useState(false);
 
   // WhatsApp
@@ -172,18 +173,29 @@ export default function AgendamentoDetailPage() {
     setEditDate(`${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`);
     setEditTime(`${pad(d.getHours())}:${pad(d.getMinutes())}`);
     setEditNotes(apt.notes ?? "");
+    setEditServiceType(apt.serviceType ?? "");
 
-    // Pre-populate: find primary procedure and set its price from what was charged
-    const primaryProc = procedures.find((p) => p.id === apt.procedureId);
-    if (primaryProc) {
-      setEditProcs([{
-        procedureId: primaryProc.id,
-        name: primaryProc.name,
-        durationMinutes: primaryProc.durationMinutes,
-        priceStr: centsToInput(apt.priceCharged),
-      }]);
+    // Pre-populate from junction table data if available
+    if (apt.procedures && apt.procedures.length > 0) {
+      setEditProcs(apt.procedures.map((p) => ({
+        procedureId: p.procedureId,
+        name: p.procedureName,
+        durationMinutes: p.durationMinutes,
+        priceStr: centsToInput(p.effectivePriceInCents),
+      })));
     } else {
-      setEditProcs([]);
+      // Fallback: single procedure from legacy fields
+      const primaryProc = procedures.find((p) => p.id === apt.procedureId);
+      if (primaryProc) {
+        setEditProcs([{
+          procedureId: primaryProc.id,
+          name: primaryProc.name,
+          durationMinutes: primaryProc.durationMinutes,
+          priceStr: centsToInput(apt.priceCharged),
+        }]);
+      } else {
+        setEditProcs([]);
+      }
     }
     setEditMode(true);
   }
@@ -193,14 +205,23 @@ export default function AgendamentoDetailPage() {
     setSavingEdit(true);
     try {
       const scheduledAt = toBackendDate(editDate, editTime);
-      const isMulti = editProcs.length > 1;
+
+      // Build procedures array with custom price detection
+      const proceduresInput: ProcedureInput[] = editProcs.map((sp) => {
+        const catalogProc = procedures.find((p) => p.id === sp.procedureId);
+        const enteredCents = parsePtBR(sp.priceStr);
+        const isCustom = catalogProc && enteredCents !== catalogProc.priceInCents;
+        return {
+          procedureId: sp.procedureId,
+          customPriceInCents: isCustom ? enteredCents : null,
+        };
+      });
+
       const input: UpdateAppointmentInput = {
-        procedureId: editProcs[0].procedureId,
         scheduledAt,
-        priceCharged: totalCents(editProcs),
+        procedures: proceduresInput,
+        serviceType: editServiceType as LashServiceType || undefined,
         notes: editNotes || "",
-        procedureName: isMulti ? editProcs.map((p) => p.name).join(" + ") : "",
-        durationMinutes: totalDuration(editProcs),
       };
 
       const updated = await appointmentService.updateAppointment(apt.id, input);
@@ -342,16 +363,45 @@ export default function AgendamentoDetailPage() {
             )}
           </div>
 
-          {/* ── Procedimento ── */}
+          {/* ── Tipo de Atendimento + Procedimento ── */}
           {editMode ? (
-            <div className="bg-white rounded-2xl border border-brand-100 shadow-card p-4 space-y-3">
-              <p className="text-sm font-semibold text-brand-700">Procedimento</p>
-              <ProcedureSelector
-                procedures={procedures}
-                selected={editProcs}
-                onChange={setEditProcs}
-              />
-            </div>
+            <>
+              {/* Tipo de Atendimento */}
+              <div className="bg-white rounded-2xl border border-brand-100 shadow-card p-4 space-y-3">
+                <p className="text-sm font-semibold text-brand-700 flex items-center gap-2">
+                  <RefreshCw className="w-4 h-4" /> Tipo de Atendimento
+                </p>
+                <div className="grid grid-cols-2 gap-2">
+                  {([
+                    { type: "application" as LashServiceType, label: "Aplicação", dot: "bg-brand-500", active: "border-brand-500 bg-brand-50 text-brand-700" },
+                    { type: "maintenance" as LashServiceType, label: "Manutenção", dot: "bg-emerald-500", active: "border-emerald-500 bg-emerald-50 text-emerald-700" },
+                    { type: "removal" as LashServiceType, label: "Remoção", dot: "bg-red-400", active: "border-red-400 bg-red-50 text-red-700" },
+                    { type: "removal_application" as LashServiceType, label: "Rem + Aplic", dot: "bg-orange-500", active: "border-orange-500 bg-orange-50 text-orange-700" },
+                  ]).map(({ type, label, dot, active }) => (
+                    <button
+                      key={type}
+                      type="button"
+                      onClick={() => setEditServiceType(type)}
+                      className={`flex items-center gap-2 p-2.5 rounded-xl border-2 transition-all text-xs font-semibold ${
+                        editServiceType === type ? active : "border-brand-50 bg-white text-muted-foreground hover:border-brand-200"
+                      }`}
+                    >
+                      <div className={`w-3 h-3 rounded-full ${dot} ${editServiceType === type ? "" : "opacity-40"}`} />
+                      {label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+              {/* Procedimento */}
+              <div className="bg-white rounded-2xl border border-brand-100 shadow-card p-4 space-y-3">
+                <p className="text-sm font-semibold text-brand-700">Procedimentos</p>
+                <ProcedureSelector
+                  procedures={procedures}
+                  selected={editProcs}
+                  onChange={setEditProcs}
+                />
+              </div>
+            </>
           ) : (
             <div className="bg-white rounded-2xl border border-brand-100 shadow-card overflow-hidden">
               {svcCfg && (
@@ -363,57 +413,129 @@ export default function AgendamentoDetailPage() {
                 </div>
               )}
               <div className="p-4">
-                {/* Procedure name — split multi into pills */}
-                <div className="flex flex-wrap gap-1.5 mb-3">
-                  {(apt.procedureName ?? "—").split(" + ").map((name, i) => (
-                    <span key={i} className="text-sm font-semibold bg-brand-50 text-brand-700 px-2.5 py-1 rounded-lg">
-                      {name}
-                    </span>
-                  ))}
-                </div>
-
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
-                    <Clock className="w-3 h-3" />
-                    {formatDuration(apt.durationMinutes)}
-                  </div>
-                  {isActive ? (
-                    editingPrice ? (
-                      <div className="flex items-center gap-1.5">
-                        <span className="text-xs text-muted-foreground">R$</span>
-                        <input
-                          type="text"
-                          inputMode="decimal"
-                          className="w-24 text-right text-base font-bold border-b-2 border-brand-500 outline-none bg-transparent"
-                          value={customPriceStr}
-                          onChange={(e) => setCustomPriceStr(e.target.value)}
-                          onBlur={() => setEditingPrice(false)}
-                          autoFocus
-                        />
+                {/* Procedures breakdown */}
+                {apt.procedures && apt.procedures.length > 0 ? (
+                  <div className="space-y-2 mb-3">
+                    {apt.procedures.map((p) => (
+                      <div key={p.id} className="flex items-center justify-between">
+                        <div className="flex-1 min-w-0">
+                          <span className="text-sm font-semibold bg-brand-50 text-brand-700 px-2.5 py-1 rounded-lg inline-block">
+                            {p.procedureName}
+                          </span>
+                          <div className="flex items-center gap-1.5 text-xs text-muted-foreground mt-1">
+                            <Clock className="w-3 h-3" />
+                            {formatDuration(p.durationMinutes)}
+                          </div>
+                        </div>
+                        <div className="text-right flex-shrink-0 ml-3">
+                          <span className="text-sm font-bold text-emerald-600">
+                            {formatCurrency(p.effectivePriceInCents)}
+                          </span>
+                          {p.customPriceInCents !== null && p.customPriceInCents !== p.originalPriceInCents && (
+                            <p className="text-[10px] text-muted-foreground">
+                              <span className="line-through">{formatCurrency(p.originalPriceInCents)}</span>
+                            </p>
+                          )}
+                        </div>
                       </div>
-                    ) : (
-                      <button onClick={() => setEditingPrice(true)} className="flex items-center gap-1.5 group">
-                        <span className="text-lg font-bold text-emerald-600">{formatCurrency(basePrice)}</span>
-                        <Edit2 className="w-3 h-3 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity" />
-                      </button>
-                    )
-                  ) : (
-                    <span className="text-lg font-bold text-emerald-600">{formatCurrency(apt.priceCharged)}</span>
-                  )}
-                </div>
-
-                {/* Original price diff */}
-                {(() => {
-                  const primaryProc = procedures.find((p) => p.id === apt.procedureId);
-                  if (primaryProc && primaryProc.priceInCents !== apt.priceCharged) {
-                    return (
-                      <p className="text-xs text-muted-foreground mt-1.5 text-right">
-                        Tabela: <span className="line-through">{formatCurrency(primaryProc.priceInCents)}</span>
-                      </p>
-                    );
-                  }
-                  return null;
-                })()}
+                    ))}
+                    {apt.procedures.length > 1 && (
+                      <div className="flex items-center justify-between pt-2 border-t border-brand-50">
+                        <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                          <Clock className="w-3 h-3" />
+                          Total · {formatDuration(apt.durationMinutes)}
+                        </div>
+                        {isActive ? (
+                          editingPrice ? (
+                            <div className="flex items-center gap-1.5">
+                              <span className="text-xs text-muted-foreground">R$</span>
+                              <input
+                                type="text"
+                                inputMode="decimal"
+                                className="w-24 text-right text-base font-bold border-b-2 border-brand-500 outline-none bg-transparent"
+                                value={customPriceStr}
+                                onChange={(e) => setCustomPriceStr(e.target.value)}
+                                onBlur={() => setEditingPrice(false)}
+                                autoFocus
+                              />
+                            </div>
+                          ) : (
+                            <button onClick={() => setEditingPrice(true)} className="flex items-center gap-1.5 group">
+                              <span className="text-lg font-bold text-emerald-600">{formatCurrency(basePrice)}</span>
+                              <Edit2 className="w-3 h-3 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity" />
+                            </button>
+                          )
+                        ) : (
+                          <span className="text-lg font-bold text-emerald-600">{formatCurrency(apt.priceCharged)}</span>
+                        )}
+                      </div>
+                    )}
+                    {apt.procedures.length === 1 && (
+                      <div className="flex items-center justify-end">
+                        {isActive ? (
+                          editingPrice ? (
+                            <div className="flex items-center gap-1.5">
+                              <span className="text-xs text-muted-foreground">R$</span>
+                              <input
+                                type="text"
+                                inputMode="decimal"
+                                className="w-24 text-right text-base font-bold border-b-2 border-brand-500 outline-none bg-transparent"
+                                value={customPriceStr}
+                                onChange={(e) => setCustomPriceStr(e.target.value)}
+                                onBlur={() => setEditingPrice(false)}
+                                autoFocus
+                              />
+                            </div>
+                          ) : (
+                            <button onClick={() => setEditingPrice(true)} className="flex items-center gap-1.5 group">
+                              <Edit2 className="w-3 h-3 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity" />
+                            </button>
+                          )
+                        ) : null}
+                      </div>
+                    )}
+                  </div>
+                ) : (
+                  /* Legacy fallback: split procedure name by + */
+                  <>
+                    <div className="flex flex-wrap gap-1.5 mb-3">
+                      {(apt.procedureName ?? "—").split(" + ").map((name, i) => (
+                        <span key={i} className="text-sm font-semibold bg-brand-50 text-brand-700 px-2.5 py-1 rounded-lg">
+                          {name}
+                        </span>
+                      ))}
+                    </div>
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                        <Clock className="w-3 h-3" />
+                        {formatDuration(apt.durationMinutes)}
+                      </div>
+                      {isActive ? (
+                        editingPrice ? (
+                          <div className="flex items-center gap-1.5">
+                            <span className="text-xs text-muted-foreground">R$</span>
+                            <input
+                              type="text"
+                              inputMode="decimal"
+                              className="w-24 text-right text-base font-bold border-b-2 border-brand-500 outline-none bg-transparent"
+                              value={customPriceStr}
+                              onChange={(e) => setCustomPriceStr(e.target.value)}
+                              onBlur={() => setEditingPrice(false)}
+                              autoFocus
+                            />
+                          </div>
+                        ) : (
+                          <button onClick={() => setEditingPrice(true)} className="flex items-center gap-1.5 group">
+                            <span className="text-lg font-bold text-emerald-600">{formatCurrency(basePrice)}</span>
+                            <Edit2 className="w-3 h-3 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity" />
+                          </button>
+                        )
+                      ) : (
+                        <span className="text-lg font-bold text-emerald-600">{formatCurrency(apt.priceCharged)}</span>
+                      )}
+                    </div>
+                  </>
+                )}
 
                 {/* Notes */}
                 {apt.notes && (

@@ -1,5 +1,15 @@
 import type { AppointmentStatus, LashServiceType } from "../enums";
 
+export interface AppointmentProcedure {
+  id: string;
+  procedureId: string;
+  procedureName: string;
+  customPriceInCents: number | null;
+  originalPriceInCents: number;
+  effectivePriceInCents: number;
+  durationMinutes: number;
+}
+
 export interface Appointment {
   id: string;
   clientId: string;
@@ -25,11 +35,18 @@ export interface Appointment {
 
   createdAt: Date;
   updatedAt: Date;
+
+  procedures?: AppointmentProcedure[];
 }
+
+export type ProcedureInput = {
+  procedureId: string;
+  customPriceInCents?: number | null;
+};
 
 export type CreateAppointmentInput = {
   clientId: string;
-  procedureId: string;
+  procedureId?: string;           // legacy single-procedure
   scheduledAt: Date;
   serviceType?: LashServiceType;
   priceCharged?: number;
@@ -37,6 +54,7 @@ export type CreateAppointmentInput = {
   procedureName?: string;
   notes?: string;
   status?: AppointmentStatus;
+  procedures?: ProcedureInput[];  // new multi-procedure
 };
 
 export type UpdateAppointmentInput = {
@@ -47,4 +65,5 @@ export type UpdateAppointmentInput = {
   durationMinutes?: number;
   procedureName?: string; // empty string = clear override
   notes?: string;
+  procedures?: ProcedureInput[];  // new multi-procedure
 };

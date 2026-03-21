@@ -31,8 +31,7 @@ export class ApiAppointmentService implements IAppointmentService {
   }
 
   async createAppointment(input: CreateAppointmentInput): Promise<Appointment> {
-    const { status, ...rest } = input;
-    const data = await api.post<Appointment>("/appointments/", { ...rest, ...(status ? { status } : {}) });
+    const data = await api.post<Appointment>("/appointments/", input);
     return parseAppointment(data);
   }
 
@@ -45,6 +44,7 @@ export class ApiAppointmentService implements IAppointmentService {
     if (input.durationMinutes !== undefined) body.durationMinutes = input.durationMinutes;
     if (input.procedureName !== undefined) body.procedureName = input.procedureName;
     if (input.notes !== undefined) body.notes = input.notes;
+    if (input.procedures !== undefined) body.procedures = input.procedures;
     const data = await api.patch<Appointment>(`/appointments/${id}`, body);
     return parseAppointment(data);
   }
@@ -67,11 +67,11 @@ export class ApiAppointmentService implements IAppointmentService {
     return parseAppointment(data);
   }
 
-  async getAvailableSlots(date: Date, procedureId: string): Promise<Date[]> {
+  async getAvailableSlots(date: Date, procedureId: string, durationMinutes?: number): Promise<Date[]> {
     const dateStr = date.toISOString().split("T")[0];
-    const data = await api.get<{ slots: string[] }>(
-      `/appointments/available-slots?date=${dateStr}&procedure_id=${procedureId}`
-    );
+    let url = `/appointments/available-slots?date=${dateStr}&procedure_id=${procedureId}`;
+    if (durationMinutes) url += `&duration_minutes=${durationMinutes}`;
+    const data = await api.get<{ slots: string[] }>(url);
     return data.slots.map((d) => new Date(d));
   }
 

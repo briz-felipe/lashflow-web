@@ -12,10 +12,10 @@ import {
   UserPlus,
   X,
 } from "lucide-react";
-import type { Client } from "@/domain/entities";
+import type { Client, ProcedureInput } from "@/domain/entities";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Suspense, useEffect, useRef, useState } from "react";
-import { formatPhone } from "@/lib/formatters";
+import { formatPhone, parsePtBR } from "@/lib/formatters";
 import { ProcedureSelector, type SelectedProcedure, totalCents, totalDuration } from "@/components/appointments/ProcedureSelector";
 import { useRouter, useSearchParams } from "next/navigation";
 
@@ -412,14 +412,22 @@ function NovoAgendamentoContent() {
     try {
       const scheduledAt = toBackendDate(form.date, form.time);
 
+      // Build procedures array with custom price detection
+      const proceduresInput: ProcedureInput[] = selectedProcs.map((sp) => {
+        const catalogProc = procedures.find((p) => p.id === sp.procedureId);
+        const enteredCents = parsePtBR(sp.priceStr);
+        const isCustom = catalogProc && enteredCents !== catalogProc.priceInCents;
+        return {
+          procedureId: sp.procedureId,
+          customPriceInCents: isCustom ? enteredCents : null,
+        };
+      });
+
       const apt = await createAppointment({
         clientId: selectedClient.id,
-        procedureId: selectedProcs[0].procedureId,
         scheduledAt,
         serviceType: form.serviceType as LashServiceType,
-        priceCharged,
-        durationMinutes: isMulti ? procDuration : undefined,
-        procedureName: isMulti ? combinedName : undefined,
+        procedures: proceduresInput,
         notes: form.notes || undefined,
         status: "confirmed",
       });
@@ -489,7 +497,7 @@ function NovoAgendamentoContent() {
                 <h2 className="font-semibold mb-5 flex items-center gap-2 text-brand-700 text-base">
                   <RefreshCw className="w-4 h-4" /> Tipo de Atendimento *
                 </h2>
-                <div className="grid grid-cols-3 gap-3">
+                <div className="grid grid-cols-2 gap-2.5">
                   {SERVICE_TYPES.map(({ type, label, description, dot, active }) => {
                     const isSelected = form.serviceType === type;
                     const isSuggested = cycle?.nextSuggestedService === type;
@@ -498,17 +506,17 @@ function NovoAgendamentoContent() {
                         key={type}
                         type="button"
                         onClick={() => setForm((f) => ({ ...f, serviceType: type }))}
-                        className={`relative flex flex-col items-center text-center p-4 rounded-xl border-2 transition-all gap-2 ${
+                        className={`relative flex flex-col items-center text-center p-3 sm:p-4 rounded-xl border-2 transition-all gap-1.5 min-h-[5rem] ${
                           isSelected
                             ? active
                             : "border-brand-50 bg-white text-muted-foreground hover:border-brand-200"
                         }`}
                       >
-                        <div className={`w-4 h-4 rounded-full ${dot} ${isSelected ? "" : "opacity-40"}`} />
-                        <span className="text-sm font-semibold leading-tight">{label}</span>
-                        <span className="text-xs opacity-70 leading-tight">{description}</span>
+                        <div className={`w-3.5 h-3.5 rounded-full ${dot} ${isSelected ? "" : "opacity-40"}`} />
+                        <span className="text-xs sm:text-sm font-semibold leading-tight">{label}</span>
+                        <span className="text-[10px] sm:text-xs opacity-70 leading-tight">{description}</span>
                         {isSuggested && !isSelected && (
-                          <span className="absolute -top-2 left-1/2 -translate-x-1/2 text-xs bg-amber-400 text-white px-1.5 py-0.5 rounded-full whitespace-nowrap">
+                          <span className="absolute -top-2 left-1/2 -translate-x-1/2 text-[10px] bg-amber-400 text-white px-1.5 py-0.5 rounded-full whitespace-nowrap">
                             sugerido
                           </span>
                         )}

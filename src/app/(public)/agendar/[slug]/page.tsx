@@ -7,7 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { api } from "@/lib/api";
 import { formatCurrency } from "@/lib/formatters";
-import { Clock, Sparkles, ChevronRight, CalendarDays, User, Loader2, MapPin, Store } from "lucide-react";
+import { Clock, Sparkles, ChevronRight, CalendarDays, User, Loader2, MapPin, Store, Check } from "lucide-react";
 import { addDays, format, isSameDay } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { toast } from "@/components/ui/toaster";
@@ -70,7 +70,7 @@ export default function AgendarSlugPage() {
   const [step, setStep] = useState<Step>(1);
   const [procedures, setProcedures] = useState<Procedure[]>([]);
   const [loadingProcedures, setLoadingProcedures] = useState(true);
-  const [procedureId, setProcedureId] = useState("");
+  const [selectedProcIds, setSelectedProcIds] = useState<string[]>([]);
   const [days, setDays] = useState<DaySlots[]>([]);
   const [selectedDay, setSelectedDay] = useState<Date | null>(null);
   const [selectedSlot, setSelectedSlot] = useState<Date | null>(null);
@@ -96,11 +96,20 @@ export default function AgendarSlugPage() {
       .finally(() => setLoadingProcedures(false));
   }, [salon, slug]);
 
-  const selectedProcedure = procedures.find((p) => p.id === procedureId);
+  const selectedProcs = procedures.filter((p) => selectedProcIds.includes(p.id));
+  const totalPrice = selectedProcs.reduce((s, p) => s + p.priceInCents, 0);
+  const totalDuration = selectedProcs.reduce((s, p) => s + p.durationMinutes, 0);
+  const primaryProcId = selectedProcIds[0] ?? "";
   const selectedDaySlots = days.find((d) => selectedDay && isSameDay(d.date, selectedDay));
 
+  function toggleProcedure(id: string) {
+    setSelectedProcIds((prev) =>
+      prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]
+    );
+  }
+
   const loadDays = useCallback(
-    async (procId: string) => {
+    async (procId: string, duration?: number) => {
       const next14 = Array.from({ length: 14 }, (_, i) => addDays(new Date(), i + 1));
       setDays(next14.map((date) => ({ date, slots: [], loading: true })));
 
@@ -108,9 +117,9 @@ export default function AgendarSlugPage() {
         next14.map(async (date, idx) => {
           const dateStr = format(date, "yyyy-MM-dd");
           try {
-            const res = await api.get<{ slots: string[] }>(
-              `/public/available-slots?slug=${slug}&date=${dateStr}&procedure_id=${procId}`
-            );
+            let url = `/public/available-slots?slug=${slug}&date=${dateStr}&procedure_id=${procId}`;
+            if (duration) url += `&duration_minutes=${duration}`;
+            const res = await api.get<{ slots: string[] }>(url);
             const slots = (res.slots ?? []).map((s) => new Date(s));
             setDays((prev) => {
               const updated = [...prev];
@@ -130,12 +139,12 @@ export default function AgendarSlugPage() {
     [slug]
   );
 
-  const goToStep2 = (procId: string) => {
-    setProcedureId(procId);
+  const goToStep2 = () => {
+    if (selectedProcIds.length === 0) return;
     setSelectedDay(null);
     setSelectedSlot(null);
     setStep(2);
-    loadDays(procId);
+    loadDays(primaryProcId, selectedProcs.length > 1 ? totalDuration : undefined);
   };
 
   const handleSelectDay = (day: DaySlots) => {
@@ -145,7 +154,7 @@ export default function AgendarSlugPage() {
   };
 
   const handleSubmit = async () => {
-    if (!selectedSlot || !procedureId || !clientData.name || !clientData.phone) {
+    if (!selectedSlot || selectedProcIds.length === 0 || !clientData.name || !clientData.phone) {
       toast({ title: "Preencha todos os campos obrigatórios", variant: "destructive" });
       return;
     }
@@ -153,7 +162,7 @@ export default function AgendarSlugPage() {
     try {
       await api.post("/public/appointments", {
         slug,
-        procedure_id: procedureId,
+        procedures: selectedProcIds.map((id) => ({ procedure_id: id })),
         scheduled_at: selectedSlot.toISOString(),
         client: {
           name: clientData.name,
@@ -216,10 +225,11 @@ export default function AgendarSlugPage() {
       {/* Step 1 */}
       {step === 1 && (
         <div>
-          <h2 className="text-lg font-semibold mb-4 flex items-center gap-2">
+          <h2 className="text-lg font-semibold mb-1 flex items-center gap-2">
             <Sparkles className="w-5 h-5 text-brand-500" />
-            Escolha o procedimento
+            Escolha o(s) procedimento(s)
           </h2>
+          <p className="text-sm text-muted-foreground mb-4">Você pode selecionar mais de um.</p>
           {loadingProcedures ? (
             <div className="flex items-center justify-center py-12 text-muted-foreground gap-2">
               <Loader2 className="w-5 h-5 animate-spin" />
@@ -230,38 +240,64 @@ export default function AgendarSlugPage() {
               Nenhum procedimento disponível no momento.
             </p>
           ) : (
-            <div className="grid gap-3">
-              {procedures.map((proc) => (
-                <button
-                  key={proc.id}
-                  onClick={() => goToStep2(proc.id)}
-                  className="w-full text-left p-4 rounded-2xl border-2 border-brand-100 bg-white hover:border-brand-400 hover:shadow-md transition-all group"
-                >
-                  <div className="flex items-start justify-between">
-                    <div className="flex-1">
-                      <h3 className="font-semibold group-hover:text-brand-700 transition-colors mb-1">
-                        {proc.name}
-                      </h3>
-                      {proc.description && (
-                        <p className="text-sm text-muted-foreground">{proc.description}</p>
-                      )}
-                      <div className="flex items-center gap-3 mt-2 text-xs text-muted-foreground">
-                        <span className="flex items-center gap-1">
-                          <Clock className="w-3 h-3" />
-                          {proc.durationMinutes} min
+            <>
+              <div className="grid gap-3">
+                {procedures.map((proc) => {
+                  const isChecked = selectedProcIds.includes(proc.id);
+                  return (
+                    <button
+                      key={proc.id}
+                      onClick={() => toggleProcedure(proc.id)}
+                      className={`w-full text-left p-4 rounded-2xl border-2 bg-white transition-all group ${
+                        isChecked
+                          ? "border-brand-500 shadow-md"
+                          : "border-brand-100 hover:border-brand-400 hover:shadow-md"
+                      }`}
+                    >
+                      <div className="flex items-start gap-3">
+                        <span className={`mt-0.5 w-5 h-5 rounded border-2 flex items-center justify-center flex-shrink-0 transition-colors ${
+                          isChecked ? "bg-brand-500 border-brand-500" : "border-input"
+                        }`}>
+                          {isChecked && <Check className="w-3 h-3 text-white" />}
                         </span>
+                        <div className="flex-1 min-w-0">
+                          <h3 className={`font-semibold transition-colors mb-1 ${isChecked ? "text-brand-700" : "group-hover:text-brand-700"}`}>
+                            {proc.name}
+                          </h3>
+                          {proc.description && (
+                            <p className="text-sm text-muted-foreground">{proc.description}</p>
+                          )}
+                          <div className="flex items-center gap-3 mt-2 text-xs text-muted-foreground">
+                            <span className="flex items-center gap-1">
+                              <Clock className="w-3 h-3" />
+                              {proc.durationMinutes} min
+                            </span>
+                          </div>
+                        </div>
+                        <p className="text-lg font-bold text-brand-700 flex-shrink-0 ml-2">
+                          {formatCurrency(proc.priceInCents)}
+                        </p>
                       </div>
-                    </div>
-                    <div className="text-right ml-4 flex-shrink-0 flex flex-col items-end gap-1">
-                      <p className="text-lg font-bold text-brand-700">
-                        {formatCurrency(proc.priceInCents)}
-                      </p>
-                      <ChevronRight className="w-4 h-4 text-brand-400 group-hover:text-brand-600 transition-colors" />
-                    </div>
+                    </button>
+                  );
+                })}
+              </div>
+
+              {/* Summary + continue */}
+              {selectedProcIds.length > 0 && (
+                <div className="mt-4 p-4 bg-brand-50 rounded-2xl border border-brand-200">
+                  <div className="flex items-center justify-between mb-3">
+                    <span className="text-sm text-brand-700">
+                      {selectedProcIds.length} procedimento{selectedProcIds.length > 1 ? "s" : ""} · {totalDuration} min
+                    </span>
+                    <span className="text-lg font-bold text-brand-700">{formatCurrency(totalPrice)}</span>
                   </div>
-                </button>
-              ))}
-            </div>
+                  <Button className="w-full" onClick={goToStep2}>
+                    Continuar <ChevronRight className="w-4 h-4" />
+                  </Button>
+                </div>
+              )}
+            </>
           )}
         </div>
       )}
@@ -275,7 +311,9 @@ export default function AgendarSlugPage() {
           </h2>
           <p className="text-sm text-muted-foreground mb-4">
             Próximas datas para{" "}
-            <span className="font-medium text-brand-700">{selectedProcedure?.name}</span>
+            <span className="font-medium text-brand-700">
+              {selectedProcs.map((p) => p.name).join(" + ")}
+            </span>
           </p>
 
           <div className="grid grid-cols-7 gap-1.5 mb-5">
@@ -363,14 +401,22 @@ export default function AgendarSlugPage() {
           </h2>
 
           <div className="bg-brand-50 rounded-2xl p-4 mb-6 border border-brand-200">
-            <p className="text-sm text-brand-800 font-semibold">{selectedProcedure?.name}</p>
-            <p className="text-xs text-brand-600">
+            {selectedProcs.map((p) => (
+              <div key={p.id} className="flex items-center justify-between">
+                <span className="text-sm text-brand-800 font-semibold">{p.name}</span>
+                <span className="text-sm font-bold text-brand-700">{formatCurrency(p.priceInCents)}</span>
+              </div>
+            ))}
+            <p className="text-xs text-brand-600 mt-1">
               {selectedDay && format(selectedDay, "EEEE, d 'de' MMMM", { locale: ptBR })}
               {selectedSlot && ` às ${format(selectedSlot, "HH:mm")}`}
+              {` · ${totalDuration} min`}
             </p>
-            <p className="text-sm font-bold text-brand-700 mt-1">
-              {selectedProcedure && formatCurrency(selectedProcedure.priceInCents)}
-            </p>
+            {selectedProcs.length > 1 && (
+              <p className="text-sm font-bold text-brand-700 mt-1 pt-1 border-t border-brand-200">
+                Total: {formatCurrency(totalPrice)}
+              </p>
+            )}
           </div>
 
           <div className="bg-white rounded-2xl border border-brand-100 shadow-card p-6 space-y-4">

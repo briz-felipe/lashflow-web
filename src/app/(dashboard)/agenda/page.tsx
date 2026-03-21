@@ -463,12 +463,12 @@ export default function AgendaPage() {
             <div className="space-y-2">
               {pending.map((apt) => (
                 <div key={apt.id} className="flex items-center gap-3 bg-white rounded-xl p-3 border border-amber-100">
-                  <div className="flex-1 min-w-0">
+                  <Link href={`/agenda/${apt.id}`} className="flex-1 min-w-0 hover:opacity-80 transition-opacity">
                     <p className="text-sm font-semibold truncate">{apt.clientName ?? "—"}</p>
                     <p className="text-xs text-muted-foreground">
                       {apt.procedureName} · {formatRelativeDate(apt.scheduledAt)}
                     </p>
-                  </div>
+                  </Link>
                   <div className="flex gap-1.5 flex-shrink-0">
                     <Button size="sm" variant="ghost" className="h-8 w-8 p-0 text-red-500 hover:bg-red-50"
                       onClick={async () => { await reject(apt.id, "Horário indisponível"); toast({ title: "Recusado", variant: "destructive" }); }}>

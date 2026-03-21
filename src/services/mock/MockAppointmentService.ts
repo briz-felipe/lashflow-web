@@ -37,15 +37,16 @@ export class MockAppointmentService implements IAppointmentService {
   }
 
   async createAppointment(input: CreateAppointmentInput): Promise<Appointment> {
-    const procedure = mockProcedures.find((p) => p.id === input.procedureId);
-    const durationMinutes = procedure?.durationMinutes ?? 90;
+    const primaryProcId = input.procedures?.[0]?.procedureId ?? input.procedureId ?? "";
+    const procedure = mockProcedures.find((p) => p.id === primaryProcId);
+    const durationMinutes = input.durationMinutes ?? procedure?.durationMinutes ?? 90;
     const scheduledAt = input.scheduledAt;
     const endsAt = addMinutes(scheduledAt, durationMinutes);
 
     const newAppointment: Appointment = {
       id: `apt-${Date.now()}`,
       clientId: input.clientId,
-      procedureId: input.procedureId,
+      procedureId: primaryProcId,
       serviceType: input.serviceType,
       status: "pending_approval",
       scheduledAt,
@@ -65,7 +66,8 @@ export class MockAppointmentService implements IAppointmentService {
   async updateAppointment(id: string, input: UpdateAppointmentInput): Promise<Appointment> {
     const idx = this.appointments.findIndex((a) => a.id === id);
     if (idx === -1) throw new Error("Agendamento não encontrado");
-    this.appointments[idx] = { ...this.appointments[idx], ...input, updatedAt: new Date() };
+    const { procedures: _procs, ...rest } = input;
+    this.appointments[idx] = { ...this.appointments[idx], ...rest, updatedAt: new Date() };
     return this.appointments[idx];
   }
 
