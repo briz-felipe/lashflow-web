@@ -1,9 +1,10 @@
 "use client";
 
-import { LayoutDashboard, CalendarDays, Users, Banknote, MoreHorizontal } from "lucide-react";
+import { Banknote, CalendarDays, LayoutDashboard, MoreHorizontal, Users } from "lucide-react";
+
 import Link from "next/link";
-import { usePathname } from "next/navigation";
 import { cn } from "@/lib/utils";
+import { usePathname } from "next/navigation";
 import { useSidebar } from "./SidebarContext";
 
 const tabs = [
@@ -24,7 +25,7 @@ export function BottomNav() {
     /* Wrapper que respeita a safe area e empurra o pill para cima */
     <div
       className="fixed bottom-0 left-0 right-0 z-40 lg:hidden"
-      style={{ paddingBottom: "calc(env(safe-area-inset-bottom) + 12px)" }}
+      style={{ paddingBottom: "calc(env(safe-area-inset-bottom) + 15px)" }}
     >
       {/* Pill flutuante */}
       <div className="mx-3 bg-white rounded-2xl shadow-lg border border-brand-100 flex items-stretch overflow-hidden">
