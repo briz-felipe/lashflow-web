@@ -69,3 +69,15 @@ export function formatShortMonth(date: Date | string | null | undefined): string
   if (!isValid(d)) return "—";
   return format(d, "MMM/yy", { locale: ptBR });
 }
+
+/** Parse pt-BR decimal string (e.g. "1.500,50") to cents */
+export function parsePtBR(str: string): number {
+  const normalized = str.replace(/\./g, "").replace(",", ".");
+  const val = parseFloat(normalized || "0");
+  return Math.round((isNaN(val) ? 0 : val) * 100);
+}
+
+/** Format cents to pt-BR input string (e.g. 150050 → "1.500,50") */
+export function centsToInput(cents: number): string {
+  return (cents / 100).toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+}

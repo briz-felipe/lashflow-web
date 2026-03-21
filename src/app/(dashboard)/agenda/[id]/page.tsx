@@ -27,18 +27,10 @@ import { useExtraServices } from "@/hooks/useExtraServices";
 import { useProcedures } from "@/hooks/useProcedures";
 import { toBackendDate } from "@/config/timezone";
 import type { UpdateAppointmentInput } from "@/domain/entities";
+import { ProcedureSelector, type SelectedProcedure, totalCents, totalDuration } from "@/components/appointments/ProcedureSelector";
+import { parsePtBR, centsToInput } from "@/lib/formatters";
 
 const PAYMENT_METHODS: PaymentMethod[] = ["pix", "credit_card", "debit_card", "cash", "bank_transfer"];
-
-function parsePtBR(str: string): number {
-  const normalized = str.replace(/\./g, "").replace(",", ".");
-  const val = parseFloat(normalized || "0");
-  return Math.round((isNaN(val) ? 0 : val) * 100);
-}
-
-function centsToInput(cents: number): string {
-  return (cents / 100).toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-}
 
 const SERVICE_CONFIG: Record<LashServiceType, { icon: React.ReactNode; color: string; bg: string }> = {
   application:  { icon: <Sparkles className="w-4 h-4" />,  color: "text-brand-700",   bg: "bg-brand-50 border-brand-200" },
@@ -84,8 +76,7 @@ export default function AgendamentoDetailPage() {
   const [editDate, setEditDate] = useState("");
   const [editTime, setEditTime] = useState("");
   const [editNotes, setEditNotes] = useState("");
-  const [editProcedureIds, setEditProcedureIds] = useState<string[]>([]);
-  const [editProcedurePrices, setEditProcedurePrices] = useState<Record<string, string>>({});
+  const [editProcs, setEditProcs] = useState<SelectedProcedure[]>([]);
   const [savingEdit, setSavingEdit] = useState(false);
 
   // WhatsApp
@@ -180,40 +171,35 @@ export default function AgendamentoDetailPage() {
     setEditDate(`${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`);
     setEditTime(`${pad(d.getHours())}:${pad(d.getMinutes())}`);
     setEditNotes(apt.notes ?? "");
-    setEditProcedureIds([apt.procedureId]);
-    setEditProcedurePrices({ [apt.procedureId]: centsToInput(apt.priceCharged) });
+
+    // Pre-populate: find primary procedure and set its price from what was charged
+    const primaryProc = procedures.find((p) => p.id === apt.procedureId);
+    if (primaryProc) {
+      setEditProcs([{
+        procedureId: primaryProc.id,
+        name: primaryProc.name,
+        durationMinutes: primaryProc.durationMinutes,
+        priceStr: centsToInput(apt.priceCharged),
+      }]);
+    } else {
+      setEditProcs([]);
+    }
     setEditMode(true);
   }
 
-  function toggleEditProcedure(proc: { id: string; priceInCents: number }) {
-    const isSelected = editProcedureIds.includes(proc.id);
-    if (isSelected) {
-      setEditProcedureIds((prev) => prev.filter((x) => x !== proc.id));
-      setEditProcedurePrices((prev) => { const n = { ...prev }; delete n[proc.id]; return n; });
-    } else {
-      setEditProcedureIds((prev) => [...prev, proc.id]);
-      setEditProcedurePrices((prev) => ({ ...prev, [proc.id]: centsToInput(proc.priceInCents) }));
-    }
-  }
-
-  const editTotalCents = editProcedureIds.reduce((s, pid) => s + parsePtBR(editProcedurePrices[pid] ?? "0"), 0);
-
   const saveEdit = async () => {
-    if (!apt || !editDate || !editTime || editProcedureIds.length === 0) return;
+    if (!apt || !editDate || !editTime || editProcs.length === 0) return;
     setSavingEdit(true);
     try {
       const scheduledAt = toBackendDate(editDate, editTime);
-      const primaryId = editProcedureIds[0];
-      const selectedProcs = procedures.filter((p) => editProcedureIds.includes(p.id));
-      const isMulti = selectedProcs.length > 1;
-
+      const isMulti = editProcs.length > 1;
       const input: UpdateAppointmentInput = {
-        procedureId: primaryId,
+        procedureId: editProcs[0].procedureId,
         scheduledAt,
-        priceCharged: editTotalCents,
+        priceCharged: totalCents(editProcs),
         notes: editNotes || "",
-        procedureName: isMulti ? selectedProcs.map((p) => p.name).join(" + ") : "",
-        durationMinutes: selectedProcs.reduce((s, p) => s + p.durationMinutes, 0),
+        procedureName: isMulti ? editProcs.map((p) => p.name).join(" + ") : "",
+        durationMinutes: totalDuration(editProcs),
       };
 
       const updated = await appointmentService.updateAppointment(apt.id, input);
@@ -367,61 +353,11 @@ export default function AgendamentoDetailPage() {
           {editMode ? (
             <div className="bg-white rounded-2xl border border-brand-100 shadow-card p-4 space-y-3">
               <p className="text-sm font-semibold text-brand-700">Procedimento</p>
-              <div className="space-y-1.5 max-h-64 overflow-y-auto pr-1">
-                {procedures.map((p) => {
-                  const selected = editProcedureIds.includes(p.id);
-                  return (
-                    <button
-                      key={p.id}
-                      type="button"
-                      onClick={() => toggleEditProcedure(p)}
-                      className={`relative w-full text-left p-3 rounded-xl border-2 transition-all ${
-                        selected ? "border-brand-500 bg-brand-50" : "border-brand-50 bg-white hover:border-brand-200"
-                      }`}
-                    >
-                      {selected && (
-                        <span className="absolute top-2 right-2 w-4 h-4 rounded-full bg-brand-500 flex items-center justify-center">
-                          <Check className="w-2.5 h-2.5 text-white" />
-                        </span>
-                      )}
-                      <p className={`text-sm font-semibold leading-tight pr-6 ${selected ? "text-brand-700" : ""}`}>
-                        {p.name}
-                      </p>
-                      <div className="flex items-center gap-2 mt-1.5">
-                        <span className="flex items-center gap-1 text-xs text-muted-foreground">
-                          <Clock className="w-3 h-3" />
-                          {p.durationMinutes} min
-                        </span>
-                        {selected ? (
-                          <div
-                            className="flex items-center gap-1 ml-auto"
-                            onClick={(e) => e.stopPropagation()}
-                          >
-                            <span className="text-xs text-muted-foreground">R$</span>
-                            <input
-                              type="text"
-                              inputMode="decimal"
-                              value={editProcedurePrices[p.id] ?? ""}
-                              onChange={(e) => setEditProcedurePrices((prev) => ({ ...prev, [p.id]: e.target.value }))}
-                              className="w-24 text-right text-sm font-bold border-b-2 border-brand-400 outline-none bg-transparent text-brand-700 focus:border-brand-600"
-                            />
-                          </div>
-                        ) : (
-                          <span className="text-xs font-semibold text-emerald-600 ml-auto">
-                            {formatCurrency(p.priceInCents)}
-                          </span>
-                        )}
-                      </div>
-                    </button>
-                  );
-                })}
-              </div>
-              {editProcedureIds.length > 1 && (
-                <div className="pt-2 border-t border-brand-50 flex justify-between text-sm">
-                  <span className="text-muted-foreground">Total dos procedimentos</span>
-                  <span className="font-bold text-brand-700">{formatCurrency(editTotalCents)}</span>
-                </div>
-              )}
+              <ProcedureSelector
+                procedures={procedures}
+                selected={editProcs}
+                onChange={setEditProcs}
+              />
             </div>
           ) : (
             <div className="bg-white rounded-2xl border border-brand-100 shadow-card overflow-hidden">
@@ -800,7 +736,7 @@ export default function AgendamentoDetailPage() {
               </div>
               <button
                 onClick={saveEdit}
-                disabled={savingEdit || !editDate || !editTime || editProcedureIds.length === 0}
+                disabled={savingEdit || !editDate || !editTime || editProcs.length === 0}
                 className="w-full h-12 bg-brand-500 hover:bg-brand-600 disabled:opacity-40 text-white rounded-2xl font-semibold text-sm transition-colors"
               >
                 {savingEdit ? "Salvando..." : "Salvar Alterações"}
