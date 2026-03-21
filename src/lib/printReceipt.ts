@@ -4,8 +4,8 @@ import { LASH_SERVICE_TYPE_LABELS, PAYMENT_METHOD_LABELS } from "@/domain/enums"
 import { formatCurrency, formatDate, formatDuration, formatTime } from "./formatters";
 
 interface ReceiptUser {
-  salonName?: string;
-  salonAddress?: string;
+  salonName?: string | null;
+  salonAddress?: string | null;
 }
 
 function row(label: string, value: string, color = "#374151"): string {
