@@ -169,7 +169,7 @@ function CompactCalendar({
                       <span
                         key={i}
                         className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${
-                          apt.serviceType ? SERVICE_DOT[apt.serviceType] : "bg-brand-400"
+                          STATUS_LEFT[apt.status] ?? "bg-brand-400"
                         }`}
                       />
                     ))}
