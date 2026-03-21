@@ -25,10 +25,10 @@ export function BottomNav() {
     /* Wrapper que respeita a safe area e empurra o pill para cima */
     <div
       className="fixed bottom-0 left-0 right-0 z-40 lg:hidden"
-      style={{ paddingBottom: "calc(env(safe-area-inset-bottom) + 15px)" }}
+      style={{ paddingBottom: "calc(env(safe-area-inset-bottom) + 16px)" }}
     >
       {/* Pill flutuante */}
-      <div className="mx-3 bg-white rounded-2xl shadow-lg border border-brand-100 flex items-stretch overflow-hidden">
+      <div className="mx-3 bg-white rounded-3xl shadow-lg border border-brand-100 flex items-stretch overflow-hidden">
         {tabs.map(({ href, label, icon: Icon }) => {
           const active = isActive(href);
           return (
