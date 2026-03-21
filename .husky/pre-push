@@ -1,0 +1,10 @@
+#!/bin/sh
+set -e
+
+echo "⚡ Verificando tipos TypeScript..."
+npx tsc --noEmit
+
+echo "🧪 Rodando testes..."
+npx vitest run
+
+echo "✅ Tudo ok! Push liberado."
