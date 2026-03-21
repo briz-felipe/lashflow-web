@@ -460,7 +460,7 @@ function NovoAgendamentoContent() {
                   onSelect={(c) => {
                     setSelectedClient(c);
                     setForm((f) => ({ ...f, serviceType: "" }));
-                    setSelectedProcedureIds([]);
+                    setSelectedProcs([]);
                   }}
                 />
                 {selectedClient && cycle && cycle.summary !== "no_data" && (
