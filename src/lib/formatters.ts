@@ -70,6 +70,14 @@ export function formatShortMonth(date: Date | string | null | undefined): string
   return format(d, "MMM/yy", { locale: ptBR });
 }
 
+/** Format duration in minutes to "Xh Ymin" or "Ymin" */
+export function formatDuration(minutes: number): string {
+  if (minutes < 60) return `${minutes}min`;
+  const h = Math.floor(minutes / 60);
+  const m = minutes % 60;
+  return m > 0 ? `${h}h ${m}min` : `${h}h`;
+}
+
 /** Parse pt-BR decimal string (e.g. "1.500,50") to cents */
 export function parsePtBR(str: string): number {
   const normalized = str.replace(/\./g, "").replace(",", ".");

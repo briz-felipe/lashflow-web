@@ -9,7 +9,8 @@ import { PaymentStatusBadge } from "@/components/payments/PaymentStatusBadge";
 import { LoadingPage } from "@/components/shared/LoadingSpinner";
 import { appointmentService, paymentService } from "@/services";
 import { toast } from "@/components/ui/toaster";
-import { formatDateTime, formatCurrency, formatTime } from "@/lib/formatters";
+import { formatDateTime, formatCurrency, formatTime, formatDuration } from "@/lib/formatters";
+import { openPdfReceipt } from "@/lib/printReceipt";
 import {
   ArrowLeft, CheckCircle2, XCircle, User, Sparkles, Clock,
   DollarSign, Calendar, RefreshCw, Scissors, Edit2, FileText,
@@ -261,15 +262,7 @@ export default function AgendamentoDetailPage() {
 
   return (
     <>
-      <style>{`
-        @media print {
-          .no-print { display: none !important; }
-          .print-receipt { display: block !important; }
-        }
-        .print-receipt { display: none; }
-      `}</style>
-
-      <div className="pb-32 sm:pb-6 no-print">
+      <div className="pb-32 sm:pb-6">
         <Topbar title="Agendamento" />
 
         <div className="p-4 sm:p-5 animate-fade-in space-y-3 max-w-lg mx-auto">
@@ -370,11 +363,19 @@ export default function AgendamentoDetailPage() {
                 </div>
               )}
               <div className="p-4">
-                <p className="font-semibold text-base leading-tight">{apt.procedureName ?? "—"}</p>
-                <div className="flex items-center justify-between mt-3">
+                {/* Procedure name — split multi into pills */}
+                <div className="flex flex-wrap gap-1.5 mb-3">
+                  {(apt.procedureName ?? "—").split(" + ").map((name, i) => (
+                    <span key={i} className="text-sm font-semibold bg-brand-50 text-brand-700 px-2.5 py-1 rounded-lg">
+                      {name}
+                    </span>
+                  ))}
+                </div>
+
+                <div className="flex items-center justify-between">
                   <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
                     <Clock className="w-3 h-3" />
-                    {apt.durationMinutes} min
+                    {formatDuration(apt.durationMinutes)}
                   </div>
                   {isActive ? (
                     editingPrice ? (
@@ -400,10 +401,25 @@ export default function AgendamentoDetailPage() {
                     <span className="text-lg font-bold text-emerald-600">{formatCurrency(apt.priceCharged)}</span>
                   )}
                 </div>
-                {isActive && basePrice !== apt.priceCharged && (
-                  <p className="text-xs text-muted-foreground mt-1 text-right">
-                    Preço original: {formatCurrency(apt.priceCharged)}
-                  </p>
+
+                {/* Original price diff */}
+                {(() => {
+                  const primaryProc = procedures.find((p) => p.id === apt.procedureId);
+                  if (primaryProc && primaryProc.priceInCents !== apt.priceCharged) {
+                    return (
+                      <p className="text-xs text-muted-foreground mt-1.5 text-right">
+                        Tabela: <span className="line-through">{formatCurrency(primaryProc.priceInCents)}</span>
+                      </p>
+                    );
+                  }
+                  return null;
+                })()}
+
+                {/* Notes */}
+                {apt.notes && (
+                  <div className="mt-3 pt-3 border-t border-brand-50">
+                    <p className="text-xs text-muted-foreground leading-relaxed">{apt.notes}</p>
+                  </div>
                 )}
               </div>
             </div>
@@ -514,7 +530,7 @@ export default function AgendamentoDetailPage() {
                 </div>
               </div>
               <button
-                onClick={() => window.print()}
+                onClick={() => openPdfReceipt(apt, payment, user ?? null, procedures)}
                 className="w-full mt-3 flex items-center justify-center gap-2 py-2.5 rounded-xl border border-brand-200 text-brand-700 text-sm font-medium hover:bg-brand-50 transition-colors"
               >
                 <FileText className="w-4 h-4" />
@@ -779,76 +795,6 @@ export default function AgendamentoDetailPage() {
         </div>
       </div>
 
-      {/* ── Extrato para impressão ── */}
-      <div className="print-receipt p-8 max-w-xs mx-auto font-sans">
-        <h1 className="text-xl font-bold text-center">{user?.salonName ?? "LashFlow"}</h1>
-        {user?.salonAddress && (
-          <p className="text-xs text-center text-gray-500 mt-1 mb-6">{user.salonAddress}</p>
-        )}
-        <div className="border-t border-gray-300 mb-4" />
-        <h2 className="text-sm font-bold mb-3 uppercase tracking-wide text-gray-600">Extrato do Atendimento</h2>
-
-        <div className="space-y-2 text-sm">
-          <div className="flex justify-between">
-            <span className="text-gray-500">Cliente</span>
-            <span className="font-medium">{apt.clientName ?? "—"}</span>
-          </div>
-          <div className="flex justify-between">
-            <span className="text-gray-500">Data</span>
-            <span className="font-medium">{formatDateTime(apt.scheduledAt)}</span>
-          </div>
-          <div className="flex justify-between">
-            <span className="text-gray-500">Horário</span>
-            <span className="font-medium">{formatTime(apt.scheduledAt)} — {formatTime(apt.endsAt)}</span>
-          </div>
-          <div className="flex justify-between">
-            <span className="text-gray-500">Procedimento</span>
-            <span className="font-medium">{apt.procedureName ?? "—"}</span>
-          </div>
-          {apt.serviceType && (
-            <div className="flex justify-between">
-              <span className="text-gray-500">Tipo</span>
-              <span className="font-medium">{LASH_SERVICE_TYPE_LABELS[apt.serviceType]}</span>
-            </div>
-          )}
-        </div>
-
-        <div className="border-t border-gray-300 my-4" />
-
-        <div className="space-y-2 text-sm">
-          <div className="flex justify-between">
-            <span className="text-gray-500">Procedimento</span>
-            <span>{formatCurrency(payment?.subtotalAmountInCents || payment?.totalAmountInCents || apt.priceCharged)}</span>
-          </div>
-          {payment && payment.feeAmountInCents > 0 && (
-            <div className="flex justify-between text-amber-600">
-              <span>Taxas / extras</span>
-              <span>+ {formatCurrency(payment.feeAmountInCents)}</span>
-            </div>
-          )}
-          {payment && payment.discountAmountInCents > 0 && (
-            <div className="flex justify-between text-red-600">
-              <span>Descontos</span>
-              <span>− {formatCurrency(payment.discountAmountInCents)}</span>
-            </div>
-          )}
-          {payment?.method && (
-            <div className="flex justify-between">
-              <span className="text-gray-500">Forma de pgto.</span>
-              <span>{PAYMENT_METHOD_LABELS[payment.method]}</span>
-            </div>
-          )}
-          <div className="border-t border-gray-300 my-1" />
-          <div className="flex justify-between font-bold text-base">
-            <span>Total pago</span>
-            <span>{formatCurrency(payment?.paidAmountInCents ?? apt.priceCharged)}</span>
-          </div>
-        </div>
-
-        <div className="border-t border-gray-300 mt-6 pt-4 text-center">
-          <p className="text-xs text-gray-400">Obrigada pela preferência! 💜</p>
-        </div>
-      </div>
     </>
   );
 }
