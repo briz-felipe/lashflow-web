@@ -242,22 +242,22 @@ export default function ClienteProfilePage() {
           {/* Right columns: Stats + Analytics + History */}
           <div className="xl:col-span-2 space-y-6">
             {/* Stats Row */}
-            <div className="grid grid-cols-3 gap-4">
-              <div className="bg-white rounded-2xl border border-brand-100 shadow-card p-4 text-center">
+            <div className="flex gap-3 overflow-x-auto snap-x snap-mandatory scrollbar-hide pb-1 sm:grid sm:grid-cols-3 sm:overflow-visible">
+              <div className="bg-white rounded-2xl border border-brand-100 shadow-card p-4 text-center min-w-[60%] snap-start sm:min-w-0">
                 <TrendingUp className="w-5 h-5 text-emerald-500 mx-auto mb-2" />
                 <p className="text-lg font-bold text-foreground">
                   {formatCurrency(client.totalSpent)}
                 </p>
                 <p className="text-xs text-muted-foreground">Total Gasto</p>
               </div>
-              <div className="bg-white rounded-2xl border border-brand-100 shadow-card p-4 text-center">
+              <div className="bg-white rounded-2xl border border-brand-100 shadow-card p-4 text-center min-w-[60%] snap-start sm:min-w-0">
                 <Calendar className="w-5 h-5 text-brand-500 mx-auto mb-2" />
                 <p className="text-lg font-bold text-foreground">
                   {client.appointmentsCount}
                 </p>
                 <p className="text-xs text-muted-foreground">Visitas</p>
               </div>
-              <div className="bg-white rounded-2xl border border-brand-100 shadow-card p-4 text-center">
+              <div className="bg-white rounded-2xl border border-brand-100 shadow-card p-4 text-center min-w-[60%] snap-start sm:min-w-0">
                 <Star className="w-5 h-5 text-amber-500 mx-auto mb-2" />
                 <p className="text-sm font-bold text-foreground truncate">
                   {techList[0]?.name ?? "—"}

@@ -328,24 +328,27 @@ export default function DespesasPage() {
         </div>
 
         {/* Stats */}
-        <div className="grid grid-cols-3 gap-3 sm:gap-4">
+        <div className="flex gap-3 overflow-x-auto snap-x snap-mandatory scrollbar-hide pb-1 sm:grid sm:grid-cols-3 sm:overflow-visible">
           <StatsCard
             title="Total"
             value={formatCurrency(summary?.totalInCents ?? 0)}
             icon={<DollarSign className="w-5 h-5" />}
             color="purple"
+            className="min-w-[70%] snap-start sm:min-w-0"
           />
           <StatsCard
             title="Pago"
             value={formatCurrency(summary?.paidInCents ?? 0)}
             icon={<CheckCircle2 className="w-5 h-5" />}
             color="green"
+            className="min-w-[70%] snap-start sm:min-w-0"
           />
           <StatsCard
             title="Pendente"
             value={formatCurrency(summary?.pendingInCents ?? 0)}
             icon={<AlertCircle className="w-5 h-5" />}
             color={summary?.pendingInCents ? "red" : "green"}
+            className="min-w-[70%] snap-start sm:min-w-0"
           />
         </div>
 
