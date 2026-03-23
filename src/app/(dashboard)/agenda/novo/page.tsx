@@ -36,6 +36,7 @@ import { toast } from "@/components/ui/toaster";
 import { useAppointments } from "@/hooks/useAppointments";
 import { useClients } from "@/hooks/useClients";
 import { useProcedures } from "@/hooks/useProcedures";
+import { useAuth } from "@/hooks/useAuth";
 
 const SERVICE_TYPES: Array<{
   type: LashServiceType;
@@ -357,6 +358,7 @@ function NovoAgendamentoContent() {
 
   const { createAppointment } = useAppointments();
   const { procedures } = useProcedures(true);
+  const { user } = useAuth();
   const { data: allClients } = useClients({}, 100);
   const [saving, setSaving] = useState(false);
 
@@ -381,7 +383,7 @@ function NovoAgendamentoContent() {
   const { appointments } = useAppointments(
     selectedClient ? { clientId: selectedClient.id } : undefined
   );
-  const cycle = selectedClient ? computeCycle(appointments) : null;
+  const cycle = selectedClient ? computeCycle(appointments, user?.maintenanceCycleDays) : null;
 
   // Auto-suggest service type when client changes
   useEffect(() => {

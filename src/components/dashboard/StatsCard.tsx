@@ -56,18 +56,18 @@ export function StatsCard({
   return (
     <div
       className={cn(
-        "bg-white rounded-2xl border border-brand-100 p-6 shadow-card hover:shadow-card-hover transition-shadow duration-300",
+        "bg-white rounded-2xl border border-brand-100 p-4 sm:p-6 shadow-card hover:shadow-card-hover transition-shadow duration-300",
         className
       )}
     >
-      <div className="flex items-start justify-between mb-4">
+      <div className="flex items-start justify-between mb-3 sm:mb-4">
         <div
           className={cn(
-            "w-11 h-11 rounded-xl flex items-center justify-center",
+            "w-9 h-9 sm:w-11 sm:h-11 rounded-xl flex items-center justify-center",
             colors.bg
           )}
         >
-          <span className={cn("w-5 h-5", colors.icon)}>{icon}</span>
+          <span className={cn("w-4 h-4 sm:w-5 sm:h-5", colors.icon)}>{icon}</span>
         </div>
         {trend !== undefined && (
           <div
@@ -89,8 +89,8 @@ export function StatsCard({
       </div>
 
       <div>
-        <p className="text-sm text-muted-foreground font-medium mb-1">{title}</p>
-        <p className="text-2xl font-bold text-foreground">{value}</p>
+        <p className="text-xs sm:text-sm text-muted-foreground font-medium mb-1">{title}</p>
+        <p className="text-lg sm:text-2xl font-bold text-foreground truncate">{value}</p>
         {subtitle && <p className="text-xs text-muted-foreground mt-1">{subtitle}</p>}
         {trendLabel && (
           <p className="text-xs text-muted-foreground mt-1">{trendLabel}</p>

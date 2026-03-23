@@ -221,8 +221,8 @@ export default function EstoquePage() {
             </div>
             <div className="flex flex-wrap gap-2">
               {alerts.map((a) => (
-                <span key={a.materialId} className="text-xs bg-amber-100 text-amber-700 px-2 py-1 rounded-full">
-                  {a.materialName} ({a.currentStock}/{a.minimumStock})
+                <span key={a.materialId} className="text-xs bg-amber-100 text-amber-700 px-2.5 py-1 rounded-full font-medium">
+                  {a.materialName} — {a.currentStock} de {a.minimumStock}
                 </span>
               ))}
             </div>

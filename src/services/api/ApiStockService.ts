@@ -18,7 +18,8 @@ export class ApiStockService implements IStockService {
   }
 
   createMaterial(input: CreateMaterialInput): Promise<Material> {
-    return api.post("/stock/materials", input);
+    const { initialStock, ...rest } = input;
+    return api.post("/stock/materials", { ...rest, currentStock: initialStock ?? 0 });
   }
 
   updateMaterial(id: string, input: UpdateMaterialInput): Promise<Material> {
