@@ -19,4 +19,6 @@ export type CreateMaterialInput = Pick<
   "name" | "category" | "unit" | "unitCostInCents" | "minimumStock" | "notes"
 > & { initialStock?: number };
 
-export type UpdateMaterialInput = Partial<CreateMaterialInput>;
+export type UpdateMaterialInput = Partial<
+  Pick<Material, "name" | "category" | "unit" | "unitCostInCents" | "minimumStock" | "notes">
+>;

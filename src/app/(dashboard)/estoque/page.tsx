@@ -13,6 +13,8 @@ import {
   ShoppingCart,
   TrendingDown,
   Wrench,
+  Pencil,
+  Trash2,
 } from "lucide-react";
 import {
   Dialog,
@@ -29,6 +31,7 @@ import type { MaterialCategory, MaterialUnit, StockMovementType } from "@/domain
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { formatCurrency, formatDate } from "@/lib/formatters";
 import { useStock, useStockAlerts, useStockAnalytics, useStockMovements } from "@/hooks/useStock";
+import type { Material } from "@/domain/entities";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -97,9 +100,10 @@ export default function EstoquePage() {
   const [lowStockOnly, setLowStockOnly] = useState(false);
   const [matOpen, setMatOpen] = useState(false);
   const [movOpen, setMovOpen] = useState(false);
+  const [editMat, setEditMat] = useState<Material | null>(null);
   const [saving, setSaving] = useState(false);
 
-  const { materials, loading, createMaterial, createMovement } = useStock({
+  const { materials, loading, createMaterial, updateMaterial, deleteMaterial, createMovement } = useStock({
     search: search || undefined,
     category: catFilter !== "all" ? catFilter : undefined,
     lowStock: lowStockOnly || undefined,
@@ -135,6 +139,52 @@ export default function EstoquePage() {
       setMatOpen(false);
     } finally {
       setSaving(false);
+    }
+  };
+
+  // ── Edit material ────────────────────────────────────────────────────────────
+  const [editForm, setEditForm] = useState({ name: "", category: "" as MaterialCategory, unit: "" as MaterialUnit, unitCostInCents: "", minimumStock: "", notes: "" });
+
+  function openEditModal(mat: Material) {
+    setEditForm({
+      name: mat.name,
+      category: mat.category,
+      unit: mat.unit,
+      unitCostInCents: (mat.unitCostInCents / 100).toFixed(2),
+      minimumStock: String(mat.minimumStock),
+      notes: mat.notes ?? "",
+    });
+    setEditMat(mat);
+  }
+
+  const handleUpdateMaterial = async () => {
+    if (!editMat || !editForm.name.trim()) return;
+    setSaving(true);
+    try {
+      await updateMaterial(editMat.id, {
+        name: editForm.name,
+        category: editForm.category,
+        unit: editForm.unit,
+        unitCostInCents: Math.round(parseFloat(editForm.unitCostInCents || "0") * 100),
+        minimumStock: parseInt(editForm.minimumStock) || 1,
+        notes: editForm.notes || undefined,
+      });
+      toast({ title: "Material atualizado!", variant: "success" });
+      setEditMat(null);
+    } catch {
+      toast({ title: "Erro ao atualizar", variant: "destructive" });
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleDeleteMaterial = async (mat: Material) => {
+    if (!confirm(`Excluir "${mat.name}"? Essa ação não pode ser desfeita.`)) return;
+    try {
+      await deleteMaterial(mat.id);
+      toast({ title: "Material excluído!", variant: "success" });
+    } catch {
+      toast({ title: "Erro ao excluir", variant: "destructive" });
     }
   };
 
@@ -331,6 +381,20 @@ export default function EstoquePage() {
                       <span>Mín: {mat.minimumStock} · Unit: {formatCurrency(mat.unitCostInCents)}</span>
                       <span className="font-semibold text-foreground">{formatCurrency(mat.currentStock * mat.unitCostInCents)}</span>
                     </div>
+                    <div className="flex gap-2 mt-2 pt-2 border-t border-brand-50">
+                      <button
+                        onClick={() => openEditModal(mat)}
+                        className="flex-1 flex items-center justify-center gap-1.5 py-1.5 rounded-lg text-xs font-medium text-brand-600 hover:bg-brand-50 transition-colors"
+                      >
+                        <Pencil className="w-3 h-3" /> Editar
+                      </button>
+                      <button
+                        onClick={() => handleDeleteMaterial(mat)}
+                        className="flex-1 flex items-center justify-center gap-1.5 py-1.5 rounded-lg text-xs font-medium text-red-500 hover:bg-red-50 transition-colors"
+                      >
+                        <Trash2 className="w-3 h-3" /> Excluir
+                      </button>
+                    </div>
                   </div>
                 );
               })}
@@ -351,6 +415,7 @@ export default function EstoquePage() {
                       <th className="text-center text-xs font-semibold text-muted-foreground px-4 py-3 hidden md:table-cell">Mínimo</th>
                       <th className="text-right text-xs font-semibold text-muted-foreground px-4 py-3 hidden md:table-cell">Custo Unit.</th>
                       <th className="text-right text-xs font-semibold text-muted-foreground px-5 py-3">Valor Total</th>
+                      <th className="text-center text-xs font-semibold text-muted-foreground px-3 py-3 w-20">Ações</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-brand-50">
@@ -384,12 +449,30 @@ export default function EstoquePage() {
                               {formatCurrency(mat.currentStock * mat.unitCostInCents)}
                             </span>
                           </td>
+                          <td className="px-3 py-3 text-center">
+                            <div className="flex items-center justify-center gap-1">
+                              <button
+                                onClick={() => openEditModal(mat)}
+                                className="w-7 h-7 flex items-center justify-center rounded-lg hover:bg-brand-50 text-muted-foreground hover:text-brand-600 transition-colors"
+                                title="Editar"
+                              >
+                                <Pencil className="w-3.5 h-3.5" />
+                              </button>
+                              <button
+                                onClick={() => handleDeleteMaterial(mat)}
+                                className="w-7 h-7 flex items-center justify-center rounded-lg hover:bg-red-50 text-muted-foreground hover:text-red-500 transition-colors"
+                                title="Excluir"
+                              >
+                                <Trash2 className="w-3.5 h-3.5" />
+                              </button>
+                            </div>
+                          </td>
                         </tr>
                       );
                     })}
                     {materials.length === 0 && (
                       <tr>
-                        <td colSpan={6} className="text-center py-8 text-sm text-muted-foreground">
+                        <td colSpan={7} className="text-center py-8 text-sm text-muted-foreground">
                           Nenhum material encontrado
                         </td>
                       </tr>
@@ -615,6 +698,89 @@ export default function EstoquePage() {
               <Plus className="w-4 h-4" />
               {saving ? "Cadastrando..." : "Cadastrar Material"}
             </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* ── Modal: Editar Material ── */}
+      <Dialog open={!!editMat} onOpenChange={(o) => { if (!o) setEditMat(null); }}>
+        <DialogContent className="max-w-md w-[calc(100%-2rem)] mx-auto">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-brand-700">
+              <Pencil className="w-4 h-4" /> Editar Material
+            </DialogTitle>
+          </DialogHeader>
+          <div className="space-y-3 pt-2">
+            <div>
+              <Label>Nome *</Label>
+              <Input
+                value={editForm.name}
+                onChange={(e) => setEditForm((f) => ({ ...f, name: e.target.value }))}
+                className="mt-1.5"
+              />
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <Label>Categoria</Label>
+                <Select value={editForm.category} onValueChange={(v) => setEditForm((f) => ({ ...f, category: v as MaterialCategory }))}>
+                  <SelectTrigger className="mt-1.5"><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    {CATEGORIES.map((c) => (
+                      <SelectItem key={c} value={c}>{MATERIAL_CATEGORY_LABELS[c]}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div>
+                <Label>Unidade</Label>
+                <Select value={editForm.unit} onValueChange={(v) => setEditForm((f) => ({ ...f, unit: v as MaterialUnit }))}>
+                  <SelectTrigger className="mt-1.5"><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    {UNITS.map((u) => (
+                      <SelectItem key={u} value={u}>{MATERIAL_UNIT_LABELS[u]}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <Label>Custo Unitário (R$)</Label>
+                <Input
+                  type="number"
+                  step="0.01"
+                  value={editForm.unitCostInCents}
+                  onChange={(e) => setEditForm((f) => ({ ...f, unitCostInCents: e.target.value }))}
+                  className="mt-1.5"
+                />
+              </div>
+              <div>
+                <Label>Alerta (mín)</Label>
+                <Input
+                  type="number"
+                  value={editForm.minimumStock}
+                  onChange={(e) => setEditForm((f) => ({ ...f, minimumStock: e.target.value }))}
+                  className="mt-1.5"
+                />
+              </div>
+            </div>
+            <div>
+              <Label>Observações</Label>
+              <Input
+                value={editForm.notes}
+                onChange={(e) => setEditForm((f) => ({ ...f, notes: e.target.value }))}
+                placeholder="Observações opcionais"
+                className="mt-1.5"
+              />
+            </div>
+            <div className="flex gap-3 pt-1">
+              <Button variant="outline" className="flex-1" onClick={() => setEditMat(null)}>
+                Cancelar
+              </Button>
+              <Button className="flex-1" onClick={handleUpdateMaterial} disabled={saving || !editForm.name.trim()}>
+                {saving ? "Salvando..." : "Salvar"}
+              </Button>
+            </div>
           </div>
         </DialogContent>
       </Dialog>

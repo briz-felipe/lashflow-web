@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback } from "react";
 import { stockService } from "@/services";
-import type { Material, StockMovement, CreateMaterialInput, CreateStockMovementInput } from "@/domain/entities";
+import type { Material, StockMovement, CreateMaterialInput, UpdateMaterialInput, CreateStockMovementInput } from "@/domain/entities";
 import type { MaterialCategory } from "@/domain/enums";
 import type { StockAlert, MonthlyStockCost } from "@/services/interfaces/IStockService";
 
@@ -32,13 +32,24 @@ export function useStock(filters?: { category?: MaterialCategory; search?: strin
     return mat;
   }, [load]);
 
+  const updateMaterial = useCallback(async (id: string, input: UpdateMaterialInput) => {
+    const mat = await stockService.updateMaterial(id, input);
+    await load();
+    return mat;
+  }, [load]);
+
+  const deleteMaterial = useCallback(async (id: string) => {
+    await stockService.deleteMaterial(id);
+    await load();
+  }, [load]);
+
   const createMovement = useCallback(async (input: CreateStockMovementInput) => {
     const mov = await stockService.createMovement(input);
     await load();
     return mov;
   }, [load]);
 
-  return { materials, loading, reload: load, createMaterial, createMovement };
+  return { materials, loading, reload: load, createMaterial, updateMaterial, deleteMaterial, createMovement };
 }
 
 export function useStockMovements(filters?: { materialId?: string; from?: Date; to?: Date }) {
