@@ -43,8 +43,14 @@ export class ApiStockService implements IStockService {
     return api.post("/stock/movements", input);
   }
 
-  getLowStockAlerts(): Promise<StockAlert[]> {
-    return api.get("/stock/materials/alerts");
+  async getLowStockAlerts(): Promise<StockAlert[]> {
+    const materials = await api.get<Material[]>("/stock/materials/alerts");
+    return materials.map((m) => ({
+      materialId: m.id,
+      materialName: m.name,
+      currentStock: m.currentStock,
+      minimumStock: m.minimumStock,
+    }));
   }
 
   async getMonthlyStockCosts(months = 6): Promise<MonthlyStockCost[]> {
