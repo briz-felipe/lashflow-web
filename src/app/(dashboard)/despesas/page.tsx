@@ -29,6 +29,7 @@ import {
   CreditCard,
   Settings2,
   Pencil,
+  ChevronDown,
 } from "lucide-react";
 import type { ExpenseCategory, ExpenseRecurrence } from "@/domain/enums";
 import {
@@ -261,6 +262,8 @@ export default function DespesasPage() {
     setCatForm({ label: cat.label, color: cat.color });
   };
 
+  const [calOpen, setCalOpen] = useState(true);
+
   if (loading && summaryLoading) return <LoadingPage />;
 
   return (
@@ -269,87 +272,94 @@ export default function DespesasPage() {
 
       <div className="p-4 sm:p-6 animate-fade-in space-y-5">
 
-        {/* Month calendar picker */}
-        <div className="bg-white rounded-2xl border border-brand-100 shadow-card p-4 sm:p-5">
-          <div className="flex items-center justify-between mb-3">
-            <Button variant="ghost" size="icon" onClick={() => setViewYear((y) => y - 1)}>
-              <ChevronLeft className="w-4 h-4" />
-            </Button>
-            <div className="flex items-center gap-2">
-              <h2 className="text-base font-bold">{viewYear}</h2>
-              {(viewYear !== new Date().getFullYear() || currentMonth !== format(new Date(), "yyyy-MM")) && (
-                <Button
-                  variant="outline"
-                  size="sm"
-                  className="text-xs h-7 px-2"
-                  onClick={() => {
-                    const today = format(new Date(), "yyyy-MM");
-                    setCurrentMonth(today);
-                    setViewYear(new Date().getFullYear());
-                  }}
-                >
-                  Hoje
-                </Button>
-              )}
-            </div>
-            <Button variant="ghost" size="icon" onClick={() => setViewYear((y) => y + 1)}>
-              <ChevronRight className="w-4 h-4" />
-            </Button>
-          </div>
-          <div className="grid grid-cols-4 sm:grid-cols-6 gap-1.5">
-            {MONTH_NAMES.map((name, i) => {
-              const monthKey = `${viewYear}-${String(i + 1).padStart(2, "0")}`;
-              const isSelected = monthKey === currentMonth;
-              const monthDate = new Date(viewYear, i, 1);
-              const isToday = isSameMonth(monthDate, new Date());
-              const isFuture = monthDate > new Date();
-              return (
-                <button
-                  key={monthKey}
-                  onClick={() => setCurrentMonth(monthKey)}
-                  className={cn(
-                    "relative py-2.5 px-1 rounded-xl text-sm font-medium transition-all duration-200",
-                    isSelected
-                      ? "bg-brand-600 text-white shadow-sm"
-                      : isFuture
-                        ? "text-muted-foreground/50 hover:bg-brand-50"
-                        : "text-foreground hover:bg-brand-50",
-                  )}
-                >
-                  {name}
-                  {isToday && !isSelected && (
-                    <span className="absolute bottom-1 left-1/2 -translate-x-1/2 w-1 h-1 rounded-full bg-brand-500" />
-                  )}
-                </button>
-              );
-            })}
-          </div>
-          <p className="text-xs text-muted-foreground mt-3 text-center capitalize">{monthLabel}</p>
-        </div>
-
-        {/* Stats */}
-        <div className="flex gap-3 overflow-x-auto snap-x snap-mandatory scrollbar-hide pb-1 sm:grid sm:grid-cols-3 sm:overflow-visible">
+        {/* Stats — always visible */}
+        <div className="grid grid-cols-3 gap-2 sm:gap-4">
           <StatsCard
             title="Total"
             value={formatCurrency(summary?.totalInCents ?? 0)}
             icon={<DollarSign className="w-5 h-5" />}
             color="purple"
-            className="min-w-[70%] snap-start sm:min-w-0"
           />
           <StatsCard
             title="Pago"
             value={formatCurrency(summary?.paidInCents ?? 0)}
             icon={<CheckCircle2 className="w-5 h-5" />}
             color="green"
-            className="min-w-[70%] snap-start sm:min-w-0"
           />
           <StatsCard
             title="Pendente"
             value={formatCurrency(summary?.pendingInCents ?? 0)}
             icon={<AlertCircle className="w-5 h-5" />}
             color={summary?.pendingInCents ? "red" : "green"}
-            className="min-w-[70%] snap-start sm:min-w-0"
           />
+        </div>
+
+        {/* Month calendar picker — collapsible */}
+        <div className="bg-white rounded-2xl border border-brand-100 shadow-card overflow-hidden">
+          <button
+            onClick={() => setCalOpen((o) => !o)}
+            className="w-full flex items-center justify-between px-4 sm:px-5 py-3 hover:bg-brand-50/50 transition-colors"
+          >
+            <span className="text-sm font-semibold capitalize">{monthLabel}</span>
+            <ChevronDown className={`w-4 h-4 text-muted-foreground transition-transform ${calOpen ? "rotate-180" : ""}`} />
+          </button>
+          {calOpen && (
+            <div className="px-4 sm:px-5 pb-4">
+              <div className="flex items-center justify-between mb-3">
+                <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => setViewYear((y) => y - 1)}>
+                  <ChevronLeft className="w-4 h-4" />
+                </Button>
+                <div className="flex items-center gap-2">
+                  <h2 className="text-sm font-bold">{viewYear}</h2>
+                  {(viewYear !== new Date().getFullYear() || currentMonth !== format(new Date(), "yyyy-MM")) && (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="text-xs h-7 px-2"
+                      onClick={() => {
+                        const today = format(new Date(), "yyyy-MM");
+                        setCurrentMonth(today);
+                        setViewYear(new Date().getFullYear());
+                      }}
+                    >
+                      Hoje
+                    </Button>
+                  )}
+                </div>
+                <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => setViewYear((y) => y + 1)}>
+                  <ChevronRight className="w-4 h-4" />
+                </Button>
+              </div>
+              <div className="grid grid-cols-4 sm:grid-cols-6 gap-1.5">
+                {MONTH_NAMES.map((name, i) => {
+                  const monthKey = `${viewYear}-${String(i + 1).padStart(2, "0")}`;
+                  const isSelected = monthKey === currentMonth;
+                  const monthDate = new Date(viewYear, i, 1);
+                  const isToday = isSameMonth(monthDate, new Date());
+                  const isFuture = monthDate > new Date();
+                  return (
+                    <button
+                      key={monthKey}
+                      onClick={() => setCurrentMonth(monthKey)}
+                      className={cn(
+                        "relative py-2 px-1 rounded-xl text-sm font-medium transition-all duration-200",
+                        isSelected
+                          ? "bg-brand-600 text-white shadow-sm"
+                          : isFuture
+                            ? "text-muted-foreground/50 hover:bg-brand-50"
+                            : "text-foreground hover:bg-brand-50",
+                      )}
+                    >
+                      {name}
+                      {isToday && !isSelected && (
+                        <span className="absolute bottom-0.5 left-1/2 -translate-x-1/2 w-1 h-1 rounded-full bg-brand-500" />
+                      )}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          )}
         </div>
 
         {/* Category breakdown */}
