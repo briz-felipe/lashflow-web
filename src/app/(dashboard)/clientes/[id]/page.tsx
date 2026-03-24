@@ -242,27 +242,27 @@ export default function ClienteProfilePage() {
           {/* Right columns: Stats + Analytics + History */}
           <div className="xl:col-span-2 space-y-6">
             {/* Stats Row */}
-            <div className="flex gap-3 overflow-x-auto snap-x snap-mandatory scrollbar-hide pb-1 sm:grid sm:grid-cols-3 sm:overflow-visible">
-              <div className="bg-white rounded-2xl border border-brand-100 shadow-card p-4 text-center min-w-[60%] snap-start sm:min-w-0">
-                <TrendingUp className="w-5 h-5 text-emerald-500 mx-auto mb-2" />
-                <p className="text-lg font-bold text-foreground">
+            <div className="grid grid-cols-3 gap-2 sm:gap-4">
+              <div className="bg-white rounded-2xl border border-brand-100 shadow-card p-3 sm:p-4 text-center">
+                <TrendingUp className="w-4 h-4 sm:w-5 sm:h-5 text-emerald-500 mx-auto mb-1.5" />
+                <p className="text-sm sm:text-lg font-bold text-foreground truncate">
                   {formatCurrency(client.totalSpent)}
                 </p>
-                <p className="text-xs text-muted-foreground">Total Gasto</p>
+                <p className="text-[10px] sm:text-xs text-muted-foreground">Total Gasto</p>
               </div>
-              <div className="bg-white rounded-2xl border border-brand-100 shadow-card p-4 text-center min-w-[60%] snap-start sm:min-w-0">
-                <Calendar className="w-5 h-5 text-brand-500 mx-auto mb-2" />
-                <p className="text-lg font-bold text-foreground">
+              <div className="bg-white rounded-2xl border border-brand-100 shadow-card p-3 sm:p-4 text-center">
+                <Calendar className="w-4 h-4 sm:w-5 sm:h-5 text-brand-500 mx-auto mb-1.5" />
+                <p className="text-sm sm:text-lg font-bold text-foreground">
                   {client.appointmentsCount}
                 </p>
-                <p className="text-xs text-muted-foreground">Visitas</p>
+                <p className="text-[10px] sm:text-xs text-muted-foreground">Visitas</p>
               </div>
-              <div className="bg-white rounded-2xl border border-brand-100 shadow-card p-4 text-center min-w-[60%] snap-start sm:min-w-0">
-                <Star className="w-5 h-5 text-amber-500 mx-auto mb-2" />
-                <p className="text-sm font-bold text-foreground truncate">
+              <div className="bg-white rounded-2xl border border-brand-100 shadow-card p-3 sm:p-4 text-center">
+                <Star className="w-4 h-4 sm:w-5 sm:h-5 text-amber-500 mx-auto mb-1.5" />
+                <p className="text-xs sm:text-sm font-bold text-foreground truncate">
                   {techList[0]?.name ?? "—"}
                 </p>
-                <p className="text-xs text-muted-foreground">Técnica favorita</p>
+                <p className="text-[10px] sm:text-xs text-muted-foreground">Técnica favorita</p>
               </div>
             </div>
 
