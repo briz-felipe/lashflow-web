@@ -30,6 +30,7 @@ import { toBackendDate } from "@/config/timezone";
 import type { UpdateAppointmentInput } from "@/domain/entities";
 import { ProcedureSelector, type SelectedProcedure, totalCents, totalDuration } from "@/components/appointments/ProcedureSelector";
 import { parsePtBR, centsToInput } from "@/lib/formatters";
+import { integrationsService } from "@/services/api/ApiIntegrationsService";
 
 const PAYMENT_METHODS: PaymentMethod[] = ["pix", "credit_card", "debit_card", "cash", "bank_transfer"];
 
@@ -80,6 +81,7 @@ export default function AgendamentoDetailPage() {
   const [editProcs, setEditProcs] = useState<SelectedProcedure[]>([]);
   const [editServiceType, setEditServiceType] = useState<LashServiceType | "">("");
   const [savingEdit, setSavingEdit] = useState(false);
+  const [syncingCal, setSyncingCal] = useState(false);
 
   // WhatsApp
   const [reminderOpen, setReminderOpen] = useState(false);
@@ -576,13 +578,53 @@ export default function AgendamentoDetailPage() {
             <div className="bg-white rounded-2xl border border-brand-100 shadow-card p-4">
               <div className="flex items-center gap-3">
                 <Calendar className="w-4 h-4 text-brand-500 flex-shrink-0" />
-                <div>
+                <div className="flex-1">
                   <p className="text-sm font-semibold">{formatDateTime(apt.scheduledAt)}</p>
                   <p className="text-xs text-muted-foreground">
                     {formatTime(apt.scheduledAt)} — {formatTime(apt.endsAt)} · {apt.durationMinutes} min
                   </p>
                 </div>
               </div>
+              {/* Apple Calendar sync — subtle */}
+              {user?.appleCalendarConnected && isActive && !editMode && (
+                <div className="mt-2 pt-2 border-t border-brand-50">
+                  {apt.appleEventUid ? (
+                    <button
+                      onClick={async () => {
+                        setSyncingCal(true);
+                        try {
+                          await integrationsService.unsyncAppointmentFromApple(apt.id);
+                          setApt({ ...apt, appleEventUid: null });
+                          toast({ title: "Removido do Apple Calendar", variant: "success" });
+                        } catch { toast({ title: "Erro ao remover", variant: "destructive" }); }
+                        finally { setSyncingCal(false); }
+                      }}
+                      disabled={syncingCal}
+                      className="flex items-center gap-1.5 text-[11px] text-muted-foreground hover:text-red-500 transition-colors"
+                    >
+                      <X className="w-3 h-3" />
+                      {syncingCal ? "Removendo..." : "Remover do Apple Calendar"}
+                    </button>
+                  ) : (
+                    <button
+                      onClick={async () => {
+                        setSyncingCal(true);
+                        try {
+                          const res = await integrationsService.syncAppointmentToApple(apt.id);
+                          setApt({ ...apt, appleEventUid: res.appleEventUid });
+                          toast({ title: "Adicionado ao Apple Calendar!", variant: "success" });
+                        } catch { toast({ title: "Erro ao sincronizar", variant: "destructive" }); }
+                        finally { setSyncingCal(false); }
+                      }}
+                      disabled={syncingCal}
+                      className="flex items-center gap-1.5 text-[11px] text-muted-foreground hover:text-brand-600 transition-colors"
+                    >
+                      <Calendar className="w-3 h-3" />
+                      {syncingCal ? "Sincronizando..." : "Incluir no Apple Calendar"}
+                    </button>
+                  )}
+                </div>
+              )}
             </div>
           )}
 

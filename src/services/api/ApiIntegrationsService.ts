@@ -39,4 +39,16 @@ export const integrationsService = {
   updateProfile(data: { salonName?: string; salonSlug?: string; salonAddress?: string; maintenanceCycleDays?: number }) {
     return api.put("/auth/profile", data);
   },
+
+  syncAllToApple(): Promise<{ synced: number; failed: number }> {
+    return api.post("/integrations/apple-calendar/sync-all", {});
+  },
+
+  syncAppointmentToApple(appointmentId: string): Promise<{ synced: boolean; appleEventUid: string | null }> {
+    return api.post(`/integrations/apple-calendar/sync/${appointmentId}`, {});
+  },
+
+  async unsyncAppointmentFromApple(appointmentId: string): Promise<void> {
+    await api.delete(`/integrations/apple-calendar/sync/${appointmentId}`);
+  },
 };

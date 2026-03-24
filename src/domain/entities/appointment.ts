@@ -37,6 +37,7 @@ export interface Appointment {
   updatedAt: Date;
 
   procedures?: AppointmentProcedure[];
+  appleEventUid?: string | null;
 }
 
 export type ProcedureInput = {

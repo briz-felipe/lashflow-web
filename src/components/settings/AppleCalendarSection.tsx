@@ -16,6 +16,7 @@ import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { toast } from "@/components/ui/toaster";
 import { useAuth } from "@/hooks/useAuth";
+import { useCalendarSync } from "@/hooks/useCalendarSync";
 import { integrationsService, AppleCalendarItem } from "@/services/api/ApiIntegrationsService";
 
 type Step = "status" | "tutorial" | "credentials" | "calendar";
@@ -32,6 +33,8 @@ export function AppleCalendarSection() {
   const [newCalendarName, setNewCalendarName] = useState("");
   const [creatingCalendar, setCreatingCalendar] = useState(false);
   const [disconnecting, setDisconnecting] = useState(false);
+
+  const { syncAll, syncing, progress, percent } = useCalendarSync();
 
   const connected = user?.appleCalendarConnected ?? false;
   const calendarName = user?.appleCalendarName;
@@ -92,6 +95,19 @@ export function AppleCalendarSection() {
     }
   };
 
+  const handleSyncAll = async () => {
+    const result = await syncAll();
+    if (!result) return;
+    if (result.synced === 0 && result.failed === 0) {
+      toast({ title: "Todos os agendamentos já estão sincronizados!", variant: "success" });
+    } else {
+      toast({
+        title: `${result.synced} agendamento${result.synced !== 1 ? "s" : ""} sincronizado${result.synced !== 1 ? "s" : ""}${result.failed > 0 ? `, ${result.failed} com erro` : ""}`,
+        variant: result.failed > 0 ? "destructive" : "success",
+      });
+    }
+  };
+
   const handleDisconnect = async () => {
     setDisconnecting(true);
     try {
@@ -139,6 +155,39 @@ export function AppleCalendarSection() {
                 </p>
               </div>
             </div>
+            {syncing ? (
+              <div className="space-y-2 p-3 bg-brand-50 rounded-xl border border-brand-100">
+                <div className="flex items-center justify-between text-xs">
+                  <span className="font-medium text-brand-700">
+                    Sincronizando... {progress.done}/{progress.total}
+                  </span>
+                  <span className="text-brand-500 font-bold">{percent}%</span>
+                </div>
+                <div className="w-full h-2 bg-brand-100 rounded-full overflow-hidden">
+                  <div
+                    className="h-full bg-brand-500 rounded-full transition-all duration-300"
+                    style={{ width: `${percent}%` }}
+                  />
+                </div>
+                {progress.currentName && (
+                  <p className="text-[11px] text-muted-foreground truncate">
+                    {progress.currentName}
+                  </p>
+                )}
+                {progress.failed > 0 && (
+                  <p className="text-[11px] text-red-500">{progress.failed} com erro</p>
+                )}
+              </div>
+            ) : (
+              <Button
+                size="sm"
+                onClick={handleSyncAll}
+                className="w-full"
+              >
+                <RefreshCw className="w-3.5 h-3.5" />
+                Sincronizar toda a agenda
+              </Button>
+            )}
             <div className="flex gap-2 flex-wrap">
               <Button
                 variant="outline"
