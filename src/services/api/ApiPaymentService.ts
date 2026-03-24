@@ -54,7 +54,20 @@ export class ApiPaymentService implements IPaymentService {
     return api.get(`/payments/monthly-revenue?months=${months}`);
   }
 
-  getPaymentMethodBreakdown(from: Date, to: Date): Promise<Record<PaymentMethod, number>> {
-    return api.get(`/payments/method-breakdown?from=${from.toISOString()}&to=${to.toISOString()}`);
+  async getPaymentMethodBreakdown(from: Date, to: Date): Promise<Record<PaymentMethod, number>> {
+    const raw = await api.get<Record<string, number>>(`/payments/method-breakdown?from=${from.toISOString()}&to=${to.toISOString()}`);
+    // Normalize camelCase keys from backend to snake_case PaymentMethod enum
+    const CAMEL_TO_SNAKE: Record<string, PaymentMethod> = {
+      cash: "cash", creditCard: "credit_card", debitCard: "debit_card",
+      pix: "pix", bankTransfer: "bank_transfer", other: "other",
+      // Also accept snake_case directly (in case backend changes)
+      credit_card: "credit_card", debit_card: "debit_card", bank_transfer: "bank_transfer",
+    };
+    const normalized: Record<string, number> = {};
+    for (const [key, value] of Object.entries(raw)) {
+      const snakeKey = CAMEL_TO_SNAKE[key] ?? key;
+      normalized[snakeKey] = value;
+    }
+    return normalized as Record<PaymentMethod, number>;
   }
 }
