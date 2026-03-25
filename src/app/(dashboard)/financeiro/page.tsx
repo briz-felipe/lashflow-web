@@ -2,14 +2,14 @@
 
 import { useState, useEffect } from "react";
 import { Topbar } from "@/components/layout/Topbar";
-import { StatsCard } from "@/components/dashboard/StatsCard";
+
 import { RevenueChart } from "@/components/dashboard/RevenueChart";
 import { ExpenseCostChart } from "@/components/dashboard/ExpenseCostChart";
 import { IncomeVsExpenseChart } from "@/components/dashboard/IncomeVsExpenseChart";
 import { LoadingPage } from "@/components/shared/LoadingSpinner";
 import { paymentService, stockService, expenseService } from "@/services";
 import { formatCurrency, formatDate } from "@/lib/formatters";
-import { DollarSign, TrendingUp, Calendar, CreditCard, Package, Receipt, ArrowUpRight, ArrowDownRight } from "lucide-react";
+import { DollarSign, TrendingUp, Calendar, CreditCard, Package, Receipt, ArrowDownRight } from "lucide-react";
 import { startOfMonth, endOfMonth, subMonths, format, parse, isValid } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import type { RevenueStats, MonthlyRevenue, CashFlowEntry } from "@/services/interfaces/IPaymentService";
@@ -115,96 +115,106 @@ export default function FinanceiroPage() {
     <div>
       <Topbar title="Financeiro" subtitle="Fluxo de caixa e receitas" />
 
-      <div className="p-4 sm:p-6 animate-fade-in space-y-4 sm:space-y-6">
-        {/* Stats */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
-          <StatsCard
-            title="Hoje"
-            value={formatCurrency(stats?.todayInCents ?? 0)}
-            icon={<DollarSign className="w-5 h-5" />}
-            color="green"
-          />
-          <StatsCard
-            title="Esta Semana"
-            value={formatCurrency(stats?.thisWeekInCents ?? 0)}
-            icon={<Calendar className="w-5 h-5" />}
-            color="blue"
-          />
-          <StatsCard
-            title="Este Mês"
-            value={formatCurrency(stats?.thisMonthInCents ?? 0)}
-            icon={<TrendingUp className="w-5 h-5" />}
-            trend={stats?.growthPercent}
-            color="purple"
-          />
-          <StatsCard
-            title="Mês Anterior"
-            value={formatCurrency(stats?.lastMonthInCents ?? 0)}
-            icon={<CreditCard className="w-5 h-5" />}
-            color="amber"
-          />
-        </div>
-
-        {/* Monthly Balance */}
-        <div className="bg-white rounded-2xl border border-brand-100 shadow-card p-6">
-          <h3 className="font-semibold mb-4">
-            Balanço do Mês — {format(new Date(), "MMMM yyyy", { locale: ptBR })}
-          </h3>
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-            <div className="p-4 bg-emerald-50 rounded-xl">
-              <div className="flex items-center gap-2 mb-1">
-                <ArrowUpRight className="w-4 h-4 text-emerald-600" />
-                <p className="text-xs text-muted-foreground">Receita (Atendimentos)</p>
-              </div>
-              <p className="text-xl font-bold text-emerald-600">{formatCurrency(thisMonthRevenue)}</p>
+      <div className="p-4 sm:p-6 animate-fade-in space-y-4">
+        {/* Stats — compact layout */}
+        <div className="space-y-2">
+          {/* Receita do mês — destaque principal */}
+          <div className="bg-white rounded-2xl border border-brand-100 shadow-card px-4 py-3 flex items-center gap-3">
+            <div className="w-8 h-8 rounded-lg bg-emerald-100 flex items-center justify-center flex-shrink-0">
+              <TrendingUp className="w-4 h-4 text-emerald-600" />
             </div>
-            <div className="p-4 bg-red-50 rounded-xl">
-              <div className="flex items-center gap-2 mb-1">
-                <ArrowDownRight className="w-4 h-4 text-red-500" />
-                <p className="text-xs text-muted-foreground">Despesas + Materiais</p>
-              </div>
-              <p className="text-xl font-bold text-red-500">{formatCurrency(totalExpenses)}</p>
-              <div className="flex gap-3 mt-1 text-xs text-muted-foreground">
-                <Link href="/despesas" className="hover:text-brand-600">Contas: {formatCurrency(expenseTotal)}</Link>
-                <Link href="/estoque" className="hover:text-brand-600">Estoque: {formatCurrency(thisMonthStockCost)}</Link>
-              </div>
-            </div>
-            <div className={`p-4 rounded-xl ${profit >= 0 ? "bg-brand-50" : "bg-amber-50"}`}>
-              <div className="flex items-center gap-2 mb-1">
-                <DollarSign className="w-4 h-4 text-brand-600" />
-                <p className="text-xs text-muted-foreground">Lucro Líquido</p>
-              </div>
-              <p className={`text-xl font-bold ${profit >= 0 ? "text-brand-700" : "text-red-600"}`}>
-                {formatCurrency(profit)}
+            <div className="flex-1 min-w-0">
+              <p className="text-[11px] text-muted-foreground font-medium">
+                Receita do Mês — {format(new Date(), "MMM yyyy", { locale: ptBR })}
               </p>
+              <p className="text-lg font-bold text-foreground truncate">{formatCurrency(thisMonthRevenue)}</p>
+            </div>
+            {stats?.growthPercent != null && stats.growthPercent !== 0 && (
+              <span className={`text-xs font-semibold px-2 py-0.5 rounded-full flex-shrink-0 ${
+                stats.growthPercent > 0 ? "bg-emerald-100 text-emerald-700" : "bg-red-100 text-red-700"
+              }`}>
+                {stats.growthPercent > 0 ? "+" : ""}{stats.growthPercent.toFixed(0)}%
+              </span>
+            )}
+          </div>
+
+          {/* 2x2 grid — Hoje, Semana, Custos, Lucro */}
+          <div className="grid grid-cols-2 gap-2">
+            <div className="bg-white rounded-2xl border border-brand-100 shadow-card px-3 py-2.5 flex items-center gap-2.5">
+              <div className="w-7 h-7 rounded-lg bg-emerald-100 flex items-center justify-center flex-shrink-0">
+                <DollarSign className="w-3.5 h-3.5 text-emerald-600" />
+              </div>
+              <div className="min-w-0">
+                <p className="text-[10px] text-muted-foreground font-medium">Hoje</p>
+                <p className="text-sm font-bold text-foreground truncate">{formatCurrency(stats?.todayInCents ?? 0)}</p>
+              </div>
+            </div>
+            <div className="bg-white rounded-2xl border border-brand-100 shadow-card px-3 py-2.5 flex items-center gap-2.5">
+              <div className="w-7 h-7 rounded-lg bg-blue-100 flex items-center justify-center flex-shrink-0">
+                <Calendar className="w-3.5 h-3.5 text-blue-600" />
+              </div>
+              <div className="min-w-0">
+                <p className="text-[10px] text-muted-foreground font-medium">Semana</p>
+                <p className="text-sm font-bold text-foreground truncate">{formatCurrency(stats?.thisWeekInCents ?? 0)}</p>
+              </div>
+            </div>
+            <div className="bg-white rounded-2xl border border-brand-100 shadow-card px-3 py-2.5 flex items-center gap-2.5">
+              <div className="w-7 h-7 rounded-lg bg-red-100 flex items-center justify-center flex-shrink-0">
+                <ArrowDownRight className="w-3.5 h-3.5 text-red-500" />
+              </div>
+              <div className="min-w-0">
+                <p className="text-[10px] text-muted-foreground font-medium">Custos</p>
+                <p className="text-sm font-bold text-foreground truncate">{formatCurrency(totalExpenses)}</p>
+              </div>
+            </div>
+            <div className="bg-white rounded-2xl border border-brand-100 shadow-card px-3 py-2.5 flex items-center gap-2.5">
+              <div className={`w-7 h-7 rounded-lg flex items-center justify-center flex-shrink-0 ${profit >= 0 ? "bg-brand-100" : "bg-red-100"}`}>
+                <DollarSign className={`w-3.5 h-3.5 ${profit >= 0 ? "text-brand-600" : "text-red-600"}`} />
+              </div>
+              <div className="min-w-0">
+                <p className="text-[10px] text-muted-foreground font-medium">Lucro</p>
+                <p className={`text-sm font-bold truncate ${profit >= 0 ? "text-brand-700" : "text-red-600"}`}>{formatCurrency(profit)}</p>
+              </div>
             </div>
           </div>
+
+          {/* Mês anterior — linha compacta */}
+          <div className="bg-white rounded-2xl border border-brand-100 shadow-card px-3 py-2.5 flex items-center gap-2.5">
+            <div className="w-7 h-7 rounded-lg bg-amber-100 flex items-center justify-center flex-shrink-0">
+              <CreditCard className="w-3.5 h-3.5 text-amber-600" />
+            </div>
+            <div className="min-w-0">
+              <p className="text-[10px] text-muted-foreground font-medium">Mês Anterior</p>
+              <p className="text-sm font-bold text-foreground truncate">{formatCurrency(stats?.lastMonthInCents ?? 0)}</p>
+            </div>
+          </div>
+
           {expensePending > 0 && (
-            <p className="text-xs text-amber-600 mt-3 flex items-center gap-1">
+            <p className="text-xs text-amber-600 flex items-center gap-1 px-1">
               <Receipt className="w-3 h-3" />
-              {formatCurrency(expensePending)} em despesas pendentes este mês
+              {formatCurrency(expensePending)} em despesas pendentes
             </p>
           )}
         </div>
 
         {/* Quick links */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-          <Link href="/estoque" className="bg-white rounded-2xl border border-brand-100 shadow-card p-5 hover:shadow-card-hover transition-shadow flex items-center gap-4">
-            <div className="w-10 h-10 rounded-xl bg-brand-50 flex items-center justify-center">
-              <Package className="w-5 h-5 text-brand-600" />
+        <div className="grid grid-cols-2 gap-2">
+          <Link href="/estoque" className="bg-white rounded-2xl border border-brand-100 shadow-card px-3 py-2.5 hover:shadow-card-hover transition-shadow flex items-center gap-2.5">
+            <div className="w-7 h-7 rounded-lg bg-brand-50 flex items-center justify-center flex-shrink-0">
+              <Package className="w-3.5 h-3.5 text-brand-600" />
             </div>
-            <div>
-              <p className="text-sm font-semibold">Estoque de Materiais</p>
-              <p className="text-xs text-muted-foreground">Valor em estoque: {formatCurrency(stockValue)}</p>
+            <div className="min-w-0">
+              <p className="text-[11px] font-semibold truncate">Estoque</p>
+              <p className="text-[10px] text-muted-foreground truncate">{formatCurrency(stockValue)}</p>
             </div>
           </Link>
-          <Link href="/despesas" className="bg-white rounded-2xl border border-brand-100 shadow-card p-5 hover:shadow-card-hover transition-shadow flex items-center gap-4">
-            <div className="w-10 h-10 rounded-xl bg-brand-50 flex items-center justify-center">
-              <Receipt className="w-5 h-5 text-brand-600" />
+          <Link href="/despesas" className="bg-white rounded-2xl border border-brand-100 shadow-card px-3 py-2.5 hover:shadow-card-hover transition-shadow flex items-center gap-2.5">
+            <div className="w-7 h-7 rounded-lg bg-brand-50 flex items-center justify-center flex-shrink-0">
+              <Receipt className="w-3.5 h-3.5 text-brand-600" />
             </div>
-            <div>
-              <p className="text-sm font-semibold">Despesas Mensais</p>
-              <p className="text-xs text-muted-foreground">Este mês: {formatCurrency(expenseTotal)}</p>
+            <div className="min-w-0">
+              <p className="text-[11px] font-semibold truncate">Despesas</p>
+              <p className="text-[10px] text-muted-foreground truncate">{formatCurrency(expenseTotal)}</p>
             </div>
           </Link>
         </div>
