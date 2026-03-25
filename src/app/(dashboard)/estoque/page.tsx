@@ -40,7 +40,9 @@ import { LoadingPage } from "@/components/shared/LoadingSpinner";
 import { StatsCard } from "@/components/dashboard/StatsCard";
 import { Topbar } from "@/components/layout/Topbar";
 import { toast } from "@/components/ui/toaster";
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { expenseService } from "@/services";
+import type { Expense } from "@/domain/entities";
 
 const CATEGORIES: MaterialCategory[] = ["cilios", "cola", "descartaveis", "outros"];
 const UNITS: MaterialUnit[] = ["un", "pacote", "caixa", "ml", "g", "par", "rolo", "kit"];
@@ -74,6 +76,7 @@ const MOV_FORM_DEFAULT = {
   materialId: "", type: "purchase" as StockMovementType,
   quantity: "1", unitCostInCents: "", notes: "",
   movTotal: "", // total value of the purchase; unit cost = movTotal / quantity
+  expenseId: "", // optional link to a material expense
 };
 
 // Units that typically come in bulk packages → show calculator instead of direct unit cost
@@ -114,6 +117,12 @@ export default function EstoquePage() {
 
   const [matForm, setMatForm] = useState(MAT_FORM_DEFAULT);
   const [movForm, setMovForm] = useState(MOV_FORM_DEFAULT);
+
+  // Material expenses for linking purchases
+  const [materialExpenses, setMaterialExpenses] = useState<Expense[]>([]);
+  useEffect(() => {
+    expenseService.listExpenses({ category: "material" as import("@/domain/enums").ExpenseCategory }).then(setMaterialExpenses).catch(() => {});
+  }, []);
 
   const handleCreateMaterial = async () => {
     if (!matForm.name.trim()) {
@@ -212,6 +221,7 @@ export default function EstoquePage() {
         quantity: qty,
         unitCostInCents: cost,
         notes: movForm.notes || undefined,
+        expenseId: movForm.expenseId || undefined,
       });
       await reloadMovements();
       toast({ title: `${STOCK_MOVEMENT_TYPE_LABELS[movForm.type]} registrada!`, variant: "success" });
@@ -253,7 +263,7 @@ export default function EstoquePage() {
             color="blue"
           />
           <StatsCard
-            title="Compras no Mês"
+            title="Entradas no Mês"
             value={formatCurrency(thisMonthCost)}
             icon={<ShoppingCart className="w-5 h-5" />}
             color="amber"
@@ -836,6 +846,7 @@ export default function EstoquePage() {
               const unitLabel = selectedMat ? MATERIAL_UNIT_LABELS[selectedMat.unit] : "unidade";
               const unitCost = calcFromTotal(movForm.quantity, movForm.movTotal);
               return (
+                <>
                 <div className="p-3 bg-brand-50 rounded-xl border border-brand-100 space-y-2">
                   <p className="text-xs font-semibold text-brand-700 flex items-center gap-1.5">
                     <Calculator className="w-3.5 h-3.5" /> Valor da compra
@@ -856,6 +867,27 @@ export default function EstoquePage() {
                     </p>
                   )}
                 </div>
+                {/* Link to material expense */}
+                {materialExpenses.length > 0 && (
+                  <div>
+                    <Label className="text-xs text-muted-foreground">Vincular a compra de material</Label>
+                    <Select value={movForm.expenseId} onValueChange={(v) => setMovForm((f) => ({ ...f, expenseId: v === "none" ? "" : v }))}>
+                      <SelectTrigger className="mt-1.5 h-9 text-sm">
+                        <SelectValue placeholder="Nenhuma (opcional)" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="none">Nenhuma</SelectItem>
+                        {materialExpenses.map((exp) => (
+                          <SelectItem key={exp.id} value={exp.id}>
+                            {exp.name} · {formatCurrency(exp.amountInCents)}
+                            {exp.installmentTotal && exp.installmentTotal > 1 ? ` (${exp.installmentCurrent}/${exp.installmentTotal}x)` : ""}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                )}
+                </>
               );
             })()}
             <div>

@@ -1,6 +1,6 @@
 import { api } from "@/lib/api";
 import type { Expense, CreateExpenseInput, UpdateExpenseInput } from "@/domain/entities";
-import type { IExpenseService, MonthlyExpenseSummary } from "../interfaces/IExpenseService";
+import type { IExpenseService, MonthlyExpenseSummary, MaterialPurchase } from "../interfaces/IExpenseService";
 import type { ExpenseCategory } from "@/domain/enums";
 
 export class ApiExpenseService implements IExpenseService {
@@ -40,5 +40,10 @@ export class ApiExpenseService implements IExpenseService {
   async getMonthlyExpenseTotals(months = 6): Promise<{ month: string; totalInCents: number }[]> {
     const data = await api.get<Array<{ month: string; total_in_cents?: number; totalInCents?: number }>>(`/expenses/monthly-totals?months=${months}`);
     return data.map((d) => ({ month: d.month, totalInCents: d.total_in_cents ?? d.totalInCents ?? 0 }));
+  }
+
+  getMaterialPurchases(month?: string): Promise<MaterialPurchase[]> {
+    const qs = month ? `?month=${month}` : "";
+    return api.get(`/expenses/material-purchases${qs}`);
   }
 }

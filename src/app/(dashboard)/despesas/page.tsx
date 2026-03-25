@@ -9,7 +9,7 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { LoadingPage } from "@/components/shared/LoadingSpinner";
-import { useExpenses, useExpenseSummary } from "@/hooks/useExpenses";
+import { useExpenses, useExpenseSummary, useMaterialPurchases } from "@/hooks/useExpenses";
 import { formatCurrency } from "@/lib/formatters";
 import { toast } from "@/components/ui/toaster";
 import {
@@ -30,6 +30,8 @@ import {
   Settings2,
   Pencil,
   ChevronDown,
+  Package,
+  ChevronUp,
 } from "lucide-react";
 import type { ExpenseCategory, ExpenseRecurrence } from "@/domain/enums";
 import {
@@ -123,6 +125,259 @@ function getCategoryLabel(cat: string, customCategories: CustomCategory[]): stri
 
 type ViewMode = "cards" | "table";
 
+// ─── Material Purchases Tab ─────────────────────────────────────────────────
+function MaterialPurchasesTab({
+  purchases,
+  loading,
+  monthLabel,
+  currentMonth,
+  onCreateExpense,
+  onMarkPaid,
+  onDelete,
+}: {
+  purchases: import("@/services/interfaces/IExpenseService").MaterialPurchase[];
+  loading: boolean;
+  monthLabel: string;
+  currentMonth: string;
+  onCreateExpense: (input: import("@/domain/entities").CreateExpenseInput) => Promise<unknown>;
+  onMarkPaid: (id: string) => Promise<void>;
+  onDelete: (id: string) => Promise<void>;
+}) {
+  const [formOpen, setFormOpen] = useState(false);
+  const [expanded, setExpanded] = useState<string | null>(null);
+  const [form, setForm] = useState({ name: "", amountInCents: "", dueDay: "", notes: "", installments: "" });
+  const [saving, setSaving] = useState(false);
+
+  const handleCreate = async () => {
+    if (!form.name.trim()) { toast({ title: "Nome é obrigatório", variant: "destructive" }); return; }
+    const amount = Math.round(parseFloat(form.amountInCents || "0") * 100);
+    if (amount <= 0) { toast({ title: "Valor deve ser maior que 0", variant: "destructive" }); return; }
+    const installments = form.installments ? parseInt(form.installments) : undefined;
+    setSaving(true);
+    try {
+      await onCreateExpense({
+        name: form.name,
+        category: "material" as ExpenseCategory,
+        amountInCents: amount,
+        recurrence: installments && installments > 1 ? "monthly" : "one_time",
+        dueDay: form.dueDay ? parseInt(form.dueDay) : undefined,
+        referenceMonth: currentMonth,
+        notes: form.notes || undefined,
+        installments: installments && installments > 1 ? installments : undefined,
+      });
+      toast({ title: "Compra de material registrada!", variant: "success" });
+      setFormOpen(false);
+      setForm({ name: "", amountInCents: "", dueDay: "", notes: "", installments: "" });
+    } catch {
+      toast({ title: "Erro ao registrar compra", variant: "destructive" });
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const totalMaterial = purchases.reduce((sum, p) => sum + p.expense.amountInCents, 0);
+  const paidMaterial = purchases.filter((p) => p.expense.isPaid).reduce((sum, p) => sum + p.expense.amountInCents, 0);
+
+  return (
+    <>
+      {/* Stats */}
+      <div className="grid grid-cols-2 gap-2">
+        <div className="bg-white rounded-2xl border border-brand-100 shadow-card px-3 py-2.5 flex items-center gap-2.5">
+          <div className="w-7 h-7 rounded-lg bg-brand-100 flex items-center justify-center flex-shrink-0">
+            <Package className="w-3.5 h-3.5 text-brand-600" />
+          </div>
+          <div className="min-w-0">
+            <p className="text-[10px] text-muted-foreground font-medium">Total Material</p>
+            <p className="text-sm font-bold text-foreground truncate">{formatCurrency(totalMaterial)}</p>
+          </div>
+        </div>
+        <div className="bg-white rounded-2xl border border-brand-100 shadow-card px-3 py-2.5 flex items-center gap-2.5">
+          <div className={`w-7 h-7 rounded-lg flex items-center justify-center flex-shrink-0 ${paidMaterial === totalMaterial && totalMaterial > 0 ? "bg-emerald-100" : "bg-amber-100"}`}>
+            <DollarSign className={`w-3.5 h-3.5 ${paidMaterial === totalMaterial && totalMaterial > 0 ? "text-emerald-600" : "text-amber-600"}`} />
+          </div>
+          <div className="min-w-0">
+            <p className="text-[10px] text-muted-foreground font-medium">Pago</p>
+            <p className="text-sm font-bold text-foreground truncate">{formatCurrency(paidMaterial)}</p>
+          </div>
+        </div>
+      </div>
+
+      {/* Action bar */}
+      <div className="flex items-center justify-between">
+        <p className="text-sm text-muted-foreground">{purchases.length} compra{purchases.length !== 1 ? "s" : ""} em <span className="capitalize">{monthLabel}</span></p>
+        <Button size="sm" className="h-9" onClick={() => setFormOpen(true)}>
+          <Plus className="w-4 h-4" />
+          <span className="ml-1">Nova compra</span>
+        </Button>
+      </div>
+
+      {/* Purchase list */}
+      {loading ? (
+        <div className="text-center py-12 text-sm text-muted-foreground">Carregando...</div>
+      ) : purchases.length === 0 ? (
+        <div className="text-center py-12 text-sm text-muted-foreground border border-dashed border-brand-200 rounded-2xl">
+          Nenhuma compra de material em <span className="capitalize">{monthLabel}</span>
+        </div>
+      ) : (
+        <div className="space-y-3">
+          {purchases.map((p) => {
+            const isExpanded = expanded === p.expense.id;
+            return (
+              <div key={p.expense.id} className={cn(
+                "bg-white rounded-2xl border shadow-card overflow-hidden transition-all",
+                p.expense.isPaid ? "border-emerald-100" : "border-amber-100"
+              )}>
+                {/* Header */}
+                <button
+                  onClick={() => setExpanded(isExpanded ? null : p.expense.id)}
+                  className="w-full flex items-center gap-3 px-4 py-3 hover:bg-brand-50/50 transition-colors text-left"
+                >
+                  <div className="w-8 h-8 rounded-lg bg-brand-100 flex items-center justify-center flex-shrink-0">
+                    <Package className="w-4 h-4 text-brand-600" />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-semibold truncate">{p.expense.name}</p>
+                    <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                      {p.expense.installmentTotal && p.expense.installmentTotal > 1 && (
+                        <span className="font-semibold text-brand-600">
+                          {p.expense.installmentCurrent}/{p.expense.installmentTotal}x
+                        </span>
+                      )}
+                      <span>{p.linkedMaterials.length} ite{p.linkedMaterials.length !== 1 ? "ns" : "m"} vinculado{p.linkedMaterials.length !== 1 ? "s" : ""}</span>
+                    </div>
+                  </div>
+                  <span className="text-sm font-bold flex-shrink-0">{formatCurrency(p.expense.amountInCents)}</span>
+                  {isExpanded ? <ChevronUp className="w-4 h-4 text-muted-foreground flex-shrink-0" /> : <ChevronDown className="w-4 h-4 text-muted-foreground flex-shrink-0" />}
+                </button>
+
+                {/* Expanded: linked materials */}
+                {isExpanded && (
+                  <div className="border-t border-brand-50 px-4 py-3 space-y-3">
+                    {p.linkedMaterials.length > 0 ? (
+                      <div className="space-y-2">
+                        <p className="text-xs font-semibold text-muted-foreground">Itens da compra</p>
+                        {p.linkedMaterials.map((item, i) => (
+                          <div key={i} className="flex items-center justify-between text-sm">
+                            <div className="flex items-center gap-2 min-w-0">
+                              <span className="w-5 h-5 rounded bg-brand-50 flex items-center justify-center text-[10px] font-bold text-brand-600 flex-shrink-0">
+                                {item.quantity}
+                              </span>
+                              <span className="truncate">{item.materialName}</span>
+                            </div>
+                            <span className="text-muted-foreground flex-shrink-0">{formatCurrency(item.totalCostInCents)}</span>
+                          </div>
+                        ))}
+                      </div>
+                    ) : (
+                      <p className="text-xs text-muted-foreground italic">Nenhum material vinculado. Vincule no Estoque ao registrar entrada.</p>
+                    )}
+
+                    {/* Actions */}
+                    <div className="flex items-center justify-between pt-2 border-t border-brand-50">
+                      {p.expense.isPaid ? (
+                        <span className="text-xs font-medium text-emerald-600 flex items-center gap-1">
+                          <CheckCircle2 className="w-3.5 h-3.5" /> Pago
+                        </span>
+                      ) : (
+                        <Button size="sm" variant="outline" className="text-emerald-600 border-emerald-200 hover:bg-emerald-50 h-8 text-xs" onClick={() => onMarkPaid(p.expense.id)}>
+                          <CheckCircle2 className="w-3.5 h-3.5" /> Marcar Pago
+                        </Button>
+                      )}
+                      <Button size="sm" variant="ghost" className="text-red-400 hover:text-red-600 h-8 w-8 p-0" onClick={() => onDelete(p.expense.id)}>
+                        <Trash2 className="w-3.5 h-3.5" />
+                      </Button>
+                    </div>
+                  </div>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      )}
+
+      {/* ── Nova Compra de Material modal ── */}
+      <Dialog open={formOpen} onOpenChange={(o) => { if (!o) setFormOpen(false); }}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Package className="w-4 h-4 text-brand-500" />
+              Nova Compra de Material — <span className="capitalize">{monthLabel}</span>
+            </DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div>
+              <Label>Nome da Compra *</Label>
+              <Input
+                value={form.name}
+                onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))}
+                placeholder="Ex: Descartáveis, Colas, Kit Pinças..."
+                className="mt-1.5"
+                autoFocus
+              />
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <Label>Valor Total (R$) *</Label>
+                <Input
+                  type="number"
+                  step="0.01"
+                  value={form.amountInCents}
+                  onChange={(e) => setForm((f) => ({ ...f, amountInCents: e.target.value }))}
+                  placeholder="0,00"
+                  className="mt-1.5"
+                />
+              </div>
+              <div>
+                <Label>Parcelas</Label>
+                <Input
+                  type="number"
+                  min="1"
+                  max="24"
+                  value={form.installments}
+                  onChange={(e) => setForm((f) => ({ ...f, installments: e.target.value }))}
+                  placeholder="1 (à vista)"
+                  className="mt-1.5"
+                />
+              </div>
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <Label>Dia de Vencimento</Label>
+                <Input
+                  type="number"
+                  min="1"
+                  max="31"
+                  value={form.dueDay}
+                  onChange={(e) => setForm((f) => ({ ...f, dueDay: e.target.value }))}
+                  placeholder="—"
+                  className="mt-1.5"
+                />
+              </div>
+              <div>
+                <Label>Observação</Label>
+                <Input
+                  value={form.notes}
+                  onChange={(e) => setForm((f) => ({ ...f, notes: e.target.value }))}
+                  placeholder="Opcional"
+                  className="mt-1.5"
+                />
+              </div>
+            </div>
+            <div className="flex gap-3 pt-1">
+              <Button type="button" variant="outline" className="flex-1" onClick={() => setFormOpen(false)}>
+                Cancelar
+              </Button>
+              <Button className="flex-1" disabled={saving || !form.name.trim()} onClick={handleCreate}>
+                {saving ? "Salvando..." : "Registrar Compra"}
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+    </>
+  );
+}
+
 const EMPTY_FORM = {
   name: "",
   category: "outros" as string,
@@ -133,7 +388,10 @@ const EMPTY_FORM = {
   installments: "",
 };
 
+type ActiveTab = "despesas" | "material";
+
 export default function DespesasPage() {
+  const [activeTab, setActiveTab] = useState<ActiveTab>("despesas");
   const [viewMode, setViewMode] = useState<ViewMode>("table");
   const [currentMonth, setCurrentMonth] = useState(() => format(new Date(), "yyyy-MM"));
   const [viewYear, setViewYear] = useState(() => new Date().getFullYear());
@@ -163,6 +421,7 @@ export default function DespesasPage() {
     isPaid: paidFilter === "all" ? undefined : paidFilter === "paid",
   });
   const { summary, loading: summaryLoading } = useExpenseSummary(currentMonth);
+  const { purchases: materialPurchases, loading: purchasesLoading, reload: reloadPurchases } = useMaterialPurchases(currentMonth);
 
   const [_y, _m] = currentMonth.split("-").map(Number);
   const monthLabel = format(new Date(_y, _m - 1, 1), "MMMM yyyy", { locale: ptBR });
@@ -268,10 +527,33 @@ export default function DespesasPage() {
 
   return (
     <div>
-      <Topbar title="Despesas" subtitle="Contas fixas, variáveis e pontuais" />
+      <Topbar title="Despesas" subtitle="Contas fixas, variáveis e materiais" />
 
       <div className="p-4 sm:p-6 animate-fade-in space-y-5">
 
+        {/* Tabs: Despesas | Material */}
+        <div className="flex gap-1 bg-brand-50 rounded-xl p-1">
+          <button
+            onClick={() => setActiveTab("despesas")}
+            className={cn(
+              "flex-1 flex items-center justify-center gap-1.5 py-2 rounded-lg text-sm font-medium transition-all",
+              activeTab === "despesas" ? "bg-white shadow-sm text-foreground" : "text-muted-foreground hover:text-foreground"
+            )}
+          >
+            <Receipt className="w-3.5 h-3.5" /> Despesas
+          </button>
+          <button
+            onClick={() => setActiveTab("material")}
+            className={cn(
+              "flex-1 flex items-center justify-center gap-1.5 py-2 rounded-lg text-sm font-medium transition-all",
+              activeTab === "material" ? "bg-white shadow-sm text-foreground" : "text-muted-foreground hover:text-foreground"
+            )}
+          >
+            <Package className="w-3.5 h-3.5" /> Material
+          </button>
+        </div>
+
+        {activeTab === "despesas" && (<>
         {/* Stats — compact layout */}
         <div className="space-y-2">
           <div className="bg-white rounded-2xl border border-brand-100 shadow-card px-4 py-3 flex items-center gap-3">
@@ -606,6 +888,29 @@ export default function DespesasPage() {
               </div>
             )}
           </div>
+        )}
+        </>)}
+
+        {/* ── Tab: Material ── */}
+        {activeTab === "material" && (
+          <MaterialPurchasesTab
+            purchases={materialPurchases}
+            loading={purchasesLoading}
+            monthLabel={monthLabel}
+            currentMonth={currentMonth}
+            onCreateExpense={async (input) => {
+              await createExpense(input);
+              reloadPurchases();
+            }}
+            onMarkPaid={async (id) => {
+              await markAsPaid(id);
+              reloadPurchases();
+            }}
+            onDelete={async (id) => {
+              await deleteExpense(id);
+              reloadPurchases();
+            }}
+          />
         )}
       </div>
 

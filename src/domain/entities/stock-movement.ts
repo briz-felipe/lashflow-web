@@ -8,6 +8,7 @@ export interface StockMovement {
   quantity: number;
   unitCostInCents: number;
   totalCostInCents: number;
+  expenseId?: string;
   date: Date;
   notes?: string;
   createdAt: Date;
@@ -16,4 +17,4 @@ export interface StockMovement {
 export type CreateStockMovementInput = Pick<
   StockMovement,
   "materialId" | "type" | "quantity" | "unitCostInCents" | "notes"
->;
+> & { expenseId?: string };

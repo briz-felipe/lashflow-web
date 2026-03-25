@@ -4,7 +4,7 @@ import { useState, useEffect, useCallback } from "react";
 import { expenseService } from "@/services";
 import type { Expense, CreateExpenseInput, UpdateExpenseInput } from "@/domain/entities";
 import type { ExpenseCategory } from "@/domain/enums";
-import type { MonthlyExpenseSummary } from "@/services/interfaces/IExpenseService";
+import type { MonthlyExpenseSummary, MaterialPurchase } from "@/services/interfaces/IExpenseService";
 
 export function useExpenses(filters?: { month?: string; category?: ExpenseCategory; isPaid?: boolean }) {
   const [expenses, setExpenses] = useState<Expense[]>([]);
@@ -74,4 +74,20 @@ export function useMonthlyExpenseTotals(months = 6) {
   }, [months]);
 
   return { totals, loading };
+}
+
+export function useMaterialPurchases(month?: string) {
+  const [purchases, setPurchases] = useState<MaterialPurchase[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  const load = useCallback(async () => {
+    setLoading(true);
+    const result = await expenseService.getMaterialPurchases(month);
+    setPurchases(result);
+    setLoading(false);
+  }, [month]);
+
+  useEffect(() => { load(); }, [load]);
+
+  return { purchases, loading, reload: load };
 }

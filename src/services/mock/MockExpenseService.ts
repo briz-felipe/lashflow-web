@@ -119,4 +119,8 @@ export class MockExpenseService implements IExpenseService {
     }
     return result;
   }
+
+  async getMaterialPurchases(): Promise<import("../interfaces/IExpenseService").MaterialPurchase[]> {
+    return [];
+  }
 }

@@ -3,7 +3,7 @@
 import { ArrowDownRight, Calendar, CreditCard, DollarSign, Package, Receipt, TrendingUp } from "lucide-react";
 import type { CashFlowEntry, MonthlyRevenue, RevenueStats } from "@/services/interfaces/IPaymentService";
 import { endOfMonth, format, isValid, parse, startOfMonth, subMonths } from "date-fns";
-import { expenseService, paymentService, stockService } from "@/services";
+import { expenseService, paymentService } from "@/services";
 import { formatCurrency, formatDate } from "@/lib/formatters";
 import { useEffect, useState } from "react";
 
@@ -11,7 +11,7 @@ import { ExpenseCostChart } from "@/components/dashboard/ExpenseCostChart";
 import { IncomeVsExpenseChart } from "@/components/dashboard/IncomeVsExpenseChart";
 import Link from "next/link";
 import { LoadingPage } from "@/components/shared/LoadingSpinner";
-import type { MonthlyStockCost } from "@/services/interfaces/IStockService";
+
 import { PAYMENT_METHOD_LABELS } from "@/domain/enums";
 import type { PaymentMethod } from "@/domain/enums";
 import { RevenueChart } from "@/components/dashboard/RevenueChart";
@@ -34,8 +34,6 @@ export default function FinanceiroPage() {
   const [breakdown, setBreakdown] = useState<Partial<Record<PaymentMethod, number>>>({});
   const [expenseTotal, setExpenseTotal] = useState(0);
   const [expensePending, setExpensePending] = useState(0);
-  const [stockCosts, setStockCosts] = useState<MonthlyStockCost[]>([]);
-  const [stockValue, setStockValue] = useState(0);
   const [expenseTotals, setExpenseTotals] = useState<{ month: string; totalInCents: number }[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -46,14 +44,12 @@ export default function FinanceiroPage() {
       const from = startOfMonth(subMonths(new Date(), 0));
       const to = endOfMonth(new Date());
       try {
-      const [s, m, cf, bd, expSummary, sc, sv, et] = await Promise.all([
+      const [s, m, cf, bd, expSummary, et] = await Promise.all([
         paymentService.getRevenueStats(),
         paymentService.getMonthlyRevenue(12),
         paymentService.getCashFlow(subMonths(new Date(), 2), to),
         paymentService.getPaymentMethodBreakdown(from, to),
         expenseService.getMonthlySummary(currentMonth),
-        stockService.getMonthlyStockCosts(12),
-        stockService.getTotalStockValueInCents(),
         expenseService.getMonthlyExpenseTotals(12),
       ]);
       setStats(s);
@@ -62,8 +58,6 @@ export default function FinanceiroPage() {
       setBreakdown(bd);
       setExpenseTotal(expSummary.totalInCents);
       setExpensePending(expSummary.pendingInCents);
-      setStockCosts(sc);
-      setStockValue(sv);
       setExpenseTotals(et);
     } catch (err) {
       console.error("[financeiro] load error:", err);
@@ -79,36 +73,29 @@ export default function FinanceiroPage() {
 
   const totalBreakdown = Object.values(breakdown).reduce((sum, v) => sum + v, 0);
   const thisMonthRevenue = stats?.thisMonthInCents ?? 0;
-  const thisMonthStockCost = stockCosts.length > 0 ? stockCosts[stockCosts.length - 1].totalCostInCents : 0;
-  const totalExpenses = expenseTotal + thisMonthStockCost;
+  const totalExpenses = expenseTotal;
   const profit = thisMonthRevenue - totalExpenses;
 
-  // Build cost chart data (12 months): despesas + materiais stacked
-  const allMonths = new Set([
-    ...expenseTotals.map((e) => e.month),
-    ...stockCosts.map((s) => s.month),
-  ]);
   function parseMonthLabel(month: string): string {
     const d = parse(month, "yyyy-MM", new Date());
     return isValid(d) ? format(d, "MMM yy", { locale: ptBR }) : month;
   }
 
-  const costChartData = Array.from(allMonths)
-    .sort()
-    .map((month) => {
-      const label = parseMonthLabel(month);
-      const despesas = expenseTotals.find((e) => e.month === month)?.totalInCents ?? 0;
-      const materiais = stockCosts.find((s) => s.month === month)?.totalCostInCents ?? 0;
-      return { month: label, despesas, materiais };
-    });
+  // Build cost chart data (12 months) — expenses only
+  const costChartData = expenseTotals
+    .sort((a, b) => a.month.localeCompare(b.month))
+    .map((e) => ({
+      month: parseMonthLabel(e.month),
+      despesas: e.totalInCents,
+      materiais: 0,
+    }));
 
   // Build income vs expense chart data (12 months)
   const incomeVsExpenseData = monthly.map((m) => {
     const label = parseMonthLabel(m.month);
     const receita = m.amountInCents;
-    const despesaVal = expenseTotals.find((e) => e.month === m.month)?.totalInCents ?? 0;
-    const materialVal = stockCosts.find((s) => s.month === m.month)?.totalCostInCents ?? 0;
-    return { month: label, receita, custos: despesaVal + materialVal };
+    const custos = expenseTotals.find((e) => e.month === m.month)?.totalInCents ?? 0;
+    return { month: label, receita, custos };
   });
 
   return (
@@ -206,7 +193,7 @@ export default function FinanceiroPage() {
             </div>
             <div className="min-w-0">
               <p className="text-[11px] font-semibold truncate">Estoque</p>
-              <p className="text-[10px] text-muted-foreground truncate">{formatCurrency(stockValue)}</p>
+              <p className="text-[10px] text-muted-foreground truncate">Materiais e insumos</p>
             </div>
           </Link>
           <Link href="/despesas" className="bg-white rounded-2xl border border-brand-100 shadow-card px-3 py-2.5 hover:shadow-card-hover transition-shadow flex items-center gap-2.5">
@@ -267,7 +254,7 @@ export default function FinanceiroPage() {
         {/* Cost breakdown chart (12 months) */}
         <div className="bg-white rounded-2xl border border-brand-100 shadow-card p-6">
           <h3 className="font-semibold mb-1">Custos ao Longo do Tempo</h3>
-          <p className="text-xs text-muted-foreground mb-6">Despesas fixas/variáveis + materiais nos últimos 12 meses</p>
+          <p className="text-xs text-muted-foreground mb-6">Despesas nos últimos 12 meses</p>
           <ExpenseCostChart data={costChartData} />
         </div>
 
