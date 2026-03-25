@@ -1,22 +1,22 @@
 "use client";
 
-import { useState, useEffect } from "react";
-import { Topbar } from "@/components/layout/Topbar";
+import { ArrowDownRight, Calendar, CreditCard, DollarSign, Package, Receipt, TrendingUp } from "lucide-react";
+import type { CashFlowEntry, MonthlyRevenue, RevenueStats } from "@/services/interfaces/IPaymentService";
+import { endOfMonth, format, isValid, parse, startOfMonth, subMonths } from "date-fns";
+import { expenseService, paymentService, stockService } from "@/services";
+import { formatCurrency, formatDate } from "@/lib/formatters";
+import { useEffect, useState } from "react";
 
-import { RevenueChart } from "@/components/dashboard/RevenueChart";
 import { ExpenseCostChart } from "@/components/dashboard/ExpenseCostChart";
 import { IncomeVsExpenseChart } from "@/components/dashboard/IncomeVsExpenseChart";
-import { LoadingPage } from "@/components/shared/LoadingSpinner";
-import { paymentService, stockService, expenseService } from "@/services";
-import { formatCurrency, formatDate } from "@/lib/formatters";
-import { DollarSign, TrendingUp, Calendar, CreditCard, Package, Receipt, ArrowDownRight } from "lucide-react";
-import { startOfMonth, endOfMonth, subMonths, format, parse, isValid } from "date-fns";
-import { ptBR } from "date-fns/locale";
-import type { RevenueStats, MonthlyRevenue, CashFlowEntry } from "@/services/interfaces/IPaymentService";
-import type { MonthlyStockCost } from "@/services/interfaces/IStockService";
-import type { PaymentMethod } from "@/domain/enums";
-import { PAYMENT_METHOD_LABELS } from "@/domain/enums";
 import Link from "next/link";
+import { LoadingPage } from "@/components/shared/LoadingSpinner";
+import type { MonthlyStockCost } from "@/services/interfaces/IStockService";
+import { PAYMENT_METHOD_LABELS } from "@/domain/enums";
+import type { PaymentMethod } from "@/domain/enums";
+import { RevenueChart } from "@/components/dashboard/RevenueChart";
+import { Topbar } from "@/components/layout/Topbar";
+import { ptBR } from "date-fns/locale";
 
 const METHOD_COLORS: Record<PaymentMethod, string> = {
   pix: "bg-emerald-400",
@@ -196,6 +196,7 @@ export default function FinanceiroPage() {
             </p>
           )}
         </div>
+
 
         {/* Quick links */}
         <div className="grid grid-cols-2 gap-2">
