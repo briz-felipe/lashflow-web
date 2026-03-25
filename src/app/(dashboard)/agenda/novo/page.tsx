@@ -13,7 +13,7 @@ import {
   X,
 } from "lucide-react";
 import type { Client, ProcedureInput } from "@/domain/entities";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Suspense, useEffect, useRef, useState } from "react";
 import { formatPhone, parsePtBR } from "@/lib/formatters";
 import { ProcedureSelector, type SelectedProcedure, totalCents, totalDuration } from "@/components/appointments/ProcedureSelector";
@@ -140,10 +140,10 @@ function QuickRegisterModal({
             <UserPlus className="w-4 h-4 text-brand-500" />
             Cadastro Rápido
           </DialogTitle>
+          <DialogDescription>
+            Cadastre com nome e Instagram. Os demais dados podem ser adicionados depois.
+          </DialogDescription>
         </DialogHeader>
-        <p className="text-sm text-muted-foreground -mt-2">
-          Cadastre com nome e Instagram. Os demais dados podem ser adicionados depois.
-        </p>
         <form onSubmit={handleSubmit} className="space-y-4 mt-2">
           <div>
             <Label htmlFor="qr-name">Nome *</Label>
