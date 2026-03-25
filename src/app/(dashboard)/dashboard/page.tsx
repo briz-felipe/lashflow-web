@@ -1,7 +1,6 @@
 "use client";
 
 import { Topbar } from "@/components/layout/Topbar";
-import { StatsCard } from "@/components/dashboard/StatsCard";
 import { RevenueChart } from "@/components/dashboard/RevenueChart";
 import { useDashboard } from "@/hooks/useDashboard";
 import { formatCurrency, formatTime, formatRelativeDate } from "@/lib/formatters";
@@ -16,6 +15,7 @@ import {
   CheckCircle2,
   AlertCircle,
   ChevronRight,
+  DollarSign,
 } from "lucide-react";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
@@ -30,41 +30,67 @@ export default function DashboardPage() {
     <div>
       <Topbar title="Dashboard" subtitle="Visão geral do seu estúdio" />
 
-      <div className="p-4 sm:p-6 space-y-4 sm:space-y-6 animate-fade-in">
-        <section>
-          <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
-            <StatsCard
-              title="Total de Clientes"
-              value={stats.totalClients}
-              subtitle="clientes cadastradas"
-              icon={<Users className="w-5 h-5" />}
-              color="purple"
-            />
-            <StatsCard
-              title="Com Agendamentos"
-              value={stats.clientsWithUpcomingAppointments}
-              subtitle="aguardando atendimento"
-              icon={<CalendarCheck className="w-5 h-5" />}
-              color="blue"
-            />
-            <StatsCard
-              title="Agendamentos Hoje"
-              value={stats.todayAppointmentsCount}
-              subtitle="atendimentos do dia"
-              icon={<CalendarDays className="w-5 h-5" />}
-              color="amber"
-            />
-            <StatsCard
-              title="Receita do Mês"
-              value={formatCurrency(stats.revenueStats?.thisMonthInCents ?? 0)}
-              subtitle="mês atual"
-              icon={<TrendingUp className="w-5 h-5" />}
-              trend={stats.revenueStats?.growthPercent}
-              trendLabel="vs. mês anterior"
-              color="green"
-            />
+      <div className="p-4 sm:p-6 space-y-4 animate-fade-in">
+        {/* Stats — compact layout */}
+        <div className="space-y-2">
+          {/* Receita do mês — destaque principal */}
+          <div className="bg-white rounded-2xl border border-brand-100 shadow-card px-4 py-3 flex items-center gap-3">
+            <div className="w-8 h-8 rounded-lg bg-emerald-100 flex items-center justify-center flex-shrink-0">
+              <DollarSign className="w-4 h-4 text-emerald-600" />
+            </div>
+            <div className="flex-1 min-w-0">
+              <p className="text-[11px] text-muted-foreground font-medium">Receita do Mês</p>
+              <p className="text-lg font-bold text-foreground truncate">{formatCurrency(stats.revenueStats?.thisMonthInCents ?? 0)}</p>
+            </div>
+            {stats.revenueStats?.growthPercent != null && stats.revenueStats.growthPercent !== 0 && (
+              <span className={`text-xs font-semibold px-2 py-0.5 rounded-full flex-shrink-0 ${
+                stats.revenueStats.growthPercent > 0 ? "bg-emerald-100 text-emerald-700" : "bg-red-100 text-red-700"
+              }`}>
+                {stats.revenueStats.growthPercent > 0 ? "+" : ""}{stats.revenueStats.growthPercent.toFixed(0)}%
+              </span>
+            )}
           </div>
-        </section>
+
+          {/* 2x2 grid */}
+          <div className="grid grid-cols-2 gap-2">
+            <div className="bg-white rounded-2xl border border-brand-100 shadow-card px-3 py-2.5 flex items-center gap-2.5">
+              <div className="w-7 h-7 rounded-lg bg-purple-100 flex items-center justify-center flex-shrink-0">
+                <Users className="w-3.5 h-3.5 text-purple-600" />
+              </div>
+              <div className="min-w-0">
+                <p className="text-[10px] text-muted-foreground font-medium">Clientes</p>
+                <p className="text-sm font-bold text-foreground truncate">{stats.totalClients}</p>
+              </div>
+            </div>
+            <div className="bg-white rounded-2xl border border-brand-100 shadow-card px-3 py-2.5 flex items-center gap-2.5">
+              <div className="w-7 h-7 rounded-lg bg-blue-100 flex items-center justify-center flex-shrink-0">
+                <CalendarCheck className="w-3.5 h-3.5 text-blue-600" />
+              </div>
+              <div className="min-w-0">
+                <p className="text-[10px] text-muted-foreground font-medium">Com Agenda</p>
+                <p className="text-sm font-bold text-foreground truncate">{stats.clientsWithUpcomingAppointments}</p>
+              </div>
+            </div>
+            <div className="bg-white rounded-2xl border border-brand-100 shadow-card px-3 py-2.5 flex items-center gap-2.5">
+              <div className="w-7 h-7 rounded-lg bg-amber-100 flex items-center justify-center flex-shrink-0">
+                <CalendarDays className="w-3.5 h-3.5 text-amber-600" />
+              </div>
+              <div className="min-w-0">
+                <p className="text-[10px] text-muted-foreground font-medium">Hoje</p>
+                <p className="text-sm font-bold text-foreground truncate">{stats.todayAppointmentsCount}</p>
+              </div>
+            </div>
+            <div className="bg-white rounded-2xl border border-brand-100 shadow-card px-3 py-2.5 flex items-center gap-2.5">
+              <div className="w-7 h-7 rounded-lg bg-emerald-100 flex items-center justify-center flex-shrink-0">
+                <TrendingUp className="w-3.5 h-3.5 text-emerald-600" />
+              </div>
+              <div className="min-w-0">
+                <p className="text-[10px] text-muted-foreground font-medium">Mês Anterior</p>
+                <p className="text-sm font-bold text-foreground truncate">{formatCurrency(stats.revenueStats?.lastMonthInCents ?? 0)}</p>
+              </div>
+            </div>
+          </div>
+        </div>
 
         <div className="grid grid-cols-1 xl:grid-cols-3 gap-4 sm:gap-6">
           <div className="xl:col-span-2 bg-white rounded-2xl border border-brand-100 shadow-card p-4 sm:p-6">
