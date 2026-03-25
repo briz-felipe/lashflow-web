@@ -118,10 +118,21 @@ export default function EstoquePage() {
   const [matForm, setMatForm] = useState(MAT_FORM_DEFAULT);
   const [movForm, setMovForm] = useState(MOV_FORM_DEFAULT);
 
-  // Material expenses for linking purchases
+  // Material expenses for linking purchases (deduplicated by installment group)
   const [materialExpenses, setMaterialExpenses] = useState<Expense[]>([]);
   useEffect(() => {
-    expenseService.listExpenses({ category: "material" as import("@/domain/enums").ExpenseCategory }).then(setMaterialExpenses).catch(() => {});
+    expenseService.listExpenses({ category: "material" as import("@/domain/enums").ExpenseCategory }).then((all) => {
+      // Group by installment_group_id — show only the first installment per group
+      const seen = new Set<string>();
+      const deduped = all.filter((exp) => {
+        if (exp.installmentGroupId) {
+          if (seen.has(exp.installmentGroupId)) return false;
+          seen.add(exp.installmentGroupId);
+        }
+        return true;
+      });
+      setMaterialExpenses(deduped);
+    }).catch(() => {});
   }, []);
 
   const handleCreateMaterial = async () => {
@@ -877,12 +888,17 @@ export default function EstoquePage() {
                       </SelectTrigger>
                       <SelectContent>
                         <SelectItem value="none">Nenhuma</SelectItem>
-                        {materialExpenses.map((exp) => (
-                          <SelectItem key={exp.id} value={exp.id}>
-                            {exp.name} · {formatCurrency(exp.amountInCents)}
-                            {exp.installmentTotal && exp.installmentTotal > 1 ? ` (${exp.installmentCurrent}/${exp.installmentTotal}x)` : ""}
-                          </SelectItem>
-                        ))}
+                        {materialExpenses.map((exp) => {
+                          const totalValue = exp.installmentTotal && exp.installmentTotal > 1
+                            ? exp.amountInCents * exp.installmentTotal
+                            : exp.amountInCents;
+                          return (
+                            <SelectItem key={exp.id} value={exp.id}>
+                              {exp.name} · {formatCurrency(totalValue)}
+                              {exp.installmentTotal && exp.installmentTotal > 1 ? ` (${exp.installmentTotal}x)` : ""}
+                            </SelectItem>
+                          );
+                        })}
                       </SelectContent>
                     </Select>
                   </div>
