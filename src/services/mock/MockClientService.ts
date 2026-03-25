@@ -56,6 +56,7 @@ export class MockClientService implements IClientService {
   async createClient(input: CreateClientInput): Promise<Client> {
     const newClient: Client = {
       ...input,
+      phone: input.phone ?? "",
       id: `cli-${Date.now()}`,
       segments: [],
       totalSpent: 0,

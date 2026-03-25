@@ -88,23 +88,42 @@ function QuickRegisterModal({
   onCreated: (c: Client) => void;
 }) {
   const [name, setName] = useState(initialName);
+  const [instagram, setInstagram] = useState("");
   const [phone, setPhone] = useState("");
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
     if (open) {
       setName(initialName);
+      setInstagram("");
       setPhone("");
     }
   }, [open, initialName]);
 
+  // Normaliza @ no instagram
+  const handleInstagram = (val: string) => {
+    setInstagram(val.startsWith("@") ? val : val ? `@${val}` : "");
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!name.trim() || !phone.trim()) return;
+    if (!name.trim()) return;
     setSaving(true);
     try {
-      const created = await clientService.createClient({ name: name.trim(), phone: phone.trim() });
-      toast({ title: `${created.name} cadastrada!`, variant: "success" });
+      const input: { name: string; instagram?: string; phone?: string } = {
+        name: name.trim(),
+      };
+      if (instagram.trim()) input.instagram = instagram.trim();
+      if (phone.trim()) input.phone = phone.trim();
+
+      const created = await clientService.createClient(input);
+
+      const hasIncomplete = !phone.trim() || !instagram.trim();
+      toast({
+        title: `${created.name} cadastrada!`,
+        description: hasIncomplete ? "Lembre-se de completar os dados do perfil depois." : undefined,
+        variant: "success",
+      });
       onCreated(created);
     } catch {
       toast({ title: "Erro ao cadastrar cliente", variant: "destructive" });
@@ -123,7 +142,7 @@ function QuickRegisterModal({
           </DialogTitle>
         </DialogHeader>
         <p className="text-sm text-muted-foreground -mt-2">
-          Preencha nome e telefone. Os demais dados podem ser adicionados depois.
+          Cadastre com nome e Instagram. Os demais dados podem ser adicionados depois.
         </p>
         <form onSubmit={handleSubmit} className="space-y-4 mt-2">
           <div>
@@ -138,7 +157,17 @@ function QuickRegisterModal({
             />
           </div>
           <div>
-            <Label htmlFor="qr-phone">Telefone / WhatsApp *</Label>
+            <Label htmlFor="qr-instagram">Instagram</Label>
+            <Input
+              id="qr-instagram"
+              value={instagram}
+              onChange={(e) => handleInstagram(e.target.value)}
+              placeholder="@usuario"
+              className="mt-1.5 h-11"
+            />
+          </div>
+          <div>
+            <Label htmlFor="qr-phone" className="text-muted-foreground">Telefone / WhatsApp</Label>
             <Input
               id="qr-phone"
               value={phone}
@@ -152,7 +181,7 @@ function QuickRegisterModal({
             <Button type="button" variant="outline" className="flex-1" onClick={onClose}>
               Cancelar
             </Button>
-            <Button type="submit" className="flex-1" disabled={saving || !name.trim() || !phone.trim()}>
+            <Button type="submit" className="flex-1" disabled={saving || !name.trim()}>
               {saving ? "Cadastrando..." : "Cadastrar"}
             </Button>
           </div>
@@ -196,7 +225,7 @@ function ClientSearch({
         </div>
         <div className="flex-1 min-w-0">
           <p className="text-sm font-semibold truncate">{selected.name}</p>
-          <p className="text-xs text-muted-foreground">{formatPhone(selected.phone)}</p>
+          <p className="text-xs text-muted-foreground">{selected.instagram || (selected.phone ? formatPhone(selected.phone) : "—")}</p>
         </div>
         <button
           type="button"
@@ -218,7 +247,7 @@ function ClientSearch({
             value={query}
             onChange={(e) => { setQuery(e.target.value); setOpen(true); }}
             onFocus={() => setOpen(true)}
-            placeholder="Buscar por nome ou telefone..."
+            placeholder="Buscar por nome, Instagram ou telefone..."
             className="pl-9"
             autoComplete="off"
           />
@@ -247,7 +276,7 @@ function ClientSearch({
                   </div>
                   <div className="min-w-0 flex-1">
                     <p className="text-sm font-medium truncate">{c.name}</p>
-                    <p className="text-xs text-muted-foreground">{formatPhone(c.phone)}</p>
+                    <p className="text-xs text-muted-foreground">{c.instagram || (c.phone ? formatPhone(c.phone) : "—")}</p>
                   </div>
                 </button>
               ))
@@ -266,7 +295,7 @@ function ClientSearch({
               </div>
               <div className="min-w-0 flex-1">
                 <p className="text-sm font-semibold text-brand-700">Cadastrar nova cliente</p>
-                <p className="text-xs text-muted-foreground">Cadastro rápido com nome e telefone</p>
+                <p className="text-xs text-muted-foreground">Cadastro rápido com nome e Instagram</p>
               </div>
             </button>
           </div>

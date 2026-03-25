@@ -28,10 +28,8 @@ export interface Client {
   lastAppointmentDate?: Date;
 }
 
-export type CreateClientInput = Pick<
-  Client,
-  "name" | "phone" | "email" | "instagram" | "address" | "birthday" | "notes"
->;
+export type CreateClientInput = Pick<Client, "name"> &
+  Partial<Pick<Client, "phone" | "email" | "instagram" | "address" | "birthday" | "notes">>;
 
 export type UpdateClientInput = Partial<CreateClientInput> & {
   segments?: ClientSegment[];
