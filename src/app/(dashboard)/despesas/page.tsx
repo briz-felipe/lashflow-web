@@ -1,7 +1,6 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { useSearchParams } from "next/navigation";
 import { Topbar } from "@/components/layout/Topbar";
 import { StatsCard } from "@/components/dashboard/StatsCard";
 import { Button } from "@/components/ui/button";
@@ -400,11 +399,13 @@ const EMPTY_FORM = {
 type ActiveTab = "despesas" | "material";
 
 export default function DespesasPage() {
-  const searchParams = useSearchParams();
-  const [activeTab, setActiveTab] = useState<ActiveTab>(() => {
-    const tab = searchParams.get("tab");
-    return tab === "material" ? "material" : "despesas";
-  });
+  const [activeTab, setActiveTab] = useState<ActiveTab>("despesas");
+
+  // Read ?tab=material from URL on mount (avoids useSearchParams SSR issues)
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    if (params.get("tab") === "material") setActiveTab("material");
+  }, []);
   const [viewMode, setViewMode] = useState<ViewMode>("table");
   const [currentMonth, setCurrentMonth] = useState(() => format(new Date(), "yyyy-MM"));
   const [viewYear, setViewYear] = useState(() => new Date().getFullYear());
