@@ -116,8 +116,8 @@ export default function ClientesPage() {
 
         {/* Filters */}
         <div className="bg-white rounded-2xl border border-brand-100 shadow-card p-4 mb-6">
-          <div className="flex flex-col sm:flex-row gap-3">
-            <div className="relative flex-1">
+          <div className="flex gap-2">
+            <div className="relative flex-1 min-w-0">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
               <Input
                 placeholder="Buscar por nome, telefone, email..."
@@ -126,18 +126,19 @@ export default function ClientesPage() {
                 className="pl-9"
               />
             </div>
-            <div className="relative">
-              <ArrowUpDown className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground pointer-events-none" />
+            <div className="relative flex-shrink-0">
               <select
                 value={sortBy ?? ""}
                 onChange={(e) => setSortBy((e.target.value as SortOption) || undefined)}
-                className="h-10 pl-8 pr-8 rounded-xl border border-input bg-white text-sm text-foreground appearance-none focus:outline-none focus:ring-2 focus:ring-brand-300"
+                className="h-10 w-10 sm:w-auto sm:pl-8 sm:pr-8 rounded-xl border border-input bg-white text-sm text-foreground appearance-none focus:outline-none focus:ring-2 focus:ring-brand-300 text-transparent sm:text-foreground"
               >
                 <option value="">Ordenar por...</option>
                 {SORT_OPTIONS.map((o) => (
                   <option key={o} value={o}>{SORT_LABELS[o]}</option>
                 ))}
               </select>
+              <ArrowUpDown className="absolute left-1/2 sm:left-3 top-1/2 -translate-y-1/2 -translate-x-1/2 sm:translate-x-0 w-4 h-4 text-muted-foreground pointer-events-none" />
+              {sortBy && <span className="absolute -top-1 -right-1 w-2.5 h-2.5 bg-brand-500 rounded-full sm:hidden" />}
             </div>
           </div>
           {/* Segment filters + Birthday filters */}
