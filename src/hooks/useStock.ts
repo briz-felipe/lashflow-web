@@ -88,15 +88,18 @@ export function useStockAlerts() {
   const [alerts, setAlerts] = useState<StockAlert[]>([]);
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    let mounted = true;
-    stockService.getLowStockAlerts().then((a) => {
-      if (mounted) { setAlerts(a); setLoading(false); }
-    });
-    return () => { mounted = false; };
+  const load = useCallback(async () => {
+    try {
+      const a = await stockService.getLowStockAlerts();
+      setAlerts(a);
+    } finally {
+      setLoading(false);
+    }
   }, []);
 
-  return { alerts, loading };
+  useEffect(() => { load(); }, [load]);
+
+  return { alerts, loading, reload: load };
 }
 
 export function useStockAnalytics() {
@@ -104,20 +107,20 @@ export function useStockAnalytics() {
   const [totalValue, setTotalValue] = useState(0);
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    let mounted = true;
-    Promise.all([
-      stockService.getMonthlyStockCosts(6),
-      stockService.getTotalStockValueInCents(),
-    ]).then(([costs, value]) => {
-      if (mounted) {
-        setMonthlyCosts(costs);
-        setTotalValue(value);
-        setLoading(false);
-      }
-    });
-    return () => { mounted = false; };
+  const load = useCallback(async () => {
+    try {
+      const [costs, value] = await Promise.all([
+        stockService.getMonthlyStockCosts(6),
+        stockService.getTotalStockValueInCents(),
+      ]);
+      setMonthlyCosts(costs);
+      setTotalValue(value);
+    } finally {
+      setLoading(false);
+    }
   }, []);
 
-  return { monthlyCosts, totalValue, loading };
+  useEffect(() => { load(); }, [load]);
+
+  return { monthlyCosts, totalValue, loading, reload: load };
 }

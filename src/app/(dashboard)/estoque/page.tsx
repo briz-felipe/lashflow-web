@@ -40,7 +40,7 @@ import { LoadingPage } from "@/components/shared/LoadingSpinner";
 import { StatsCard } from "@/components/dashboard/StatsCard";
 import { Topbar } from "@/components/layout/Topbar";
 import { toast } from "@/components/ui/toaster";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { expenseService } from "@/services";
 import type { Expense } from "@/domain/entities";
 
@@ -112,8 +112,13 @@ export default function EstoquePage() {
     lowStock: lowStockOnly || undefined,
   });
   const { movements, loading: movLoading, reload: reloadMovements, updateMovement, deleteMovement } = useStockMovements();
-  const { alerts } = useStockAlerts();
-  const { monthlyCosts, totalValue, loading: analyticsLoading } = useStockAnalytics();
+  const { alerts, reload: reloadAlerts } = useStockAlerts();
+  const { monthlyCosts, totalValue, loading: analyticsLoading, reload: reloadAnalytics } = useStockAnalytics();
+
+  // Reload all dependent data after any mutation
+  const reloadAll = useCallback(async () => {
+    await Promise.all([reloadMovements(), reloadAlerts(), reloadAnalytics()]);
+  }, [reloadMovements, reloadAlerts, reloadAnalytics]);
 
   const [matForm, setMatForm] = useState(MAT_FORM_DEFAULT);
   const [movForm, setMovForm] = useState(MOV_FORM_DEFAULT);
@@ -155,6 +160,7 @@ export default function EstoquePage() {
         notes: matForm.notes || undefined,
       });
       toast({ title: "Material cadastrado!", variant: "success" });
+      reloadAll();
       setMatForm(MAT_FORM_DEFAULT);
       setMatOpen(false);
     } finally {
@@ -190,6 +196,7 @@ export default function EstoquePage() {
         notes: editForm.notes || undefined,
       });
       toast({ title: "Material atualizado!", variant: "success" });
+      reloadAll();
       setEditMat(null);
     } catch {
       toast({ title: "Erro ao atualizar", variant: "destructive" });
@@ -203,6 +210,7 @@ export default function EstoquePage() {
     try {
       await deleteMaterial(mat.id);
       toast({ title: "Material excluído!", variant: "success" });
+      reloadAll();
     } catch {
       toast({ title: "Erro ao excluir", variant: "destructive" });
     }
@@ -235,7 +243,7 @@ export default function EstoquePage() {
         notes: movForm.notes || undefined,
         expenseId: movForm.expenseId || undefined,
       });
-      await reloadMovements();
+      await reloadAll();
       toast({ title: `${STOCK_MOVEMENT_TYPE_LABELS[movForm.type]} registrada!`, variant: "success" });
       setMovForm(MOV_FORM_DEFAULT);
       setMovOpen(false);
@@ -247,6 +255,7 @@ export default function EstoquePage() {
   const handleDeleteMovement = async (id: string) => {
     try {
       await deleteMovement(id);
+      await reloadAll();
       toast({ title: "Movimentação removida", variant: "success" });
     } catch {
       toast({ title: "Erro ao remover movimentação", variant: "destructive" });
