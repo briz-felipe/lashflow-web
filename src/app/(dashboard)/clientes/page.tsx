@@ -10,11 +10,20 @@ import { useClients } from "@/hooks/useClients";
 import { EmptyState } from "@/components/shared/EmptyState";
 import { LoadingSpinner } from "@/components/shared/LoadingSpinner";
 import { formatPhone, formatCurrency, formatDate } from "@/lib/formatters";
-import { Plus, Search, Users, Instagram, Mail, Phone, Lightbulb, X, ArrowUpDown } from "lucide-react";
+import { Plus, Search, Users, Instagram, Mail, Phone, Lightbulb, X, ArrowUpDown, Cake } from "lucide-react";
 import Link from "next/link";
 import { mockProcedures } from "@/data";
 import type { ClientSegment } from "@/domain/enums";
 import { CLIENT_SEGMENT_LABELS } from "@/domain/enums";
+import { isToday, isSameWeek, isSameMonth, setYear, parseISO } from "date-fns";
+
+type BirthdayFilter = "none" | "today" | "week" | "month";
+const BIRTHDAY_FILTER_LABELS: Record<BirthdayFilter, string> = {
+  none: "Todos",
+  today: "Hoje",
+  week: "Esta semana",
+  month: "Este mês",
+};
 
 type SortOption = "most_visited" | "least_visited" | "highest_spent" | "last_seen_asc" | "last_seen_desc";
 const SORT_LABELS: Record<SortOption, string> = {
@@ -49,6 +58,7 @@ export default function ClientesPage() {
   const [debouncedSearch, setDebouncedSearch] = useState("");
   const [activeSegments, setActiveSegments] = useState<ClientSegment[]>([]);
   const [sortBy, setSortBy] = useState<SortOption | undefined>(undefined);
+  const [birthdayFilter, setBirthdayFilter] = useState<BirthdayFilter>("none");
 
   useEffect(() => {
     const timer = setTimeout(() => setDebouncedSearch(search), 300);
@@ -63,6 +73,22 @@ export default function ClientesPage() {
     },
     100
   );
+
+  // Birthday filter (client-side)
+  const filteredClients = birthdayFilter === "none"
+    ? clients
+    : clients.filter((c) => {
+        if (!c.birthday) return false;
+        const today = new Date();
+        // Set birthday year to current year for comparison
+        const bday = setYear(parseISO(c.birthday), today.getFullYear());
+        switch (birthdayFilter) {
+          case "today": return isToday(bday);
+          case "week": return isSameWeek(bday, today, { weekStartsOn: 0 });
+          case "month": return isSameMonth(bday, today);
+          default: return true;
+        }
+      });
 
   const toggleSegment = (segment: ClientSegment) => {
     setActiveSegments((prev) =>
@@ -114,7 +140,7 @@ export default function ClientesPage() {
               </select>
             </div>
           </div>
-          {/* Segment filters */}
+          {/* Segment filters + Birthday filters */}
           <div className="flex flex-wrap gap-2 mt-3">
             {ALL_SEGMENTS.map((segment) => (
               <button
@@ -127,6 +153,21 @@ export default function ClientesPage() {
                 }`}
               >
                 {CLIENT_SEGMENT_LABELS[segment]}
+              </button>
+            ))}
+            <span className="w-px h-5 bg-brand-200 self-center mx-1" />
+            {(["today", "week", "month"] as BirthdayFilter[]).map((f) => (
+              <button
+                key={f}
+                onClick={() => setBirthdayFilter((prev) => prev === f ? "none" : f)}
+                className={`px-3 py-1 rounded-full text-xs font-medium transition-all flex items-center gap-1 ${
+                  birthdayFilter === f
+                    ? "bg-pink-500 text-white"
+                    : "bg-pink-50 text-pink-600 hover:bg-pink-100"
+                }`}
+              >
+                <Cake className="w-3 h-3" />
+                {BIRTHDAY_FILTER_LABELS[f]}
               </button>
             ))}
           </div>
@@ -157,7 +198,7 @@ export default function ClientesPage() {
             <div className="flex items-center justify-center py-16">
               <LoadingSpinner />
             </div>
-          ) : clients.length === 0 ? (
+          ) : filteredClients.length === 0 ? (
             <EmptyState
               icon={<Users className="w-6 h-6" />}
               title="Nenhuma cliente encontrada"
@@ -191,7 +232,7 @@ export default function ClientesPage() {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-brand-50">
-                  {clients.map((client) => {
+                  {filteredClients.map((client) => {
                     const favProc = mockProcedures.find((p) => p.id === client.favoriteProcedureId);
                     return (
                       <tr

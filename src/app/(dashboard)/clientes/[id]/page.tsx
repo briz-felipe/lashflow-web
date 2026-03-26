@@ -36,7 +36,11 @@ import {
 import Link from "next/link";
 import { LashFlowStatus } from "@/components/clients/LashFlowStatus";
 import { useAnamneses } from "@/hooks/useAnamnesis";
+import { useWhatsAppTemplates } from "@/hooks/useWhatsAppTemplates";
+import { WhatsAppReminderService } from "@/services/WhatsAppReminderService";
+import { MessageCircle } from "lucide-react";
 import type { ClientSegment } from "@/domain/enums";
+import { useState, useRef, useEffect } from "react";
 
 const DAY_NAMES = ["Dom", "Seg", "Ter", "Qua", "Qui", "Sex", "Sáb"];
 
@@ -60,6 +64,19 @@ export default function ClienteProfilePage() {
   const { client, loading, reload: reloadClient } = useClient(id);
   const { appointments } = useAppointments({ clientId: id });
   const { anamneses } = useAnamneses(id);
+  const { templates } = useWhatsAppTemplates();
+  const [waOpen, setWaOpen] = useState(false);
+  const waRef = useRef<HTMLDivElement>(null);
+
+  // Close dropdown on outside click
+  useEffect(() => {
+    if (!waOpen) return;
+    const handler = (e: MouseEvent) => {
+      if (waRef.current && !waRef.current.contains(e.target as Node)) setWaOpen(false);
+    };
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
+  }, [waOpen]);
 
   if (loading) return <LoadingPage />;
   if (!client) {
@@ -128,6 +145,70 @@ export default function ClienteProfilePage() {
               )}
             </Button>
           </Link>
+          {/* WhatsApp dropdown */}
+          {client.phone && (
+            <div className="relative" ref={waRef}>
+              <Button
+                variant="outline"
+                size="sm"
+                className="text-emerald-600 border-emerald-200 hover:bg-emerald-50"
+                onClick={() => setWaOpen((o) => !o)}
+              >
+                <MessageCircle className="w-4 h-4" />
+                <span className="hidden sm:inline">WhatsApp</span>
+              </Button>
+              {waOpen && (
+                <div className="absolute right-0 top-full mt-1 w-64 bg-white rounded-xl border border-brand-100 shadow-lg z-50 overflow-hidden">
+                  <p className="text-xs font-semibold text-muted-foreground px-3 pt-3 pb-1">Mensagens prontas</p>
+                  {templates.length === 0 ? (
+                    <div className="px-3 py-4 text-center">
+                      <p className="text-xs text-muted-foreground">Nenhum template criado</p>
+                      <Link href="/configuracoes/mensagens" className="text-xs text-brand-600 hover:underline">
+                        Criar templates
+                      </Link>
+                    </div>
+                  ) : (
+                    <div className="max-h-48 overflow-y-auto py-1">
+                      {templates.map((t) => {
+                        const message = t.message
+                          .replace(/\{\{clientName\}\}/g, client.name.split(" ")[0])
+                          .replace(/\{\{date\}\}/g, "")
+                          .replace(/\{\{time\}\}/g, "")
+                          .replace(/\{\{procedure\}\}/g, "")
+                          .replace(/\{\{duration\}\}/g, "")
+                          .replace(/\{\{salonAddress\}\}/g, "");
+                        const url = WhatsAppReminderService.buildUrl(client.phone, message);
+                        return (
+                          <a
+                            key={t.id}
+                            href={url}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="block px-3 py-2 hover:bg-brand-50 transition-colors"
+                            onClick={() => setWaOpen(false)}
+                          >
+                            <p className="text-sm font-medium truncate">{t.name}</p>
+                            <p className="text-xs text-muted-foreground line-clamp-2">{t.description || message.slice(0, 80)}</p>
+                          </a>
+                        );
+                      })}
+                    </div>
+                  )}
+                  <div className="border-t border-brand-50 px-3 py-2">
+                    <a
+                      href={WhatsAppReminderService.buildUrl(client.phone, "")}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-xs text-emerald-600 hover:underline font-medium"
+                      onClick={() => setWaOpen(false)}
+                    >
+                      Abrir conversa sem template
+                    </a>
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
           <Link href={`/clientes/${id}/editar`}>
             <Button variant="outline" size="sm">
               <Edit className="w-4 h-4" />
