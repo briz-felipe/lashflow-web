@@ -73,8 +73,9 @@ export default function NovaAnamnesePage() {
   const { id } = useParams<{ id: string }>();
   const router = useRouter();
   const { client } = useClient(id);
-  const { createAnamnesis } = useAnamneses(id);
+  const { anamneses, createAnamnesis } = useAnamneses(id);
   const [saving, setSaving] = useState(false);
+  const [prefilled, setPrefilled] = useState(false);
 
   // Preventive
   const [hasAllergy, setHasAllergy] = useState<YesNo>("");
@@ -96,9 +97,40 @@ export default function NovaAnamnesePage() {
   const [mappingCurve, setMappingCurve] = useState("");
   const [mappingThickness, setMappingThickness] = useState("");
 
+  // Authorization + notes (declared before auto-fill effect)
+  const [authorizedPhoto, setAuthorizedPhoto] = useState<YesNo>("");
+  const [notes, setNotes] = useState("");
+
   useEffect(() => {
     procedureService.listProcedures().then(setProcedures).catch(() => {});
   }, []);
+
+  // Auto-fill from last anamnesis
+  useEffect(() => {
+    if (prefilled || anamneses.length === 0) return;
+    const last = [...anamneses].sort(
+      (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+    )[0];
+    setPrefilled(true);
+
+    setHasAllergy(last.hasAllergy ? "yes" : "no");
+    setAllergyDetails(last.allergyDetails ?? "");
+    setHadEyeSurgery(last.hadEyeSurgeryLast3Months ? "yes" : "no");
+    setHasEyeDisease(last.hasEyeDisease ? "yes" : "no");
+    setEyeDiseaseDetails(last.eyeDiseaseDetails ?? "");
+    setUsesEyeDrops(last.usesEyeDrops ? "yes" : "no");
+    setFamilyThyroid(last.familyThyroidHistory ? "yes" : "no");
+    setHasGlaucoma(last.hasGlaucoma ? "yes" : "no");
+    setHairLoss(last.hairLossGrade ?? "");
+    setBlepharitis(last.proneToBlepharitis ? "yes" : "no");
+    setHasEpilepsy(last.hasEpilepsy ? "yes" : "no");
+    if (last.mapping) {
+      setMappingSize(last.mapping.size ?? "");
+      setMappingCurve(last.mapping.curve ?? "");
+      setMappingThickness(last.mapping.thickness ?? "");
+    }
+    setNotes(last.notes ?? "");
+  }, [anamneses, prefilled]);
 
   const toggleProcedure = (procId: string) => {
     setSelectedProcedureIds((prev) =>
@@ -121,10 +153,6 @@ export default function NovaAnamnesePage() {
     const name = procedures.find((p) => p.id === id)?.name?.toLowerCase() ?? "";
     return !name.includes("lifting") && !name.includes("permanente") && !name.includes("remoção");
   });
-
-  // Authorization + notes
-  const [authorizedPhoto, setAuthorizedPhoto] = useState<YesNo>("");
-  const [notes, setNotes] = useState("");
 
   const isComplete =
     hasAllergy !== "" &&
@@ -188,6 +216,13 @@ export default function NovaAnamnesePage() {
             {client && <p className="text-sm text-muted-foreground">{client.name}</p>}
           </div>
         </div>
+
+        {prefilled && (
+          <div className="flex items-center gap-2 p-3 bg-brand-50 border border-brand-100 rounded-xl text-xs text-brand-700">
+            <CheckCircle2 className="w-4 h-4 flex-shrink-0" />
+            <span>Dados pré-preenchidos com a última ficha. Revise antes de salvar.</span>
+          </div>
+        )}
 
         <form onSubmit={handleSubmit} className="space-y-5">
           {/* Informações Preventivas */}
