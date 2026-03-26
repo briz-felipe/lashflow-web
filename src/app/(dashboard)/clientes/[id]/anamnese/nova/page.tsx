@@ -10,11 +10,14 @@ import { Textarea } from "@/components/ui/textarea";
 import { useClient } from "@/hooks/useClients";
 import { useAnamneses } from "@/hooks/useAnamnesis";
 import { toast } from "@/components/ui/toaster";
-import { ArrowLeft, Save, AlertTriangle, CheckCircle2, Check } from "lucide-react";
+import { ArrowLeft, Save, AlertTriangle, CheckCircle2, Check, Calendar } from "lucide-react";
 import Link from "next/link";
-import type { AnamnosisProcedureType, AnamnesisHairLoss } from "@/domain/entities";
+import type { AnamnosisProcedureType, AnamnesisHairLoss, Appointment } from "@/domain/entities";
 import type { Procedure } from "@/domain/entities";
 import { procedureService } from "@/services";
+import { useAppointments } from "@/hooks/useAppointments";
+import { format } from "date-fns";
+import { ptBR } from "date-fns/locale";
 
 type YesNo = "yes" | "no" | "";
 
@@ -74,8 +77,16 @@ export default function NovaAnamnesePage() {
   const router = useRouter();
   const { client } = useClient(id);
   const { anamneses, createAnamnesis } = useAnamneses(id);
+  const { appointments } = useAppointments({ clientId: id });
   const [saving, setSaving] = useState(false);
   const [prefilled, setPrefilled] = useState(false);
+  const [selectedAppointmentId, setSelectedAppointmentId] = useState<string>("");
+
+  // Recent appointments (confirmed/completed, most recent first)
+  const recentAppointments = appointments
+    .filter((a) => a.status === "confirmed" || a.status === "completed" || a.status === "in_progress")
+    .sort((a, b) => new Date(b.scheduledAt).getTime() - new Date(a.scheduledAt).getTime())
+    .slice(0, 10);
 
   // Preventive
   const [hasAllergy, setHasAllergy] = useState<YesNo>("");
@@ -175,6 +186,7 @@ export default function NovaAnamnesePage() {
     try {
       await createAnamnesis({
         clientId: id,
+        appointmentId: selectedAppointmentId || undefined,
         hasAllergy: hasAllergy === "yes",
         allergyDetails: allergyDetails || undefined,
         hadEyeSurgeryLast3Months: hadEyeSurgery === "yes",
@@ -225,6 +237,51 @@ export default function NovaAnamnesePage() {
         )}
 
         <form onSubmit={handleSubmit} className="space-y-5">
+          {/* Vincular a agendamento */}
+          {recentAppointments.length > 0 && (
+            <div className="bg-white rounded-2xl border border-brand-100 shadow-card p-5 sm:p-6">
+              <h2 className="font-semibold mb-2 text-brand-700 flex items-center gap-2">
+                <Calendar className="w-4 h-4" />
+                Agendamento
+              </h2>
+              <p className="text-xs text-muted-foreground mb-3">Vincule esta ficha a um atendimento (opcional)</p>
+              <div className="space-y-1.5">
+                <button
+                  type="button"
+                  onClick={() => setSelectedAppointmentId("")}
+                  className={`w-full text-left px-3 py-2 rounded-xl text-sm border transition-all ${
+                    !selectedAppointmentId
+                      ? "bg-brand-50 border-brand-300 text-brand-700 font-medium"
+                      : "bg-white border-brand-100 text-muted-foreground hover:border-brand-200"
+                  }`}
+                >
+                  Sem vínculo
+                </button>
+                {recentAppointments.map((apt) => (
+                  <button
+                    key={apt.id}
+                    type="button"
+                    onClick={() => setSelectedAppointmentId(apt.id)}
+                    className={`w-full text-left px-3 py-2 rounded-xl text-sm border transition-all ${
+                      selectedAppointmentId === apt.id
+                        ? "bg-brand-50 border-brand-300 text-brand-700 font-medium"
+                        : "bg-white border-brand-100 text-muted-foreground hover:border-brand-200"
+                    }`}
+                  >
+                    <span className="font-medium text-foreground">
+                      {format(new Date(apt.scheduledAt), "dd/MM · HH:mm", { locale: ptBR })}
+                    </span>
+                    {" — "}
+                    {apt.procedureName ?? "Procedimento"}
+                    <span className="ml-1 text-xs opacity-60">
+                      ({apt.status === "completed" ? "concluído" : apt.status === "in_progress" ? "em atendimento" : "confirmado"})
+                    </span>
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+
           {/* Informações Preventivas */}
           <div className="bg-white rounded-2xl border border-brand-100 shadow-card p-5 sm:p-6">
             <h2 className="font-semibold mb-5 text-brand-700 flex items-center gap-2">

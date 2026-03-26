@@ -10,6 +10,7 @@ export interface LashMapping {
 export interface Anamnesis {
   id: string;
   clientId: string;
+  appointmentId?: string;
   createdAt: Date;
   updatedAt: Date;
 
