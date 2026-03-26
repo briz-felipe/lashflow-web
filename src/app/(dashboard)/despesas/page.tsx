@@ -33,6 +33,7 @@ import {
   Package,
   ChevronUp,
   BarChart3,
+  Filter,
 } from "lucide-react";
 import type { ExpenseCategory, ExpenseRecurrence } from "@/domain/enums";
 import {
@@ -575,7 +576,15 @@ export default function DespesasPage() {
             onClick={() => setCalOpen((o) => !o)}
             className="w-full flex items-center justify-between px-4 sm:px-5 py-3 hover:bg-brand-50/50 transition-colors"
           >
-            <span className="text-sm font-semibold capitalize">{monthLabel}</span>
+            <div className="flex items-center gap-2">
+              <div className="w-7 h-7 rounded-lg bg-brand-50 flex items-center justify-center">
+                <Filter className="w-3.5 h-3.5 text-brand-600" />
+              </div>
+              <div className="text-left">
+                <p className="text-sm font-semibold capitalize">{monthLabel}</p>
+                <p className="text-[11px] text-muted-foreground">Filtrar por mês</p>
+              </div>
+            </div>
             <ChevronDown className={`w-4 h-4 text-muted-foreground transition-transform ${calOpen ? "rotate-180" : ""}`} />
           </button>
           {calOpen && (
