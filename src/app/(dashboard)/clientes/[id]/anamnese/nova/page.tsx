@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { Topbar } from "@/components/layout/Topbar";
 import { Button } from "@/components/ui/button";
@@ -10,9 +10,11 @@ import { Textarea } from "@/components/ui/textarea";
 import { useClient } from "@/hooks/useClients";
 import { useAnamneses } from "@/hooks/useAnamnesis";
 import { toast } from "@/components/ui/toaster";
-import { ArrowLeft, Save, AlertTriangle, CheckCircle2 } from "lucide-react";
+import { ArrowLeft, Save, AlertTriangle, CheckCircle2, Check } from "lucide-react";
 import Link from "next/link";
 import type { AnamnosisProcedureType, AnamnesisHairLoss } from "@/domain/entities";
+import type { Procedure } from "@/domain/entities";
+import { procedureService } from "@/services";
 
 type YesNo = "yes" | "no" | "";
 
@@ -87,11 +89,38 @@ export default function NovaAnamnesePage() {
   const [blepharitis, setBlepharitis] = useState<YesNo>("");
   const [hasEpilepsy, setHasEpilepsy] = useState<YesNo>("");
 
-  // Service
-  const [procedureType, setProcedureType] = useState<AnamnosisProcedureType>("extension");
+  // Service — procedures from API (multi-select)
+  const [procedures, setProcedures] = useState<Procedure[]>([]);
+  const [selectedProcedureIds, setSelectedProcedureIds] = useState<string[]>([]);
   const [mappingSize, setMappingSize] = useState("");
   const [mappingCurve, setMappingCurve] = useState("");
   const [mappingThickness, setMappingThickness] = useState("");
+
+  useEffect(() => {
+    procedureService.listProcedures().then(setProcedures).catch(() => {});
+  }, []);
+
+  const toggleProcedure = (procId: string) => {
+    setSelectedProcedureIds((prev) =>
+      prev.includes(procId) ? prev.filter((id) => id !== procId) : [...prev, procId]
+    );
+  };
+
+  // Map selected procedures to procedureType for backend compatibility
+  const inferProcedureType = (): AnamnosisProcedureType => {
+    const names = selectedProcedureIds
+      .map((id) => procedures.find((p) => p.id === id)?.name?.toLowerCase() ?? "")
+      .join(" ");
+    if (names.includes("lifting") || names.includes("lash lift")) return "lash_lifting";
+    if (names.includes("permanente")) return "permanent";
+    return "extension";
+  };
+
+  // Check if any selected procedure looks like extension (for mapping fields)
+  const hasExtensionSelected = selectedProcedureIds.some((id) => {
+    const name = procedures.find((p) => p.id === id)?.name?.toLowerCase() ?? "";
+    return !name.includes("lifting") && !name.includes("permanente") && !name.includes("remoção");
+  });
 
   // Authorization + notes
   const [authorizedPhoto, setAuthorizedPhoto] = useState<YesNo>("");
@@ -129,7 +158,7 @@ export default function NovaAnamnesePage() {
         hairLossGrade: hairLoss || undefined,
         proneToBlepharitis: blepharitis === "yes",
         hasEpilepsy: hasEpilepsy === "yes",
-        procedureType,
+        procedureType: inferProcedureType(),
         mapping: mappingSize || mappingCurve || mappingThickness
           ? { size: mappingSize || undefined, curve: mappingCurve || undefined, thickness: mappingThickness || undefined }
           : undefined,
@@ -197,19 +226,33 @@ export default function NovaAnamnesePage() {
 
           {/* Procedimento */}
           <div className="bg-white rounded-2xl border border-brand-100 shadow-card p-5 sm:p-6">
-            <h2 className="font-semibold mb-5 text-brand-700">Procedimento a ser Realizado</h2>
+            <h2 className="font-semibold mb-2 text-brand-700">Procedimentos a Realizar</h2>
+            <p className="text-xs text-muted-foreground mb-4">Selecione um ou mais procedimentos</p>
             <div className="flex flex-wrap gap-2 mb-5">
-              {([["extension", "Extensão de Cílios"], ["permanent", "Permanente de Cílios"], ["lash_lifting", "Lash Lifting"]] as const).map(([val, label]) => (
-                <button key={val} type="button" onClick={() => setProcedureType(val)}
-                  className={`px-4 py-2 rounded-xl text-sm font-medium border transition-all ${
-                    procedureType === val ? "bg-brand-500 text-white border-brand-500" : "bg-white border-brand-100 text-muted-foreground hover:border-brand-300"
-                  }`}>
-                  {label}
-                </button>
-              ))}
+              {procedures.filter((p) => p.isActive).map((proc) => {
+                const isSelected = selectedProcedureIds.includes(proc.id);
+                return (
+                  <button
+                    key={proc.id}
+                    type="button"
+                    onClick={() => toggleProcedure(proc.id)}
+                    className={`flex items-center gap-1.5 px-3 py-2 rounded-xl text-sm font-medium border transition-all ${
+                      isSelected
+                        ? "bg-brand-500 text-white border-brand-500"
+                        : "bg-white border-brand-100 text-muted-foreground hover:border-brand-300"
+                    }`}
+                  >
+                    {isSelected && <Check className="w-3.5 h-3.5" />}
+                    {proc.name}
+                  </button>
+                );
+              })}
+              {procedures.filter((p) => p.isActive).length === 0 && (
+                <p className="text-xs text-muted-foreground italic">Nenhum procedimento cadastrado</p>
+              )}
             </div>
 
-            {procedureType === "extension" && (
+            {hasExtensionSelected && (
               <>
                 <h3 className="font-medium text-sm mb-3 text-brand-600">Mapping Estilo</h3>
                 <div className="grid grid-cols-3 gap-3">
