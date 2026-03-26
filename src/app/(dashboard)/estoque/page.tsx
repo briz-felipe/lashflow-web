@@ -218,11 +218,12 @@ export default function EstoquePage() {
       toast({ title: "Quantidade deve ser maior que 0", variant: "destructive" });
       return;
     }
+    const selectedMat = materials.find((m) => m.id === movForm.materialId);
     const cost = movForm.type === "purchase"
       ? movForm.movTotal
         ? calcFromTotal(movForm.quantity, movForm.movTotal)
-        : Math.round(parseFloat(movForm.unitCostInCents || "0") * 100)
-      : materials.find((m) => m.id === movForm.materialId)?.unitCostInCents ?? 0;
+        : selectedMat?.unitCostInCents ?? Math.round(parseFloat(movForm.unitCostInCents || "0") * 100)
+      : selectedMat?.unitCostInCents ?? 0;
 
     setSaving(true);
     try {
@@ -883,7 +884,9 @@ export default function EstoquePage() {
             {movForm.type === "purchase" && (() => {
               const selectedMat = materials.find((m) => m.id === movForm.materialId);
               const unitLabel = selectedMat ? MATERIAL_UNIT_LABELS[selectedMat.unit] : "unidade";
-              const unitCost = calcFromTotal(movForm.quantity, movForm.movTotal);
+              const qty = parseInt(movForm.quantity) || 1;
+              const catalogTotal = selectedMat ? (selectedMat.unitCostInCents * qty) / 100 : 0;
+              const unitCost = calcFromTotal(movForm.quantity, movForm.movTotal || String(catalogTotal));
               return (
                 <>
                 <div className="p-3 bg-brand-50 rounded-xl border border-brand-100 space-y-2">
@@ -896,13 +899,14 @@ export default function EstoquePage() {
                       type="number" step="0.01"
                       value={movForm.movTotal}
                       onChange={(e) => setMovForm((f) => ({ ...f, movTotal: e.target.value }))}
-                      placeholder="Ex: 75,00"
+                      placeholder={catalogTotal > 0 ? `${catalogTotal.toFixed(2)} (catálogo)` : "Ex: 75,00"}
                       className="mt-1 h-9 text-sm"
                     />
                   </div>
-                  {movForm.movTotal && movForm.quantity && unitCost > 0 && (
+                  {unitCost > 0 && (
                     <p className="text-xs font-medium text-brand-600">
                       = {formatCurrency(unitCost)} por {unitLabel}
+                      {!movForm.movTotal && catalogTotal > 0 && <span className="text-muted-foreground ml-1">(catálogo)</span>}
                     </p>
                   )}
                 </div>
