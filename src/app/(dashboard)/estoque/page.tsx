@@ -42,8 +42,9 @@ import { Topbar } from "@/components/layout/Topbar";
 import { toast } from "@/components/ui/toaster";
 import { useState, useEffect, useCallback } from "react";
 import { expenseService } from "@/services";
+import Link from "next/link";
 import type { Expense } from "@/domain/entities";
-import type { MaterialPurchase } from "@/services/interfaces/IExpenseService";
+import type { MaterialPurchase, LinkedMaterialItem } from "@/services/interfaces/IExpenseService";
 import { CheckCircle2, ChevronDown, ChevronUp } from "lucide-react";
 
 const CATEGORIES = Object.keys(MATERIAL_CATEGORY_LABELS) as MaterialCategory[];
@@ -133,8 +134,19 @@ export default function EstoquePage() {
     }).catch(() => {});
   }, []);
 
-  // Purchases tab: material purchases with linked items (most recent first)
-  const [purchases, setPurchases] = useState<MaterialPurchase[]>([]);
+  // Purchases tab: group installments into single purchase cards
+  interface PurchaseGroup {
+    id: string; // installmentGroupId or expense.id for non-installment
+    name: string;
+    installments: MaterialPurchase[];
+    linkedMaterials: LinkedMaterialItem[];
+    totalAmountInCents: number;
+    paidCount: number;
+    totalInstallments: number;
+    installmentAmountInCents: number;
+    createdAt: Date;
+  }
+  const [purchaseGroups, setPurchaseGroups] = useState<PurchaseGroup[]>([]);
   const [purchasesLoading, setPurchasesLoading] = useState(false);
   const [purchaseExpanded, setPurchaseExpanded] = useState<string | null>(null);
 
@@ -142,18 +154,53 @@ export default function EstoquePage() {
     setPurchasesLoading(true);
     try {
       const data = await expenseService.getMaterialPurchases();
-      // Sort by newest first
-      data.sort((a, b) => new Date(b.expense.createdAt).getTime() - new Date(a.expense.createdAt).getTime());
-      setPurchases(data);
+      // Group by installmentGroupId
+      const groupMap = new Map<string, MaterialPurchase[]>();
+      for (const p of data) {
+        const key = p.expense.installmentGroupId || p.expense.id;
+        if (!groupMap.has(key)) groupMap.set(key, []);
+        groupMap.get(key)!.push(p);
+      }
+      const groups: PurchaseGroup[] = Array.from(groupMap.entries()).map(([key, items]) => {
+        // Sort installments by installmentCurrent
+        items.sort((a, b) => (a.expense.installmentCurrent ?? 1) - (b.expense.installmentCurrent ?? 1));
+        const first = items[0];
+        // Merge all linked materials (deduplicate)
+        const allMaterials = items.flatMap((i) => i.linkedMaterials);
+        const materialMap = new Map<string, LinkedMaterialItem>();
+        for (const m of allMaterials) {
+          const existing = materialMap.get(m.materialName);
+          if (existing) {
+            existing.quantity += m.quantity;
+            existing.totalCostInCents += m.totalCostInCents;
+          } else {
+            materialMap.set(m.materialName, { ...m });
+          }
+        }
+        return {
+          id: key,
+          name: first.expense.name,
+          installments: items,
+          linkedMaterials: Array.from(materialMap.values()),
+          totalAmountInCents: items.reduce((sum, i) => sum + i.expense.amountInCents, 0),
+          paidCount: items.filter((i) => i.expense.isPaid).length,
+          totalInstallments: items.length,
+          installmentAmountInCents: first.expense.amountInCents,
+          createdAt: new Date(first.expense.createdAt),
+        };
+      });
+      // Sort newest first
+      groups.sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
+      setPurchaseGroups(groups);
     } catch { /* silently fail */ }
     finally { setPurchasesLoading(false); }
   }, []);
 
   useEffect(() => {
-    if (tab === "purchases" && purchases.length === 0) {
+    if (tab === "purchases" && purchaseGroups.length === 0) {
       loadPurchases();
     }
-  }, [tab, purchases.length, loadPurchases]);
+  }, [tab, purchaseGroups.length, loadPurchases]);
 
   const handleCreateMaterial = async () => {
     if (!matForm.name.trim()) {
@@ -658,54 +705,50 @@ export default function EstoquePage() {
           <div className="space-y-3">
             {purchasesLoading ? (
               <p className="text-center text-sm text-muted-foreground py-8">Carregando...</p>
-            ) : purchases.length === 0 ? (
+            ) : purchaseGroups.length === 0 ? (
               <div className="text-center py-12">
                 <ShoppingCart className="w-8 h-8 text-muted-foreground/40 mx-auto mb-2" />
                 <p className="text-sm text-muted-foreground">Nenhuma compra de material registrada</p>
-                <p className="text-xs text-muted-foreground mt-1">Crie uma compra em Despesas → Material</p>
+                <p className="text-xs text-muted-foreground mt-1">Crie uma compra em Despesas &rarr; Material</p>
               </div>
             ) : (
-              purchases.map((p) => {
-                const isExpanded = purchaseExpanded === p.expense.id;
-                const subtotal = p.linkedMaterials.reduce((sum, item) => sum + item.totalCostInCents, 0);
-                const totalExpense = p.expense.installmentTotal && p.expense.installmentTotal > 1
-                  ? p.expense.amountInCents * p.expense.installmentTotal
-                  : p.expense.amountInCents;
+              purchaseGroups.map((g) => {
+                const isExpanded = purchaseExpanded === g.id;
+                const subtotal = g.linkedMaterials.reduce((sum, item) => sum + item.totalCostInCents, 0);
+                const allPaid = g.paidCount === g.totalInstallments;
+                const isInstallment = g.totalInstallments > 1;
                 return (
-                  <div key={p.expense.id} className={`bg-white rounded-2xl border shadow-card overflow-hidden transition-all ${
-                    p.expense.isPaid ? "border-emerald-100" : "border-amber-100"
+                  <div key={g.id} className={`bg-white rounded-2xl border shadow-card overflow-hidden transition-all ${
+                    allPaid ? "border-emerald-100" : "border-amber-100"
                   }`}>
                     <button
-                      onClick={() => setPurchaseExpanded(isExpanded ? null : p.expense.id)}
+                      onClick={() => setPurchaseExpanded(isExpanded ? null : g.id)}
                       className="w-full flex items-center gap-3 px-4 py-3 hover:bg-brand-50/50 transition-colors text-left"
                     >
                       <div className={`w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0 ${
-                        p.expense.isPaid ? "bg-emerald-50" : "bg-amber-50"
+                        allPaid ? "bg-emerald-50" : "bg-amber-50"
                       }`}>
-                        <ShoppingCart className={`w-4 h-4 ${p.expense.isPaid ? "text-emerald-600" : "text-amber-600"}`} />
+                        <ShoppingCart className={`w-4 h-4 ${allPaid ? "text-emerald-600" : "text-amber-600"}`} />
                       </div>
                       <div className="flex-1 min-w-0">
-                        <p className="text-sm font-semibold truncate">{p.expense.name}</p>
+                        <p className="text-sm font-semibold truncate">{g.name}</p>
                         <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                          {p.expense.isPaid ? (
+                          {allPaid ? (
                             <span className="text-emerald-600 font-medium flex items-center gap-0.5">
                               <CheckCircle2 className="w-3 h-3" /> Pago
                             </span>
                           ) : (
-                            <span className="text-amber-600 font-medium">Pendente</span>
-                          )}
-                          {p.expense.installmentTotal && p.expense.installmentTotal > 1 && (
-                            <span className="font-semibold text-brand-600">
-                              {p.expense.installmentCurrent}/{p.expense.installmentTotal}x
+                            <span className="text-amber-600 font-medium">
+                              {g.paidCount}/{g.totalInstallments} pago{g.paidCount !== 1 ? "s" : ""}
                             </span>
                           )}
-                          <span>{p.linkedMaterials.length} ite{p.linkedMaterials.length !== 1 ? "ns" : "m"}</span>
+                          <span>{g.linkedMaterials.length} ite{g.linkedMaterials.length !== 1 ? "ns" : "m"}</span>
                         </div>
                       </div>
                       <div className="text-right flex-shrink-0">
-                        <p className="text-sm font-bold">{formatCurrency(totalExpense)}</p>
-                        {p.expense.installmentTotal && p.expense.installmentTotal > 1 && (
-                          <p className="text-[10px] text-muted-foreground">{p.expense.installmentTotal}x {formatCurrency(p.expense.amountInCents)}</p>
+                        <p className="text-sm font-bold">{formatCurrency(g.totalAmountInCents)}</p>
+                        {isInstallment && (
+                          <p className="text-[10px] text-muted-foreground">{g.totalInstallments}x {formatCurrency(g.installmentAmountInCents)}</p>
                         )}
                       </div>
                       {isExpanded ? <ChevronUp className="w-4 h-4 text-muted-foreground flex-shrink-0" /> : <ChevronDown className="w-4 h-4 text-muted-foreground flex-shrink-0" />}
@@ -713,25 +756,51 @@ export default function EstoquePage() {
 
                     {isExpanded && (
                       <div className="border-t border-brand-50 px-4 py-3 space-y-3">
-                        {/* Detalhes financeiros */}
+                        {/* Parcelas */}
+                        {isInstallment && (
+                          <div>
+                            <p className="text-xs font-semibold text-muted-foreground mb-2">Parcelas</p>
+                            <div className="flex flex-wrap gap-1.5">
+                              {g.installments.map((inst, i) => (
+                                <span
+                                  key={i}
+                                  className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold ${
+                                    inst.expense.isPaid
+                                      ? "bg-emerald-50 text-emerald-700"
+                                      : "bg-amber-50 text-amber-700"
+                                  }`}
+                                >
+                                  {i + 1}x
+                                  {inst.expense.isPaid ? (
+                                    <CheckCircle2 className="w-2.5 h-2.5" />
+                                  ) : (
+                                    <span className="w-2 h-2 rounded-full bg-amber-400" />
+                                  )}
+                                </span>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+
+                        {/* Resumo financeiro */}
                         <div className="grid grid-cols-2 gap-2 text-xs">
                           <div className="bg-brand-50/50 rounded-lg p-2">
                             <p className="text-muted-foreground">Valor total</p>
-                            <p className="font-semibold">{formatCurrency(totalExpense)}</p>
+                            <p className="font-semibold">{formatCurrency(g.totalAmountInCents)}</p>
                           </div>
-                          {p.expense.installmentTotal && p.expense.installmentTotal > 1 && (
-                            <div className="bg-brand-50/50 rounded-lg p-2">
-                              <p className="text-muted-foreground">Parcela</p>
-                              <p className="font-semibold">{formatCurrency(p.expense.amountInCents)} ({p.expense.installmentCurrent}/{p.expense.installmentTotal})</p>
-                            </div>
-                          )}
+                          <div className="bg-brand-50/50 rounded-lg p-2">
+                            <p className="text-muted-foreground">Pago</p>
+                            <p className="font-semibold text-emerald-600">
+                              {formatCurrency(g.installments.filter((i) => i.expense.isPaid).reduce((s, i) => s + i.expense.amountInCents, 0))}
+                            </p>
+                          </div>
                         </div>
 
                         {/* Itens da compra */}
-                        {p.linkedMaterials.length > 0 ? (
+                        {g.linkedMaterials.length > 0 ? (
                           <div className="space-y-2">
                             <p className="text-xs font-semibold text-muted-foreground">Itens da compra</p>
-                            {p.linkedMaterials.map((item, i) => (
+                            {g.linkedMaterials.map((item, i) => (
                               <div key={i} className="flex items-center justify-between text-sm">
                                 <div className="flex items-center gap-2 min-w-0">
                                   <span className="w-5 h-5 rounded bg-brand-50 flex items-center justify-center text-[10px] font-bold text-brand-600 flex-shrink-0">
@@ -742,7 +811,7 @@ export default function EstoquePage() {
                                 <span className="text-muted-foreground flex-shrink-0">{formatCurrency(item.totalCostInCents)}</span>
                               </div>
                             ))}
-                            {p.linkedMaterials.length > 1 && (
+                            {g.linkedMaterials.length > 1 && (
                               <div className="flex items-center justify-between text-xs pt-1.5 mt-1.5 border-t border-dashed border-brand-100">
                                 <span className="text-muted-foreground">Subtotal itens</span>
                                 <span className="font-semibold text-brand-700">{formatCurrency(subtotal)}</span>
@@ -752,6 +821,16 @@ export default function EstoquePage() {
                         ) : (
                           <p className="text-xs text-muted-foreground italic">Nenhum material vinculado ainda.</p>
                         )}
+
+                        {/* Link para despesas */}
+                        <div className="pt-1">
+                          <Link
+                            href="/despesas?tab=material"
+                            className="text-xs text-brand-600 hover:text-brand-700 font-medium hover:underline"
+                          >
+                            Ver em Despesas &rarr;
+                          </Link>
+                        </div>
                       </div>
                     )}
                   </div>
