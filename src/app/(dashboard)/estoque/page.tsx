@@ -68,9 +68,8 @@ const MOVEMENT_BG: Record<StockMovementType, string> = {
 type Tab = "materials" | "movements";
 
 const MAT_FORM_DEFAULT = {
-  name: "", category: "essenciais" as MaterialCategory, unit: "un" as MaterialUnit,
-  unitCostInCents: "", minimumStock: "1", initialStock: "0", notes: "",
-  pkgItems: "", pkgTotal: "",
+  name: "", category: "material" as MaterialCategory, unit: "un" as MaterialUnit,
+  minimumStock: "1", initialStock: "0", notes: "",
 };
 const MOV_FORM_DEFAULT = {
   materialId: "", type: "purchase" as StockMovementType,
@@ -147,14 +146,11 @@ export default function EstoquePage() {
     }
     setSaving(true);
     try {
-      const unitCostInCents = PACKAGE_UNITS.has(matForm.unit)
-        ? calcFromPackage(matForm.pkgItems, matForm.pkgTotal)
-        : Math.round(parseFloat(matForm.unitCostInCents || "0") * 100);
       await createMaterial({
         name: matForm.name,
         category: matForm.category,
         unit: matForm.unit,
-        unitCostInCents,
+        unitCostInCents: 0,
         minimumStock: parseInt(matForm.minimumStock) || 1,
         initialStock: parseInt(matForm.initialStock) || 0,
         notes: matForm.notes || undefined,
@@ -169,14 +165,13 @@ export default function EstoquePage() {
   };
 
   // ── Edit material ────────────────────────────────────────────────────────────
-  const [editForm, setEditForm] = useState({ name: "", category: "" as MaterialCategory, unit: "" as MaterialUnit, unitCostInCents: "", minimumStock: "", notes: "" });
+  const [editForm, setEditForm] = useState({ name: "", category: "" as MaterialCategory, unit: "" as MaterialUnit, minimumStock: "", notes: "" });
 
   function openEditModal(mat: Material) {
     setEditForm({
       name: mat.name,
       category: mat.category,
       unit: mat.unit,
-      unitCostInCents: (mat.unitCostInCents / 100).toFixed(2),
       minimumStock: String(mat.minimumStock),
       notes: mat.notes ?? "",
     });
@@ -191,7 +186,6 @@ export default function EstoquePage() {
         name: editForm.name,
         category: editForm.category,
         unit: editForm.unit,
-        unitCostInCents: Math.round(parseFloat(editForm.unitCostInCents || "0") * 100),
         minimumStock: parseInt(editForm.minimumStock) || 1,
         notes: editForm.notes || undefined,
       });
@@ -678,52 +672,7 @@ export default function EstoquePage() {
                 </Select>
               </div>
             </div>
-            {/* Unit cost: calculator for package units, direct input for others */}
-            {PACKAGE_UNITS.has(matForm.unit) ? (
-              <div className="p-3 bg-brand-50 rounded-xl border border-brand-100 space-y-2">
-                <p className="text-xs font-semibold text-brand-700 flex items-center gap-1.5">
-                  <Calculator className="w-3.5 h-3.5" /> Calculadora de custo
-                </p>
-                <div className="grid grid-cols-2 gap-2">
-                  <div>
-                    <Label className="text-xs">Itens por embalagem</Label>
-                    <Input
-                      type="number" min="1"
-                      value={matForm.pkgItems}
-                      onChange={(e) => setMatForm((f) => ({ ...f, pkgItems: e.target.value }))}
-                      placeholder="Ex: 20"
-                      className="mt-1 h-9 text-sm"
-                    />
-                  </div>
-                  <div>
-                    <Label className="text-xs">Valor da embalagem (R$)</Label>
-                    <Input
-                      type="number" step="0.01"
-                      value={matForm.pkgTotal}
-                      onChange={(e) => setMatForm((f) => ({ ...f, pkgTotal: e.target.value }))}
-                      placeholder="Ex: 35,00"
-                      className="mt-1 h-9 text-sm"
-                    />
-                  </div>
-                </div>
-                {matForm.pkgItems && matForm.pkgTotal && parseInt(matForm.pkgItems) > 0 && parseFloat(matForm.pkgTotal) > 0 && (
-                  <p className="text-xs font-medium text-brand-600">
-                    = {formatCurrency(calcFromPackage(matForm.pkgItems, matForm.pkgTotal))} por unidade
-                  </p>
-                )}
-              </div>
-            ) : (
-              <div>
-                <Label>Custo Unit. (R$)</Label>
-                <Input
-                  type="number" step="0.01"
-                  value={matForm.unitCostInCents}
-                  onChange={(e) => setMatForm((f) => ({ ...f, unitCostInCents: e.target.value }))}
-                  placeholder="0,00"
-                  className="mt-1.5"
-                />
-              </div>
-            )}
+            {/* Custo unitário é gerenciado nas movimentações de compra */}
             <div className="grid grid-cols-2 gap-3">
               <div>
                 <Label>Estoque Inicial</Label>
@@ -802,26 +751,14 @@ export default function EstoquePage() {
                 </Select>
               </div>
             </div>
-            <div className="grid grid-cols-2 gap-3">
-              <div>
-                <Label>Custo Unitário (R$)</Label>
-                <Input
-                  type="number"
-                  step="0.01"
-                  value={editForm.unitCostInCents}
-                  onChange={(e) => setEditForm((f) => ({ ...f, unitCostInCents: e.target.value }))}
-                  className="mt-1.5"
-                />
-              </div>
-              <div>
-                <Label>Alerta (mín)</Label>
-                <Input
-                  type="number"
-                  value={editForm.minimumStock}
-                  onChange={(e) => setEditForm((f) => ({ ...f, minimumStock: e.target.value }))}
-                  className="mt-1.5"
-                />
-              </div>
+            <div>
+              <Label>Alerta (mín)</Label>
+              <Input
+                type="number"
+                value={editForm.minimumStock}
+                onChange={(e) => setEditForm((f) => ({ ...f, minimumStock: e.target.value }))}
+                className="mt-1.5"
+              />
             </div>
             <div>
               <Label>Observações</Label>

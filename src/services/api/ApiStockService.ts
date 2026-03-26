@@ -23,7 +23,7 @@ export class ApiStockService implements IStockService {
   }
 
   updateMaterial(id: string, input: UpdateMaterialInput): Promise<Material> {
-    return api.patch(`/stock/materials/${id}`, input);
+    return api.put(`/stock/materials/${id}`, input);
   }
 
   deleteMaterial(id: string): Promise<void> {
