@@ -32,6 +32,7 @@ import {
   ChevronDown,
   Package,
   ChevronUp,
+  BarChart3,
 } from "lucide-react";
 import type { ExpenseCategory, ExpenseRecurrence } from "@/domain/enums";
 import {
@@ -411,6 +412,7 @@ export default function DespesasPage() {
   const [viewYear, setViewYear] = useState(() => new Date().getFullYear());
   const [catFilter, setCatFilter] = useState<string>("all");
   const [paidFilter, setPaidFilter] = useState<"all" | "paid" | "pending">("all");
+  const [catBreakdownOpen, setCatBreakdownOpen] = useState(false);
 
   // Custom categories
   const [customCategories, setCustomCategories] = useState<CustomCategory[]>([]);
@@ -669,22 +671,43 @@ export default function DespesasPage() {
           </div>
         </div>
 
-        {/* Category breakdown */}
-        {summary && Object.keys(summary.byCategory).length > 0 && (
-          <div className="bg-white rounded-2xl border border-brand-100 shadow-card p-4 sm:p-5">
-            <h3 className="font-semibold mb-3 text-sm">Por Categoria</h3>
-            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6 gap-2">
-              {(Object.entries(summary.byCategory) as [string, number][])
-                .sort(([, a], [, b]) => b - a)
-                .map(([cat, amount]) => (
-                  <div key={cat} className={`rounded-xl p-3 ${getCategoryColor(cat, customCategories).split(" ")[0]}`}>
-                    <p className="text-xs text-muted-foreground truncate">{getCategoryLabel(cat, customCategories)}</p>
-                    <p className="text-sm font-bold mt-1">{formatCurrency(amount)}</p>
+        {/* Category breakdown — collapsible */}
+        {summary && Object.keys(summary.byCategory).length > 0 && (() => {
+          const catCount = Object.keys(summary.byCategory).length;
+          return (
+            <div className="bg-white rounded-2xl border border-brand-100 shadow-card overflow-hidden">
+              <button
+                onClick={() => setCatBreakdownOpen((v) => !v)}
+                className="w-full flex items-center justify-between px-4 sm:px-5 py-3 hover:bg-brand-50/50 transition-colors"
+              >
+                <div className="flex items-center gap-2">
+                  <div className="w-7 h-7 rounded-lg bg-brand-50 flex items-center justify-center">
+                    <BarChart3 className="w-3.5 h-3.5 text-brand-600" />
                   </div>
-                ))}
+                  <div className="text-left">
+                    <p className="text-sm font-semibold">Por Categoria</p>
+                    <p className="text-[11px] text-muted-foreground">{catCount} categoria{catCount !== 1 ? "s" : ""} neste mês</p>
+                  </div>
+                </div>
+                {catBreakdownOpen ? <ChevronUp className="w-4 h-4 text-muted-foreground" /> : <ChevronDown className="w-4 h-4 text-muted-foreground" />}
+              </button>
+              {catBreakdownOpen && (
+                <div className="border-t border-brand-50 px-4 sm:px-5 py-3">
+                  <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6 gap-2">
+                    {(Object.entries(summary.byCategory) as [string, number][])
+                      .sort(([, a], [, b]) => b - a)
+                      .map(([cat, amount]) => (
+                        <div key={cat} className={`rounded-xl p-3 ${getCategoryColor(cat, customCategories).split(" ")[0]}`}>
+                          <p className="text-xs text-muted-foreground truncate">{getCategoryLabel(cat, customCategories)}</p>
+                          <p className="text-sm font-bold mt-1">{formatCurrency(amount)}</p>
+                        </div>
+                      ))}
+                  </div>
+                </div>
+              )}
             </div>
-          </div>
-        )}
+          );
+        })()}
 
         {/* Action bar: filters + add button */}
         <div className="flex flex-wrap items-center gap-2">
