@@ -73,8 +73,7 @@ const MAT_FORM_DEFAULT = {
 };
 const MOV_FORM_DEFAULT = {
   materialId: "", type: "purchase" as StockMovementType,
-  quantity: "1", unitCostInCents: "", notes: "",
-  movTotal: "", // total value of the purchase; unit cost = movTotal / quantity
+  quantity: "1", unitPrice: "", notes: "",
   expenseId: "", // optional link to a material expense
 };
 
@@ -86,13 +85,6 @@ function calcFromPackage(pkgItems: string, pkgTotal: string): number {
   const total = parseFloat(pkgTotal) || 0;
   if (items <= 0 || total <= 0) return 0;
   return Math.round((total / items) * 100);
-}
-
-function calcFromTotal(quantity: string, total: string): number {
-  const qty = parseInt(quantity) || 0;
-  const totalVal = parseFloat(total) || 0;
-  if (qty <= 0 || totalVal <= 0) return 0;
-  return Math.round((totalVal / qty) * 100);
 }
 
 export default function EstoquePage() {
@@ -222,9 +214,7 @@ export default function EstoquePage() {
     }
     const selectedMat = materials.find((m) => m.id === movForm.materialId);
     const cost = movForm.type === "purchase"
-      ? movForm.movTotal
-        ? calcFromTotal(movForm.quantity, movForm.movTotal)
-        : selectedMat?.unitCostInCents ?? Math.round(parseFloat(movForm.unitCostInCents || "0") * 100)
+      ? Math.round(parseFloat(movForm.unitPrice || "0") * 100)
       : selectedMat?.unitCostInCents ?? 0;
 
     setSaving(true);
@@ -831,8 +821,8 @@ export default function EstoquePage() {
               const selectedMat = materials.find((m) => m.id === movForm.materialId);
               const unitLabel = selectedMat ? MATERIAL_UNIT_LABELS[selectedMat.unit] : "unidade";
               const qty = parseInt(movForm.quantity) || 1;
-              const catalogTotal = selectedMat ? (selectedMat.unitCostInCents * qty) / 100 : 0;
-              const unitCost = calcFromTotal(movForm.quantity, movForm.movTotal || String(catalogTotal));
+              const unitPrice = parseFloat(movForm.unitPrice || "0");
+              const totalCalc = unitPrice * qty;
               return (
                 <>
                 <div className="p-3 bg-brand-50 rounded-xl border border-brand-100 space-y-2">
@@ -840,19 +830,18 @@ export default function EstoquePage() {
                     <Calculator className="w-3.5 h-3.5" /> Valor da compra
                   </p>
                   <div>
-                    <Label className="text-xs">Total pago (R$)</Label>
+                    <Label className="text-xs">Valor por {unitLabel} (R$)</Label>
                     <Input
                       type="number" step="0.01"
-                      value={movForm.movTotal}
-                      onChange={(e) => setMovForm((f) => ({ ...f, movTotal: e.target.value }))}
-                      placeholder={catalogTotal > 0 ? `${catalogTotal.toFixed(2)} (catálogo)` : "Ex: 75,00"}
+                      value={movForm.unitPrice}
+                      onChange={(e) => setMovForm((f) => ({ ...f, unitPrice: e.target.value }))}
+                      placeholder="Ex: 12,50"
                       className="mt-1 h-9 text-sm"
                     />
                   </div>
-                  {unitCost > 0 && (
+                  {totalCalc > 0 && (
                     <p className="text-xs font-medium text-brand-600">
-                      = {formatCurrency(unitCost)} por {unitLabel}
-                      {!movForm.movTotal && catalogTotal > 0 && <span className="text-muted-foreground ml-1">(catálogo)</span>}
+                      Total: {formatCurrency(Math.round(totalCalc * 100))} ({qty}x {formatCurrency(Math.round(unitPrice * 100))})
                     </p>
                   )}
                 </div>
