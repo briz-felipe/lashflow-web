@@ -70,7 +70,18 @@ export function useStockMovements(filters?: { materialId?: string; from?: Date; 
 
   useEffect(() => { load(); }, [load]);
 
-  return { movements, loading, reload: load };
+  const updateMovement = useCallback(async (id: string, input: Partial<Pick<StockMovement, "quantity" | "unitCostInCents" | "expenseId" | "notes">>) => {
+    const mov = await stockService.updateMovement(id, input);
+    await load();
+    return mov;
+  }, [load]);
+
+  const deleteMovement = useCallback(async (id: string) => {
+    await stockService.deleteMovement(id);
+    await load();
+  }, [load]);
+
+  return { movements, loading, reload: load, updateMovement, deleteMovement };
 }
 
 export function useStockAlerts() {

@@ -92,6 +92,21 @@ export class MockStockService implements IStockService {
     return movement;
   }
 
+  async updateMovement(id: string, input: Partial<Pick<StockMovement, "quantity" | "unitCostInCents" | "expenseId" | "notes">>): Promise<StockMovement> {
+    const mov = this.movements.find((m) => m.id === id);
+    if (!mov) throw new Error("Movement não encontrado");
+    Object.assign(mov, input);
+    if (input.quantity || input.unitCostInCents) {
+      mov.totalCostInCents = (input.quantity ?? mov.quantity) * (input.unitCostInCents ?? mov.unitCostInCents);
+    }
+    return mov;
+  }
+
+  async deleteMovement(id: string): Promise<void> {
+    const idx = this.movements.findIndex((m) => m.id === id);
+    if (idx >= 0) this.movements.splice(idx, 1);
+  }
+
   async getLowStockAlerts(): Promise<StockAlert[]> {
     return this.materials
       .filter((m) => m.isActive && m.currentStock <= m.minimumStock)

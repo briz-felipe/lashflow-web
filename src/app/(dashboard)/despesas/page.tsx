@@ -553,41 +553,7 @@ export default function DespesasPage() {
           </button>
         </div>
 
-        {activeTab === "despesas" && (<>
-        {/* Stats — compact layout */}
-        <div className="space-y-2">
-          <div className="bg-white rounded-2xl border border-brand-100 shadow-card px-4 py-3 flex items-center gap-3">
-            <div className="w-8 h-8 rounded-lg bg-brand-100 flex items-center justify-center flex-shrink-0">
-              <DollarSign className="w-4 h-4 text-brand-600" />
-            </div>
-            <div className="flex-1 min-w-0">
-              <p className="text-[11px] text-muted-foreground font-medium">Total do mês</p>
-              <p className="text-lg font-bold text-foreground truncate">{formatCurrency(summary?.totalInCents ?? 0)}</p>
-            </div>
-          </div>
-          <div className="grid grid-cols-2 gap-2">
-            <div className="bg-white rounded-2xl border border-brand-100 shadow-card px-3 py-2.5 flex items-center gap-2.5">
-              <div className="w-7 h-7 rounded-lg bg-emerald-100 flex items-center justify-center flex-shrink-0">
-                <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
-              </div>
-              <div className="min-w-0">
-                <p className="text-[10px] text-muted-foreground font-medium">Pago</p>
-                <p className="text-sm font-bold text-foreground truncate">{formatCurrency(summary?.paidInCents ?? 0)}</p>
-              </div>
-            </div>
-            <div className="bg-white rounded-2xl border border-brand-100 shadow-card px-3 py-2.5 flex items-center gap-2.5">
-              <div className={`w-7 h-7 rounded-lg flex items-center justify-center flex-shrink-0 ${summary?.pendingInCents ? "bg-red-100" : "bg-emerald-100"}`}>
-                <AlertCircle className={`w-3.5 h-3.5 ${summary?.pendingInCents ? "text-red-600" : "text-emerald-600"}`} />
-              </div>
-              <div className="min-w-0">
-                <p className="text-[10px] text-muted-foreground font-medium">Pendente</p>
-                <p className="text-sm font-bold text-foreground truncate">{formatCurrency(summary?.pendingInCents ?? 0)}</p>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        {/* Month calendar picker — collapsible */}
+        {/* Month calendar picker — collapsible (shared between tabs) */}
         <div className="bg-white rounded-2xl border border-brand-100 shadow-card overflow-hidden">
           <button
             onClick={() => setCalOpen((o) => !o)}
@@ -653,6 +619,40 @@ export default function DespesasPage() {
               </div>
             </div>
           )}
+        </div>
+
+        {activeTab === "despesas" && (<>
+        {/* Stats — compact layout */}
+        <div className="space-y-2">
+          <div className="bg-white rounded-2xl border border-brand-100 shadow-card px-4 py-3 flex items-center gap-3">
+            <div className="w-8 h-8 rounded-lg bg-brand-100 flex items-center justify-center flex-shrink-0">
+              <DollarSign className="w-4 h-4 text-brand-600" />
+            </div>
+            <div className="flex-1 min-w-0">
+              <p className="text-[11px] text-muted-foreground font-medium">Total do mês</p>
+              <p className="text-lg font-bold text-foreground truncate">{formatCurrency(summary?.totalInCents ?? 0)}</p>
+            </div>
+          </div>
+          <div className="grid grid-cols-2 gap-2">
+            <div className="bg-white rounded-2xl border border-brand-100 shadow-card px-3 py-2.5 flex items-center gap-2.5">
+              <div className="w-7 h-7 rounded-lg bg-emerald-100 flex items-center justify-center flex-shrink-0">
+                <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
+              </div>
+              <div className="min-w-0">
+                <p className="text-[10px] text-muted-foreground font-medium">Pago</p>
+                <p className="text-sm font-bold text-foreground truncate">{formatCurrency(summary?.paidInCents ?? 0)}</p>
+              </div>
+            </div>
+            <div className="bg-white rounded-2xl border border-brand-100 shadow-card px-3 py-2.5 flex items-center gap-2.5">
+              <div className={`w-7 h-7 rounded-lg flex items-center justify-center flex-shrink-0 ${summary?.pendingInCents ? "bg-red-100" : "bg-emerald-100"}`}>
+                <AlertCircle className={`w-3.5 h-3.5 ${summary?.pendingInCents ? "text-red-600" : "text-emerald-600"}`} />
+              </div>
+              <div className="min-w-0">
+                <p className="text-[10px] text-muted-foreground font-medium">Pendente</p>
+                <p className="text-sm font-bold text-foreground truncate">{formatCurrency(summary?.pendingInCents ?? 0)}</p>
+              </div>
+            </div>
+          </div>
         </div>
 
         {/* Category breakdown */}

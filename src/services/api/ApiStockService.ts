@@ -43,6 +43,14 @@ export class ApiStockService implements IStockService {
     return api.post("/stock/movements", input);
   }
 
+  updateMovement(id: string, input: Partial<Pick<StockMovement, "quantity" | "unitCostInCents" | "expenseId" | "notes">>): Promise<StockMovement> {
+    return api.put(`/stock/movements/${id}`, input);
+  }
+
+  deleteMovement(id: string): Promise<void> {
+    return api.delete(`/stock/movements/${id}`);
+  }
+
   async getLowStockAlerts(): Promise<StockAlert[]> {
     const materials = await api.get<Material[]>("/stock/materials/alerts");
     return materials.map((m) => ({

@@ -111,7 +111,7 @@ export default function EstoquePage() {
     category: catFilter !== "all" ? catFilter : undefined,
     lowStock: lowStockOnly || undefined,
   });
-  const { movements, loading: movLoading, reload: reloadMovements } = useStockMovements();
+  const { movements, loading: movLoading, reload: reloadMovements, updateMovement, deleteMovement } = useStockMovements();
   const { alerts } = useStockAlerts();
   const { monthlyCosts, totalValue, loading: analyticsLoading } = useStockAnalytics();
 
@@ -240,6 +240,15 @@ export default function EstoquePage() {
       setMovOpen(false);
     } finally {
       setSaving(false);
+    }
+  };
+
+  const handleDeleteMovement = async (id: string) => {
+    try {
+      await deleteMovement(id);
+      toast({ title: "Movimentação removida", variant: "success" });
+    } catch {
+      toast({ title: "Erro ao remover movimentação", variant: "destructive" });
     }
   };
 
@@ -529,9 +538,18 @@ export default function EstoquePage() {
                       <span className={`text-sm font-bold ${MOVEMENT_COLOR[mov.type]}`}>
                         {mov.type === "usage" ? `-${mov.quantity}` : `+${mov.quantity}`} {mat ? MATERIAL_UNIT_LABELS[mat.unit] : ""}
                       </span>
-                      <span className="text-sm font-semibold text-foreground">
-                        {mov.totalCostInCents > 0 ? formatCurrency(mov.totalCostInCents) : "—"}
-                      </span>
+                      <div className="flex items-center gap-2">
+                        <span className="text-sm font-semibold text-foreground">
+                          {mov.totalCostInCents > 0 ? formatCurrency(mov.totalCostInCents) : "—"}
+                        </span>
+                        <Button
+                          size="sm" variant="ghost"
+                          className="h-7 w-7 p-0 text-red-300 hover:text-red-600 hover:bg-red-50"
+                          onClick={() => handleDeleteMovement(mov.id)}
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </Button>
+                      </div>
                     </div>
                   </div>
                 );
@@ -552,6 +570,7 @@ export default function EstoquePage() {
                       <th className="text-left text-xs font-semibold text-muted-foreground px-4 py-3">Material</th>
                       <th className="text-center text-xs font-semibold text-muted-foreground px-4 py-3">Qtd</th>
                       <th className="text-right text-xs font-semibold text-muted-foreground px-5 py-3">Valor</th>
+                      <th className="w-10"></th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-brand-50">
@@ -580,12 +599,21 @@ export default function EstoquePage() {
                           <td className="px-5 py-3 text-right text-sm font-semibold">
                             {mov.totalCostInCents > 0 ? formatCurrency(mov.totalCostInCents) : "—"}
                           </td>
+                          <td className="px-2 py-3">
+                            <Button
+                              size="sm" variant="ghost"
+                              className="h-7 w-7 p-0 text-red-300 hover:text-red-600 hover:bg-red-50"
+                              onClick={() => handleDeleteMovement(mov.id)}
+                            >
+                              <Trash2 className="w-3.5 h-3.5" />
+                            </Button>
+                          </td>
                         </tr>
                       );
                     })}
                     {!movLoading && movements.length === 0 && (
                       <tr>
-                        <td colSpan={5} className="text-center py-8 text-sm text-muted-foreground">
+                        <td colSpan={6} className="text-center py-8 text-sm text-muted-foreground">
                           Nenhuma movimentação registrada
                         </td>
                       </tr>

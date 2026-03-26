@@ -25,6 +25,8 @@ export interface IStockService {
   // Stock movements
   listMovements(filters?: { materialId?: string; from?: Date; to?: Date }): Promise<StockMovement[]>;
   createMovement(input: CreateStockMovementInput): Promise<StockMovement>;
+  updateMovement(id: string, input: Partial<Pick<StockMovement, "quantity" | "unitCostInCents" | "expenseId" | "notes">>): Promise<StockMovement>;
+  deleteMovement(id: string): Promise<void>;
 
   // Analytics
   getLowStockAlerts(): Promise<StockAlert[]>;
