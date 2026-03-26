@@ -106,12 +106,18 @@ export type MaterialCategory =
   | "cilios"
   | "cola"
   | "descartaveis"
-  | "outros";
+  | "outros"
+  | "material_de_limpeza"
+  | "brindes"
+  | "material";
 
 export const MATERIAL_CATEGORY_LABELS: Record<MaterialCategory, string> = {
+  material: "Material",
   cilios: "Cílios",
   cola: "Cola",
   descartaveis: "Descartáveis",
+  material_de_limpeza: "Material de Limpeza",
+  brindes: "Brindes",
   outros: "Outros",
 };
 
