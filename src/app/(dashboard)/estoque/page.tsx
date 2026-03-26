@@ -165,23 +165,13 @@ export default function EstoquePage() {
         // Sort installments by installmentCurrent
         items.sort((a, b) => (a.expense.installmentCurrent ?? 1) - (b.expense.installmentCurrent ?? 1));
         const first = items[0];
-        // Merge all linked materials (deduplicate)
-        const allMaterials = items.flatMap((i) => i.linkedMaterials);
-        const materialMap = new Map<string, LinkedMaterialItem>();
-        for (const m of allMaterials) {
-          const existing = materialMap.get(m.materialName);
-          if (existing) {
-            existing.quantity += m.quantity;
-            existing.totalCostInCents += m.totalCostInCents;
-          } else {
-            materialMap.set(m.materialName, { ...m });
-          }
-        }
+        // Use linked materials from first installment only (all installments share the same links)
+        const linkedMaterials = first.linkedMaterials.map((m) => ({ ...m }));
         return {
           id: key,
           name: first.expense.name,
           installments: items,
-          linkedMaterials: Array.from(materialMap.values()),
+          linkedMaterials,
           totalAmountInCents: items.reduce((sum, i) => sum + i.expense.amountInCents, 0),
           paidCount: items.filter((i) => i.expense.isPaid).length,
           totalInstallments: items.length,
@@ -376,10 +366,10 @@ export default function EstoquePage() {
 
         {/* Tabs + actions */}
         <div className="flex items-center gap-2">
-          <div className="flex bg-brand-50 rounded-xl p-1 gap-1 flex-1 sm:flex-none">
+          <div className="flex bg-brand-50 rounded-xl p-1 gap-1 overflow-x-auto scrollbar-hide flex-1 min-w-0">
             <button
               onClick={() => setTab("materials")}
-              className={`flex-1 sm:flex-none flex items-center justify-center gap-1.5 px-4 py-2 rounded-lg text-sm font-medium transition-all ${
+              className={`flex-shrink-0 flex items-center justify-center gap-1.5 px-3 sm:px-4 py-2 rounded-lg text-xs sm:text-sm font-medium transition-all ${
                 tab === "materials"
                   ? "bg-white text-brand-700 shadow-sm"
                   : "text-muted-foreground hover:text-brand-600"
@@ -389,17 +379,17 @@ export default function EstoquePage() {
             </button>
             <button
               onClick={() => setTab("movements")}
-              className={`flex-1 sm:flex-none flex items-center justify-center gap-1.5 px-4 py-2 rounded-lg text-sm font-medium transition-all ${
+              className={`flex-shrink-0 flex items-center justify-center gap-1.5 px-3 sm:px-4 py-2 rounded-lg text-xs sm:text-sm font-medium transition-all ${
                 tab === "movements"
                   ? "bg-white text-brand-700 shadow-sm"
                   : "text-muted-foreground hover:text-brand-600"
               }`}
             >
-              <TrendingDown className="w-4 h-4" /> Movimentações
+              <TrendingDown className="w-4 h-4" /> Movimentos
             </button>
             <button
               onClick={() => setTab("purchases")}
-              className={`flex-1 sm:flex-none flex items-center justify-center gap-1.5 px-4 py-2 rounded-lg text-sm font-medium transition-all ${
+              className={`flex-shrink-0 flex items-center justify-center gap-1.5 px-3 sm:px-4 py-2 rounded-lg text-xs sm:text-sm font-medium transition-all ${
                 tab === "purchases"
                   ? "bg-white text-brand-700 shadow-sm"
                   : "text-muted-foreground hover:text-brand-600"
@@ -409,7 +399,7 @@ export default function EstoquePage() {
             </button>
           </div>
 
-          <div className="flex gap-2 ml-auto">
+          <div className="flex-shrink-0">
             {tab === "materials" && (
               <Button size="sm" onClick={() => setMatOpen(true)}>
                 <Plus className="w-4 h-4" />
