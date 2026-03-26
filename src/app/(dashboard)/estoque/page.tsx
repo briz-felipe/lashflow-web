@@ -44,7 +44,7 @@ import { useState, useEffect, useCallback } from "react";
 import { expenseService } from "@/services";
 import type { Expense } from "@/domain/entities";
 
-const CATEGORIES: MaterialCategory[] = ["cilios", "cola", "descartaveis", "outros"];
+const CATEGORIES = Object.keys(MATERIAL_CATEGORY_LABELS) as MaterialCategory[];
 const UNITS: MaterialUnit[] = ["un", "pacote", "caixa", "ml", "g", "par", "rolo", "kit"];
 
 const MOVEMENT_ICON: Record<StockMovementType, React.ReactNode> = {
