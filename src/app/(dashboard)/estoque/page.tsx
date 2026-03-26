@@ -43,6 +43,8 @@ import { toast } from "@/components/ui/toaster";
 import { useState, useEffect, useCallback } from "react";
 import { expenseService } from "@/services";
 import type { Expense } from "@/domain/entities";
+import type { MaterialPurchase } from "@/services/interfaces/IExpenseService";
+import { CheckCircle2, ChevronDown, ChevronUp } from "lucide-react";
 
 const CATEGORIES = Object.keys(MATERIAL_CATEGORY_LABELS) as MaterialCategory[];
 const UNITS: MaterialUnit[] = ["un", "pacote", "caixa", "ml", "g", "par", "rolo", "kit"];
@@ -65,7 +67,7 @@ const MOVEMENT_BG: Record<StockMovementType, string> = {
   adjustment: "bg-amber-50",
 };
 
-type Tab = "materials" | "movements";
+type Tab = "materials" | "movements" | "purchases";
 
 const MAT_FORM_DEFAULT = {
   name: "", category: "material" as MaterialCategory, unit: "un" as MaterialUnit,
@@ -130,6 +132,28 @@ export default function EstoquePage() {
       setMaterialExpenses(deduped);
     }).catch(() => {});
   }, []);
+
+  // Purchases tab: material purchases with linked items (most recent first)
+  const [purchases, setPurchases] = useState<MaterialPurchase[]>([]);
+  const [purchasesLoading, setPurchasesLoading] = useState(false);
+  const [purchaseExpanded, setPurchaseExpanded] = useState<string | null>(null);
+
+  const loadPurchases = useCallback(async () => {
+    setPurchasesLoading(true);
+    try {
+      const data = await expenseService.getMaterialPurchases();
+      // Sort by newest first
+      data.sort((a, b) => new Date(b.expense.createdAt).getTime() - new Date(a.expense.createdAt).getTime());
+      setPurchases(data);
+    } catch { /* silently fail */ }
+    finally { setPurchasesLoading(false); }
+  }, []);
+
+  useEffect(() => {
+    if (tab === "purchases" && purchases.length === 0) {
+      loadPurchases();
+    }
+  }, [tab, purchases.length, loadPurchases]);
 
   const handleCreateMaterial = async () => {
     if (!matForm.name.trim()) {
@@ -325,6 +349,16 @@ export default function EstoquePage() {
               }`}
             >
               <TrendingDown className="w-4 h-4" /> Movimentações
+            </button>
+            <button
+              onClick={() => setTab("purchases")}
+              className={`flex-1 sm:flex-none flex items-center justify-center gap-1.5 px-4 py-2 rounded-lg text-sm font-medium transition-all ${
+                tab === "purchases"
+                  ? "bg-white text-brand-700 shadow-sm"
+                  : "text-muted-foreground hover:text-brand-600"
+              }`}
+            >
+              <ShoppingCart className="w-4 h-4" /> Compras
             </button>
           </div>
 
@@ -616,6 +650,114 @@ export default function EstoquePage() {
                 </table>
               </div>
             </div>
+          </div>
+        )}
+
+        {/* ── Purchases Tab ── */}
+        {tab === "purchases" && (
+          <div className="space-y-3">
+            {purchasesLoading ? (
+              <p className="text-center text-sm text-muted-foreground py-8">Carregando...</p>
+            ) : purchases.length === 0 ? (
+              <div className="text-center py-12">
+                <ShoppingCart className="w-8 h-8 text-muted-foreground/40 mx-auto mb-2" />
+                <p className="text-sm text-muted-foreground">Nenhuma compra de material registrada</p>
+                <p className="text-xs text-muted-foreground mt-1">Crie uma compra em Despesas → Material</p>
+              </div>
+            ) : (
+              purchases.map((p) => {
+                const isExpanded = purchaseExpanded === p.expense.id;
+                const subtotal = p.linkedMaterials.reduce((sum, item) => sum + item.totalCostInCents, 0);
+                const totalExpense = p.expense.installmentTotal && p.expense.installmentTotal > 1
+                  ? p.expense.amountInCents * p.expense.installmentTotal
+                  : p.expense.amountInCents;
+                return (
+                  <div key={p.expense.id} className={`bg-white rounded-2xl border shadow-card overflow-hidden transition-all ${
+                    p.expense.isPaid ? "border-emerald-100" : "border-amber-100"
+                  }`}>
+                    <button
+                      onClick={() => setPurchaseExpanded(isExpanded ? null : p.expense.id)}
+                      className="w-full flex items-center gap-3 px-4 py-3 hover:bg-brand-50/50 transition-colors text-left"
+                    >
+                      <div className={`w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0 ${
+                        p.expense.isPaid ? "bg-emerald-50" : "bg-amber-50"
+                      }`}>
+                        <ShoppingCart className={`w-4 h-4 ${p.expense.isPaid ? "text-emerald-600" : "text-amber-600"}`} />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-semibold truncate">{p.expense.name}</p>
+                        <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                          {p.expense.isPaid ? (
+                            <span className="text-emerald-600 font-medium flex items-center gap-0.5">
+                              <CheckCircle2 className="w-3 h-3" /> Pago
+                            </span>
+                          ) : (
+                            <span className="text-amber-600 font-medium">Pendente</span>
+                          )}
+                          {p.expense.installmentTotal && p.expense.installmentTotal > 1 && (
+                            <span className="font-semibold text-brand-600">
+                              {p.expense.installmentCurrent}/{p.expense.installmentTotal}x
+                            </span>
+                          )}
+                          <span>{p.linkedMaterials.length} ite{p.linkedMaterials.length !== 1 ? "ns" : "m"}</span>
+                        </div>
+                      </div>
+                      <div className="text-right flex-shrink-0">
+                        <p className="text-sm font-bold">{formatCurrency(totalExpense)}</p>
+                        {p.expense.installmentTotal && p.expense.installmentTotal > 1 && (
+                          <p className="text-[10px] text-muted-foreground">{p.expense.installmentTotal}x {formatCurrency(p.expense.amountInCents)}</p>
+                        )}
+                      </div>
+                      {isExpanded ? <ChevronUp className="w-4 h-4 text-muted-foreground flex-shrink-0" /> : <ChevronDown className="w-4 h-4 text-muted-foreground flex-shrink-0" />}
+                    </button>
+
+                    {isExpanded && (
+                      <div className="border-t border-brand-50 px-4 py-3 space-y-3">
+                        {/* Detalhes financeiros */}
+                        <div className="grid grid-cols-2 gap-2 text-xs">
+                          <div className="bg-brand-50/50 rounded-lg p-2">
+                            <p className="text-muted-foreground">Valor total</p>
+                            <p className="font-semibold">{formatCurrency(totalExpense)}</p>
+                          </div>
+                          {p.expense.installmentTotal && p.expense.installmentTotal > 1 && (
+                            <div className="bg-brand-50/50 rounded-lg p-2">
+                              <p className="text-muted-foreground">Parcela</p>
+                              <p className="font-semibold">{formatCurrency(p.expense.amountInCents)} ({p.expense.installmentCurrent}/{p.expense.installmentTotal})</p>
+                            </div>
+                          )}
+                        </div>
+
+                        {/* Itens da compra */}
+                        {p.linkedMaterials.length > 0 ? (
+                          <div className="space-y-2">
+                            <p className="text-xs font-semibold text-muted-foreground">Itens da compra</p>
+                            {p.linkedMaterials.map((item, i) => (
+                              <div key={i} className="flex items-center justify-between text-sm">
+                                <div className="flex items-center gap-2 min-w-0">
+                                  <span className="w-5 h-5 rounded bg-brand-50 flex items-center justify-center text-[10px] font-bold text-brand-600 flex-shrink-0">
+                                    {item.quantity}
+                                  </span>
+                                  <span className="truncate">{item.materialName}</span>
+                                </div>
+                                <span className="text-muted-foreground flex-shrink-0">{formatCurrency(item.totalCostInCents)}</span>
+                              </div>
+                            ))}
+                            {p.linkedMaterials.length > 1 && (
+                              <div className="flex items-center justify-between text-xs pt-1.5 mt-1.5 border-t border-dashed border-brand-100">
+                                <span className="text-muted-foreground">Subtotal itens</span>
+                                <span className="font-semibold text-brand-700">{formatCurrency(subtotal)}</span>
+                              </div>
+                            )}
+                          </div>
+                        ) : (
+                          <p className="text-xs text-muted-foreground italic">Nenhum material vinculado ainda.</p>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                );
+              })
+            )}
           </div>
         )}
       </div>

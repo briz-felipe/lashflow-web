@@ -267,6 +267,14 @@ function MaterialPurchasesTab({
                             <span className="text-muted-foreground flex-shrink-0">{formatCurrency(item.totalCostInCents)}</span>
                           </div>
                         ))}
+                        {p.linkedMaterials.length > 1 && (
+                          <div className="flex items-center justify-between text-xs pt-1.5 mt-1.5 border-t border-dashed border-brand-100">
+                            <span className="text-muted-foreground">Subtotal itens</span>
+                            <span className="font-semibold text-brand-700">
+                              {formatCurrency(p.linkedMaterials.reduce((sum, item) => sum + item.totalCostInCents, 0))}
+                            </span>
+                          </div>
+                        )}
                       </div>
                     ) : (
                       <p className="text-xs text-muted-foreground italic">Nenhum material vinculado. Vincule no Estoque ao registrar entrada.</p>
