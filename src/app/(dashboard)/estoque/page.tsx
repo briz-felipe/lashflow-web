@@ -72,7 +72,7 @@ type Tab = "materials" | "movements" | "purchases";
 
 const MAT_FORM_DEFAULT = {
   name: "", category: "material" as MaterialCategory, unit: "un" as MaterialUnit,
-  minimumStock: "1", initialStock: "0", notes: "",
+  minimumStock: "0", initialStock: "0", notes: "",
 };
 const MOV_FORM_DEFAULT = {
   materialId: "", type: "purchase" as StockMovementType,
@@ -204,7 +204,7 @@ export default function EstoquePage() {
         category: matForm.category,
         unit: matForm.unit,
         unitCostInCents: 0,
-        minimumStock: parseInt(matForm.minimumStock) || 1,
+        minimumStock: parseInt(matForm.minimumStock) || 0,
         initialStock: parseInt(matForm.initialStock) || 0,
         notes: matForm.notes || undefined,
       });
@@ -239,7 +239,7 @@ export default function EstoquePage() {
         name: editForm.name,
         category: editForm.category,
         unit: editForm.unit,
-        minimumStock: parseInt(editForm.minimumStock) || 1,
+        minimumStock: parseInt(editForm.minimumStock) || 0,
         notes: editForm.notes || undefined,
       });
       toast({ title: "Material atualizado!", variant: "success" });
@@ -454,7 +454,7 @@ export default function EstoquePage() {
             {/* Mobile: cards */}
             <div className="sm:hidden space-y-2">
               {materials.map((mat) => {
-                const isLow = mat.currentStock <= mat.minimumStock;
+                const isLow = mat.minimumStock > 0 && mat.currentStock <= mat.minimumStock;
                 return (
                   <div key={mat.id} className="bg-white rounded-2xl border border-brand-100 shadow-card p-4">
                     <div className="flex items-start justify-between mb-2">
@@ -515,7 +515,7 @@ export default function EstoquePage() {
                   </thead>
                   <tbody className="divide-y divide-brand-50">
                     {materials.map((mat) => {
-                      const isLow = mat.currentStock <= mat.minimumStock;
+                      const isLow = mat.minimumStock > 0 && mat.currentStock <= mat.minimumStock;
                       return (
                         <tr key={mat.id} className="hover:bg-brand-50/50 transition-colors">
                           <td className="px-5 py-3">
