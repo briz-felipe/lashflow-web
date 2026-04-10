@@ -173,4 +173,8 @@ export class MockPaymentService implements IPaymentService {
 
     return breakdown;
   }
+
+  async getProjectedRevenue(): Promise<import("../interfaces/IPaymentService").ProjectedMonthItem[]> {
+    return [];
+  }
 }
