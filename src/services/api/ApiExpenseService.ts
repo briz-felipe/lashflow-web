@@ -46,4 +46,9 @@ export class ApiExpenseService implements IExpenseService {
     const qs = month ? `?month=${month}` : "";
     return api.get(`/expenses/material-purchases${qs}`);
   }
+
+  async getProjectedExpenses(): Promise<{ month: string; projectedInCents: number }[]> {
+    const data = await api.get<Array<{ month: string; projected_in_cents?: number; projectedInCents?: number }>>("/expenses/projected");
+    return data.map((d) => ({ month: d.month, projectedInCents: d.projected_in_cents ?? d.projectedInCents ?? 0 }));
+  }
 }

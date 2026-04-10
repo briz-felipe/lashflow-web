@@ -36,4 +36,7 @@ export interface IExpenseService {
 
   // Material purchases
   getMaterialPurchases(month?: string): Promise<MaterialPurchase[]>;
+
+  // Projection
+  getProjectedExpenses(): Promise<{ month: string; projectedInCents: number }[]>;
 }

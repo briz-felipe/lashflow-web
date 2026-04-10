@@ -2,8 +2,8 @@
 
 import { ArrowDownRight, Calendar, CreditCard, DollarSign, Package, Receipt, TrendingUp } from "lucide-react";
 import type { CashFlowEntry, MonthlyRevenue, RevenueStats } from "@/services/interfaces/IPaymentService";
-import { endOfMonth, format, isValid, parse, startOfMonth, subMonths } from "date-fns";
-import { expenseService, paymentService } from "@/services";
+import { addMonths, endOfMonth, format, isValid, parse, startOfMonth, subMonths } from "date-fns";
+import { expenseService, paymentService, stockService } from "@/services";
 import { formatCurrency, formatDate } from "@/lib/formatters";
 import { useEffect, useState } from "react";
 
@@ -36,6 +36,9 @@ export default function FinanceiroPage() {
   const [expensePending, setExpensePending] = useState(0);
   const [expenseTotals, setExpenseTotals] = useState<{ month: string; totalInCents: number }[]>([]);
   const [loading, setLoading] = useState(true);
+  const [materialCosts, setMaterialCosts] = useState<{ month: string; totalCostInCents: number }[]>([]);
+  const [projectedRevenue, setProjectedRevenue] = useState<{ month: string; projectedInCents: number }[]>([]);
+  const [projectedExpenses, setProjectedExpenses] = useState<{ month: string; projectedInCents: number }[]>([]);
 
   const currentMonth = format(new Date(), "yyyy-MM");
 
@@ -44,13 +47,16 @@ export default function FinanceiroPage() {
       const from = startOfMonth(subMonths(new Date(), 0));
       const to = endOfMonth(new Date());
       try {
-      const [s, m, cf, bd, expSummary, et] = await Promise.all([
+      const [s, m, cf, bd, expSummary, et, mc, pr, pe] = await Promise.all([
         paymentService.getRevenueStats(),
         paymentService.getMonthlyRevenue(12),
         paymentService.getCashFlow(subMonths(new Date(), 2), to),
         paymentService.getPaymentMethodBreakdown(from, to),
         expenseService.getMonthlySummary(currentMonth),
         expenseService.getMonthlyExpenseTotals(12),
+        stockService.getMonthlyStockCosts(12),
+        paymentService.getProjectedRevenue(),
+        expenseService.getProjectedExpenses(),
       ]);
       setStats(s);
       setMonthly(m);
@@ -59,6 +65,9 @@ export default function FinanceiroPage() {
       setExpenseTotal(expSummary.totalInCents);
       setExpensePending(expSummary.pendingInCents);
       setExpenseTotals(et);
+      setMaterialCosts(mc);
+      setProjectedRevenue(pr);
+      setProjectedExpenses(pe);
     } catch (err) {
       console.error("[financeiro] load error:", err);
     } finally {
@@ -87,7 +96,7 @@ export default function FinanceiroPage() {
     .map((e) => ({
       month: parseMonthLabel(e.month),
       despesas: e.totalInCents,
-      materiais: 0,
+      materiais: materialCosts.find((mc) => mc.month === e.month)?.totalCostInCents ?? 0,
     }));
 
   // Build income vs expense chart data (12 months)
@@ -206,6 +215,67 @@ export default function FinanceiroPage() {
             </div>
           </Link>
         </div>
+
+        {/* Projeção — presente e futuro */}
+        {(() => {
+          const projectionMonths = [0, 1, 2].map((offset) =>
+            format(addMonths(new Date(), offset), "yyyy-MM")
+          );
+          return (
+            <div>
+              <div className="flex items-center gap-2 mb-3">
+                <h2 className="text-sm font-semibold">Projeção</h2>
+                <span className="text-xs text-muted-foreground">Entradas e saídas esperadas</span>
+              </div>
+              <div className="flex gap-2 overflow-x-auto pb-1 -mx-4 px-4 sm:mx-0 sm:px-0">
+                {projectionMonths.map((monthKey, idx) => {
+                  const isCurrentMonth = idx === 0;
+                  const projRev = projectedRevenue.find((p) => p.month === monthKey)?.projectedInCents ?? 0;
+                  const projExp = projectedExpenses.find((p) => p.month === monthKey)?.projectedInCents ?? 0;
+                  const saldo = projRev - projExp;
+                  const label = parseMonthLabel(monthKey);
+                  return (
+                    <div
+                      key={monthKey}
+                      className={`flex-shrink-0 w-44 rounded-2xl border shadow-card p-3 ${
+                        isCurrentMonth ? "bg-brand-50 border-brand-200" : "bg-white border-brand-100"
+                      }`}
+                    >
+                      <div className="flex items-center gap-1.5 mb-2.5">
+                        <p className="text-xs font-semibold capitalize">{label}</p>
+                        {isCurrentMonth && (
+                          <span className="text-[9px] font-semibold bg-brand-200 text-brand-700 px-1.5 py-0.5 rounded-full">
+                            Atual
+                          </span>
+                        )}
+                      </div>
+                      <div className="space-y-1.5">
+                        <div className="flex items-center justify-between">
+                          <span className="text-[10px] text-muted-foreground">A receber</span>
+                          <span className="text-xs font-semibold text-emerald-600">
+                            {formatCurrency(projRev)}
+                          </span>
+                        </div>
+                        <div className="flex items-center justify-between">
+                          <span className="text-[10px] text-muted-foreground">A pagar</span>
+                          <span className="text-xs font-semibold text-red-500">
+                            {formatCurrency(projExp)}
+                          </span>
+                        </div>
+                        <div className="border-t border-brand-100 pt-1.5 flex items-center justify-between">
+                          <span className="text-[10px] text-muted-foreground font-medium">Saldo</span>
+                          <span className={`text-xs font-bold ${saldo >= 0 ? "text-emerald-600" : "text-red-600"}`}>
+                            {saldo >= 0 ? "+" : ""}{formatCurrency(Math.abs(saldo))}
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          );
+        })()}
 
         <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
           {/* Revenue Chart */}
