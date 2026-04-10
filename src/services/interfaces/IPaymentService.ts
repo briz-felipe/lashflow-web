@@ -23,6 +23,11 @@ export interface MonthlyRevenue {
   amountInCents: number;
 }
 
+export interface ProjectedMonthItem {
+  month: string;
+  projectedInCents: number;
+}
+
 export interface IPaymentService {
   createPayment(input: CreatePaymentInput): Promise<Payment>;
   updatePayment(id: string, input: Partial<Payment>): Promise<Payment>;
@@ -32,4 +37,5 @@ export interface IPaymentService {
   getRevenueStats(): Promise<RevenueStats>;
   getMonthlyRevenue(months?: number): Promise<MonthlyRevenue[]>;
   getPaymentMethodBreakdown(from: Date, to: Date): Promise<Record<PaymentMethod, number>>;
+  getProjectedRevenue(): Promise<ProjectedMonthItem[]>;
 }

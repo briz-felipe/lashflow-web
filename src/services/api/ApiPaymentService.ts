@@ -5,6 +5,7 @@ import type {
   CashFlowEntry,
   RevenueStats,
   MonthlyRevenue,
+  ProjectedMonthItem,
 } from "../interfaces/IPaymentService";
 import type { PaymentMethod } from "@/domain/enums";
 
@@ -52,6 +53,11 @@ export class ApiPaymentService implements IPaymentService {
 
   getMonthlyRevenue(months = 6): Promise<MonthlyRevenue[]> {
     return api.get(`/payments/monthly-revenue?months=${months}`);
+  }
+
+  async getProjectedRevenue(): Promise<ProjectedMonthItem[]> {
+    const data = await api.get<Array<{ month: string; projected_in_cents?: number; projectedInCents?: number }>>("/payments/projected");
+    return data.map((d) => ({ month: d.month, projectedInCents: d.projected_in_cents ?? d.projectedInCents ?? 0 }));
   }
 
   async getPaymentMethodBreakdown(from: Date, to: Date): Promise<Record<PaymentMethod, number>> {
