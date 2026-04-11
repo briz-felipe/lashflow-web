@@ -4,6 +4,8 @@ import {
   ArrowLeft,
   Calendar,
   CheckCircle2,
+  ChevronDown,
+  ClipboardList,
   RefreshCw,
   Save,
   Search,
@@ -12,7 +14,8 @@ import {
   UserPlus,
   X,
 } from "lucide-react";
-import type { Client, ProcedureInput } from "@/domain/entities";
+import type { Client, ProcedureInput, ApplicationSheet } from "@/domain/entities";
+import { ApplicationSheetForm } from "@/components/appointments/ApplicationSheetForm";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Suspense, useEffect, useRef, useState } from "react";
 import { formatPhone, parsePtBR } from "@/lib/formatters";
@@ -399,6 +402,8 @@ function NovoAgendamentoContent() {
     time: "09:00",
     notes: "",
   });
+  const [applicationSheet, setApplicationSheet] = useState<ApplicationSheet>({});
+  const [sheetOpen, setSheetOpen] = useState(false);
 
   // Pre-fill client if coming from profile
   useEffect(() => {
@@ -454,6 +459,13 @@ function NovoAgendamentoContent() {
         };
       });
 
+      // Build applicationSheet only if any field is filled
+      const hasSheet = applicationSheet.fiberModel ||
+        applicationSheet.technicalNotes ||
+        applicationSheet.mapping?.size ||
+        applicationSheet.mapping?.curve ||
+        applicationSheet.mapping?.thickness;
+
       const apt = await createAppointment({
         clientId: selectedClient.id,
         scheduledAt,
@@ -461,6 +473,7 @@ function NovoAgendamentoContent() {
         procedures: proceduresInput,
         notes: form.notes || undefined,
         status: "confirmed",
+        applicationSheet: hasSheet ? applicationSheet : undefined,
       });
       toast({ title: "Agendamento criado!", variant: "success" });
       router.push(`/agenda/${apt.id}`);
@@ -581,6 +594,29 @@ function NovoAgendamentoContent() {
                 onDateChange={(d) => setForm((f) => ({ ...f, date: d }))}
                 onTimeChange={(t) => setForm((f) => ({ ...f, time: t }))}
               />
+
+              {/* Ficha Rápida de Aplicação */}
+              <div className="bg-white rounded-2xl border border-brand-100 shadow-card overflow-hidden">
+                <button
+                  type="button"
+                  onClick={() => setSheetOpen((o) => !o)}
+                  className="w-full flex items-center gap-2 p-4 sm:p-5 text-left hover:bg-brand-50/50 transition-colors"
+                >
+                  <ClipboardList className="w-4 h-4 text-brand-500 flex-shrink-0" />
+                  <span className="text-sm font-semibold text-brand-700 flex-1">Ficha Rapida de Aplicacao</span>
+                  <ChevronDown className={`w-4 h-4 text-muted-foreground transition-transform ${sheetOpen ? "rotate-180" : ""}`} />
+                </button>
+                {sheetOpen && (
+                  <div className="px-4 sm:px-5 pb-4 sm:pb-5 border-t border-brand-50">
+                    <div className="pt-3">
+                      <ApplicationSheetForm
+                        value={applicationSheet}
+                        onChange={setApplicationSheet}
+                      />
+                    </div>
+                  </div>
+                )}
+              </div>
 
               {/* Observações */}
               <div className="bg-white rounded-2xl border border-brand-100 shadow-card p-6 sm:p-8">

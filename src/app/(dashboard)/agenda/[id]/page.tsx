@@ -15,9 +15,12 @@ import {
   ArrowLeft, CheckCircle2, XCircle, User, Sparkles, Clock,
   DollarSign, Calendar, RefreshCw, Scissors, Edit2, FileText,
   MessageCircle, ChevronDown, Plus, Minus, X, Tag, Check, Settings,
+  ClipboardList, Trash2,
 } from "lucide-react";
 import Link from "next/link";
-import type { Appointment, Payment, ExtraService, ProcedureInput } from "@/domain/entities";
+import type { Appointment, Payment, ExtraService, ProcedureInput, ApplicationSheet } from "@/domain/entities";
+import { ApplicationSheetForm } from "@/components/appointments/ApplicationSheetForm";
+import { ApplicationSheetDisplay } from "@/components/appointments/ApplicationSheetDisplay";
 import type { AppointmentStatus, LashServiceType, PaymentMethod } from "@/domain/enums";
 import { PAYMENT_METHOD_LABELS, LASH_SERVICE_TYPE_LABELS } from "@/domain/enums";
 import { REMINDER_TEMPLATES } from "@/domain/entities/reminder";
@@ -80,6 +83,7 @@ export default function AgendamentoDetailPage() {
   const [editNotes, setEditNotes] = useState("");
   const [editProcs, setEditProcs] = useState<SelectedProcedure[]>([]);
   const [editServiceType, setEditServiceType] = useState<LashServiceType | "">("");
+  const [editSheet, setEditSheet] = useState<ApplicationSheet>({});
   const [savingEdit, setSavingEdit] = useState(false);
   const [syncingCal, setSyncingCal] = useState(false);
 
@@ -199,6 +203,7 @@ export default function AgendamentoDetailPage() {
         setEditProcs([]);
       }
     }
+    setEditSheet(apt.applicationSheet ?? {});
     setEditMode(true);
   }
 
@@ -219,11 +224,19 @@ export default function AgendamentoDetailPage() {
         };
       });
 
+      // Build applicationSheet for update
+      const hasSheet = editSheet.fiberModel ||
+        editSheet.technicalNotes ||
+        editSheet.mapping?.size ||
+        editSheet.mapping?.curve ||
+        editSheet.mapping?.thickness;
+
       const input: UpdateAppointmentInput = {
         scheduledAt,
         procedures: proceduresInput,
         serviceType: editServiceType as LashServiceType || undefined,
         notes: editNotes || "",
+        applicationSheet: hasSheet ? editSheet : null,
       };
 
       const updated = await appointmentService.updateAppointment(apt.id, input);
@@ -627,6 +640,34 @@ export default function AgendamentoDetailPage() {
               )}
             </div>
           )}
+
+          {/* ── Ficha de Aplicação ── */}
+          {editMode ? (
+            <div className="bg-white rounded-2xl border border-brand-100 shadow-card p-4 space-y-3">
+              <div className="flex items-center justify-between">
+                <p className="text-sm font-semibold text-brand-700 flex items-center gap-2">
+                  <ClipboardList className="w-4 h-4" /> Ficha de Aplicacao
+                </p>
+                {(editSheet.fiberModel || editSheet.technicalNotes || editSheet.mapping?.size || editSheet.mapping?.curve || editSheet.mapping?.thickness) && (
+                  <button
+                    type="button"
+                    onClick={() => setEditSheet({})}
+                    className="flex items-center gap-1 text-xs text-red-500 hover:text-red-700 transition-colors"
+                  >
+                    <Trash2 className="w-3 h-3" /> Limpar
+                  </button>
+                )}
+              </div>
+              <ApplicationSheetForm value={editSheet} onChange={setEditSheet} />
+            </div>
+          ) : apt.applicationSheet && (apt.applicationSheet.fiberModel || apt.applicationSheet.technicalNotes || apt.applicationSheet.mapping?.size || apt.applicationSheet.mapping?.curve || apt.applicationSheet.mapping?.thickness) ? (
+            <div className="bg-white rounded-2xl border border-brand-100 shadow-card p-4">
+              <p className="text-sm font-semibold text-brand-700 flex items-center gap-2 mb-3">
+                <ClipboardList className="w-4 h-4" /> Ficha de Aplicacao
+              </p>
+              <ApplicationSheetDisplay sheet={apt.applicationSheet} />
+            </div>
+          ) : null}
 
           {/* ── Aprovação pendente ── */}
           {canApprove && (

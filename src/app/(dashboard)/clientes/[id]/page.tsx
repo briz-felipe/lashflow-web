@@ -32,9 +32,11 @@ import {
   Moon,
   Users,
   ClipboardList,
+  ChevronDown,
 } from "lucide-react";
 import Link from "next/link";
 import { LashFlowStatus } from "@/components/clients/LashFlowStatus";
+import { ApplicationSheetDisplay } from "@/components/appointments/ApplicationSheetDisplay";
 import { useAnamneses } from "@/hooks/useAnamnesis";
 import { useWhatsAppTemplates } from "@/hooks/useWhatsAppTemplates";
 import { WhatsAppReminderService } from "@/services/WhatsAppReminderService";
@@ -66,6 +68,7 @@ export default function ClienteProfilePage() {
   const { anamneses } = useAnamneses(id);
   const { templates } = useWhatsAppTemplates();
   const [waOpen, setWaOpen] = useState(false);
+  const [expandedAptId, setExpandedAptId] = useState<string | null>(null);
   const waRef = useRef<HTMLDivElement>(null);
 
   // Close dropdown on outside click
@@ -491,30 +494,60 @@ export default function ClienteProfilePage() {
 
             {/* History */}
             <div className="bg-white rounded-2xl border border-brand-100 shadow-card p-4 sm:p-6">
-              <h3 className="font-semibold mb-4">Histórico de Atendimentos</h3>
+              <h3 className="font-semibold mb-4">Historico de Atendimentos</h3>
               {completedAppointments.length === 0 ? (
                 <p className="text-sm text-muted-foreground text-center py-6">
-                  Nenhum atendimento concluído ainda
+                  Nenhum atendimento concluido ainda
                 </p>
               ) : (
                 <div className="space-y-2">
-                  {completedAppointments.slice(0, 10).map((apt) => (
-                      <Link
-                        key={apt.id}
-                        href={`/agenda/${apt.id}`}
-                        className="flex items-center justify-between p-3 rounded-xl hover:bg-brand-50 transition-colors group"
-                      >
-                        <div>
-                          <p className="text-sm font-medium">{apt.procedureName ?? "—"}</p>
-                          <p className="text-xs text-muted-foreground">
-                            {formatDate(apt.scheduledAt)}
-                          </p>
-                        </div>
-                        <p className="text-sm font-semibold text-foreground">
-                          {formatCurrency(apt.priceCharged)}
-                        </p>
-                      </Link>
-                  ))}
+                  {completedAppointments.slice(0, 10).map((apt) => {
+                    const isExpanded = expandedAptId === apt.id;
+                    const sheet = apt.applicationSheet;
+                    const hasSheet = sheet && (sheet.fiberModel || sheet.technicalNotes || sheet.mapping?.size || sheet.mapping?.curve || sheet.mapping?.thickness);
+
+                    return (
+                      <div key={apt.id} className="rounded-xl border border-brand-50 overflow-hidden transition-all">
+                        <button
+                          type="button"
+                          onClick={() => setExpandedAptId(isExpanded ? null : apt.id)}
+                          className="w-full flex items-center justify-between p-3 hover:bg-brand-50 transition-colors text-left"
+                        >
+                          <div className="flex-1 min-w-0">
+                            <p className="text-sm font-medium truncate">{apt.procedureName ?? "—"}</p>
+                            <p className="text-xs text-muted-foreground">
+                              {formatDate(apt.scheduledAt)}
+                            </p>
+                          </div>
+                          <div className="flex items-center gap-2 flex-shrink-0 ml-2">
+                            <p className="text-sm font-semibold text-foreground">
+                              {formatCurrency(apt.priceCharged)}
+                            </p>
+                            {hasSheet && (
+                              <ChevronDown className={`w-3.5 h-3.5 text-muted-foreground transition-transform ${isExpanded ? "rotate-180" : ""}`} />
+                            )}
+                          </div>
+                        </button>
+
+                        {isExpanded && (hasSheet || apt.notes) && (
+                          <div className="px-3 pb-3 border-t border-brand-50 space-y-2">
+                            <div className="pt-2">
+                              {hasSheet && <ApplicationSheetDisplay sheet={sheet} compact />}
+                              {apt.notes && (
+                                <p className="text-[11px] text-muted-foreground mt-1.5 italic">{apt.notes}</p>
+                              )}
+                            </div>
+                            <Link
+                              href={`/agenda/${apt.id}`}
+                              className="text-[11px] text-brand-500 hover:text-brand-700 font-medium transition-colors"
+                            >
+                              Ver detalhes →
+                            </Link>
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
                 </div>
               )}
             </div>

@@ -1,5 +1,15 @@
 import type { AppointmentStatus, LashServiceType } from "../enums";
 
+export interface ApplicationSheet {
+  fiberModel?: string;
+  mapping?: {
+    size?: string;
+    curve?: string;
+    thickness?: string;
+  };
+  technicalNotes?: string;
+}
+
 export interface AppointmentProcedure {
   id: string;
   procedureId: string;
@@ -38,6 +48,7 @@ export interface Appointment {
 
   procedures?: AppointmentProcedure[];
   appleEventUid?: string | null;
+  applicationSheet?: ApplicationSheet;
 }
 
 export type ProcedureInput = {
@@ -56,6 +67,7 @@ export type CreateAppointmentInput = {
   notes?: string;
   status?: AppointmentStatus;
   procedures?: ProcedureInput[];  // new multi-procedure
+  applicationSheet?: ApplicationSheet;
 };
 
 export type UpdateAppointmentInput = {
@@ -67,4 +79,5 @@ export type UpdateAppointmentInput = {
   procedureName?: string; // empty string = clear override
   notes?: string;
   procedures?: ProcedureInput[];  // new multi-procedure
+  applicationSheet?: ApplicationSheet | null;
 };
