@@ -45,6 +45,7 @@ export class ApiAppointmentService implements IAppointmentService {
     if (input.procedureName !== undefined) body.procedureName = input.procedureName;
     if (input.notes !== undefined) body.notes = input.notes;
     if (input.procedures !== undefined) body.procedures = input.procedures;
+    if (input.applicationSheet !== undefined) body.applicationSheet = input.applicationSheet;
     const data = await api.patch<Appointment>(`/appointments/${id}`, body);
     return parseAppointment(data);
   }

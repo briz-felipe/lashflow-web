@@ -54,6 +54,7 @@ export class MockAppointmentService implements IAppointmentService {
       endsAt,
       priceCharged: input.priceCharged ?? procedure?.priceInCents ?? 0,
       notes: input.notes,
+      applicationSheet: input.applicationSheet,
       requestedAt: new Date(),
       createdAt: new Date(),
       updatedAt: new Date(),
@@ -66,8 +67,13 @@ export class MockAppointmentService implements IAppointmentService {
   async updateAppointment(id: string, input: UpdateAppointmentInput): Promise<Appointment> {
     const idx = this.appointments.findIndex((a) => a.id === id);
     if (idx === -1) throw new Error("Agendamento não encontrado");
-    const { procedures: _procs, ...rest } = input;
-    this.appointments[idx] = { ...this.appointments[idx], ...rest, updatedAt: new Date() };
+    const { procedures: _procs, applicationSheet, ...rest } = input;
+    this.appointments[idx] = {
+      ...this.appointments[idx],
+      ...rest,
+      applicationSheet: applicationSheet === null ? undefined : (applicationSheet ?? this.appointments[idx].applicationSheet),
+      updatedAt: new Date(),
+    };
     return this.appointments[idx];
   }
 

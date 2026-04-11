@@ -1,6 +1,6 @@
 export type { Client, ClientAddress, CreateClientInput, UpdateClientInput } from "./client";
 export type { Procedure, CreateProcedureInput, UpdateProcedureInput } from "./procedure";
-export type { Appointment, AppointmentProcedure, ProcedureInput, CreateAppointmentInput, UpdateAppointmentInput } from "./appointment";
+export type { Appointment, AppointmentProcedure, ApplicationSheet, ProcedureInput, CreateAppointmentInput, UpdateAppointmentInput } from "./appointment";
 export type { Payment, PartialPaymentRecord, CreatePaymentInput } from "./payment";
 export type { TimeSlot, BlockedDate } from "./time-slot";
 export type { Anamnesis, CreateAnamnesisInput, LashMapping, AnamnesisHairLoss, AnamnosisProcedureType } from "./anamnesis";
