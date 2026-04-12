@@ -36,7 +36,7 @@ import { StatsCard } from "@/components/dashboard/StatsCard";
 import { Topbar } from "@/components/layout/Topbar";
 import { toast } from "@/components/ui/toaster";
 import { useState, useEffect, useCallback } from "react";
-import { expenseService } from "@/services";
+import { expenseService, stockService } from "@/services";
 import Link from "next/link";
 import type { MaterialPurchase, LinkedMaterialItem } from "@/services/interfaces/IExpenseService";
 import { CheckCircle2, ChevronDown, ChevronUp } from "lucide-react";
@@ -69,14 +69,12 @@ export default function EstoquePage() {
   const { alerts, reload: reloadAlerts } = useStockAlerts();
   const { monthlyCosts, totalValue, loading: analyticsLoading, reload: reloadAnalytics } = useStockAnalytics();
 
-  // Keep selectedMat in sync with materials after reload
-  useEffect(() => {
-    if (selectedMat) {
-      const updated = materials.find((m) => m.id === selectedMat.id);
-      if (updated) setSelectedMat(updated);
-      else setSelectedMat(null);
-    }
-  }, [materials]); // eslint-disable-line react-hooks/exhaustive-deps
+  // Refresh selectedMat directly from API after mutations
+  const refreshSelectedMat = useCallback(async (matId: string) => {
+    const fresh = await stockService.getMaterialById(matId);
+    if (fresh) setSelectedMat(fresh);
+    else setSelectedMat(null);
+  }, []);
 
   // Purchases tab: group installments into single purchase cards
   interface PurchaseGroup {
@@ -164,10 +162,11 @@ export default function EstoquePage() {
       toast({ title: "Estoque já está zerado", variant: "destructive" });
       return;
     }
+    const matId = selectedMat.id;
     setSaving(true);
     try {
       await createMovement({
-        materialId: selectedMat.id,
+        materialId: matId,
         type: direction === "minus" ? "usage" : "adjustment",
         quantity: 1,
         unitCostInCents: selectedMat.unitCostInCents,
@@ -178,7 +177,7 @@ export default function EstoquePage() {
           : `+1 ${MATERIAL_UNIT_LABELS[selectedMat.unit]} de "${selectedMat.name}"`,
         variant: "success",
       });
-      await reloadAll();
+      await Promise.all([reloadAll(), refreshSelectedMat(matId)]);
     } catch {
       toast({ title: "Erro ao ajustar estoque", variant: "destructive" });
     } finally {
@@ -199,10 +198,11 @@ export default function EstoquePage() {
       toast({ title: "Quantidade já é igual ao estoque atual", variant: "destructive" });
       return;
     }
+    const matId = selectedMat.id;
     setSaving(true);
     try {
       await createMovement({
-        materialId: selectedMat.id,
+        materialId: matId,
         type: diff > 0 ? "adjustment" : "usage",
         quantity: Math.abs(diff),
         unitCostInCents: selectedMat.unitCostInCents,
@@ -210,7 +210,7 @@ export default function EstoquePage() {
       });
       toast({ title: `Estoque ajustado para ${target} ${MATERIAL_UNIT_LABELS[selectedMat.unit]}`, variant: "success" });
       setAdjustQty("");
-      await reloadAll();
+      await Promise.all([reloadAll(), refreshSelectedMat(matId)]);
     } catch {
       toast({ title: "Erro ao ajustar estoque", variant: "destructive" });
     } finally {
@@ -221,6 +221,7 @@ export default function EstoquePage() {
   // ── Update material metadata ──
   const handleUpdateMaterial = async () => {
     if (!selectedMat || !editForm.name.trim()) return;
+    const matId = selectedMat.id;
     setSaving(true);
     try {
       await updateMaterial(selectedMat.id, {
@@ -232,7 +233,7 @@ export default function EstoquePage() {
       });
       toast({ title: "Material atualizado!", variant: "success" });
       setEditMode(false);
-      await reloadAll();
+      await Promise.all([reloadAll(), refreshSelectedMat(matId)]);
     } catch {
       toast({ title: "Erro ao atualizar", variant: "destructive" });
     } finally {
