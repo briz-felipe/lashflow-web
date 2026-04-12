@@ -2,13 +2,14 @@
 
 import {
   AlertTriangle,
+  ChevronRight,
   DollarSign,
   Minus,
   Package,
+  Pencil,
   Plus,
   Search,
   ShoppingCart,
-  Pencil,
   Trash2,
 } from "lucide-react";
 import {
@@ -52,12 +53,13 @@ export default function EstoquePage() {
   const [catFilter, setCatFilter] = useState<MaterialCategory | "all">("all");
   const [lowStockOnly, setLowStockOnly] = useState(false);
   const [compraOpen, setCompraOpen] = useState(false);
-  const [editMat, setEditMat] = useState<Material | null>(null);
   const [saving, setSaving] = useState(false);
 
-  // Quick usage state
-  const [usageMat, setUsageMat] = useState<Material | null>(null);
-  const [usageQty, setUsageQty] = useState("1");
+  // Material detail modal
+  const [selectedMat, setSelectedMat] = useState<Material | null>(null);
+  const [adjustQty, setAdjustQty] = useState("");
+  const [editMode, setEditMode] = useState(false);
+  const [editForm, setEditForm] = useState({ name: "", category: "" as MaterialCategory, unit: "" as MaterialUnit, minimumStock: "", notes: "" });
 
   const { materials, loading, reload: reloadMaterials, updateMaterial, deleteMaterial, createMovement } = useStock({
     search: search || undefined,
@@ -66,6 +68,15 @@ export default function EstoquePage() {
   });
   const { alerts, reload: reloadAlerts } = useStockAlerts();
   const { monthlyCosts, totalValue, loading: analyticsLoading, reload: reloadAnalytics } = useStockAnalytics();
+
+  // Keep selectedMat in sync with materials after reload
+  useEffect(() => {
+    if (selectedMat) {
+      const updated = materials.find((m) => m.id === selectedMat.id);
+      if (updated) setSelectedMat(updated);
+      else setSelectedMat(null);
+    }
+  }, [materials]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Purchases tab: group installments into single purchase cards
   interface PurchaseGroup {
@@ -126,10 +137,11 @@ export default function EstoquePage() {
     await Promise.all([reloadMaterials(), reloadAlerts(), reloadAnalytics(), loadPurchases()]);
   }, [reloadMaterials, reloadAlerts, reloadAnalytics, loadPurchases]);
 
-  // ── Edit material ──
-  const [editForm, setEditForm] = useState({ name: "", category: "" as MaterialCategory, unit: "" as MaterialUnit, minimumStock: "", notes: "" });
-
-  function openEditModal(mat: Material) {
+  // ── Open material detail modal ──
+  function openMaterialDetail(mat: Material) {
+    setSelectedMat(mat);
+    setAdjustQty("");
+    setEditMode(false);
     setEditForm({
       name: mat.name,
       category: mat.category,
@@ -137,14 +149,81 @@ export default function EstoquePage() {
       minimumStock: String(mat.minimumStock),
       notes: mat.notes ?? "",
     });
-    setEditMat(mat);
   }
 
-  const handleUpdateMaterial = async () => {
-    if (!editMat || !editForm.name.trim()) return;
+  function closeMaterialDetail() {
+    setSelectedMat(null);
+    setAdjustQty("");
+    setEditMode(false);
+  }
+
+  // ── Quick +/- stock adjustment ──
+  const handleStockAdjust = async (direction: "minus" | "plus") => {
+    if (!selectedMat || saving) return;
+    if (direction === "minus" && selectedMat.currentStock <= 0) {
+      toast({ title: "Estoque já está zerado", variant: "destructive" });
+      return;
+    }
     setSaving(true);
     try {
-      await updateMaterial(editMat.id, {
+      await createMovement({
+        materialId: selectedMat.id,
+        type: direction === "minus" ? "usage" : "adjustment",
+        quantity: 1,
+        unitCostInCents: selectedMat.unitCostInCents,
+      });
+      toast({
+        title: direction === "minus"
+          ? `−1 ${MATERIAL_UNIT_LABELS[selectedMat.unit]} de "${selectedMat.name}"`
+          : `+1 ${MATERIAL_UNIT_LABELS[selectedMat.unit]} de "${selectedMat.name}"`,
+        variant: "success",
+      });
+      await reloadAll();
+    } catch {
+      toast({ title: "Erro ao ajustar estoque", variant: "destructive" });
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  // ── Manual stock adjustment ──
+  const handleManualAdjust = async () => {
+    if (!selectedMat || saving) return;
+    const target = parseInt(adjustQty);
+    if (isNaN(target) || target < 0) {
+      toast({ title: "Informe uma quantidade válida (≥ 0)", variant: "destructive" });
+      return;
+    }
+    const diff = target - selectedMat.currentStock;
+    if (diff === 0) {
+      toast({ title: "Quantidade já é igual ao estoque atual", variant: "destructive" });
+      return;
+    }
+    setSaving(true);
+    try {
+      await createMovement({
+        materialId: selectedMat.id,
+        type: diff > 0 ? "adjustment" : "usage",
+        quantity: Math.abs(diff),
+        unitCostInCents: selectedMat.unitCostInCents,
+        notes: `Ajuste manual: ${selectedMat.currentStock} → ${target}`,
+      });
+      toast({ title: `Estoque ajustado para ${target} ${MATERIAL_UNIT_LABELS[selectedMat.unit]}`, variant: "success" });
+      setAdjustQty("");
+      await reloadAll();
+    } catch {
+      toast({ title: "Erro ao ajustar estoque", variant: "destructive" });
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  // ── Update material metadata ──
+  const handleUpdateMaterial = async () => {
+    if (!selectedMat || !editForm.name.trim()) return;
+    setSaving(true);
+    try {
+      await updateMaterial(selectedMat.id, {
         name: editForm.name,
         category: editForm.category,
         unit: editForm.unit,
@@ -152,8 +231,8 @@ export default function EstoquePage() {
         notes: editForm.notes || undefined,
       });
       toast({ title: "Material atualizado!", variant: "success" });
-      reloadAll();
-      setEditMat(null);
+      setEditMode(false);
+      await reloadAll();
     } catch {
       toast({ title: "Erro ao atualizar", variant: "destructive" });
     } finally {
@@ -161,45 +240,17 @@ export default function EstoquePage() {
     }
   };
 
-  const handleDeleteMaterial = async (mat: Material) => {
-    if (!confirm(`Excluir "${mat.name}"? Essa ação não pode ser desfeita.`)) return;
+  // ── Delete material ──
+  const handleDeleteMaterial = async () => {
+    if (!selectedMat) return;
+    if (!confirm(`Excluir "${selectedMat.name}"? Essa ação não pode ser desfeita.`)) return;
     try {
-      await deleteMaterial(mat.id);
+      await deleteMaterial(selectedMat.id);
       toast({ title: "Material excluído!", variant: "success" });
-      reloadAll();
+      closeMaterialDetail();
+      await reloadAll();
     } catch {
       toast({ title: "Erro ao excluir", variant: "destructive" });
-    }
-  };
-
-  // ── Quick usage ──
-  const handleQuickUsage = async () => {
-    if (!usageMat) return;
-    const qty = parseInt(usageQty) || 0;
-    if (qty <= 0) {
-      toast({ title: "Quantidade deve ser maior que 0", variant: "destructive" });
-      return;
-    }
-    if (qty > usageMat.currentStock) {
-      toast({ title: `Estoque insuficiente (disponível: ${usageMat.currentStock})`, variant: "destructive" });
-      return;
-    }
-    setSaving(true);
-    try {
-      await createMovement({
-        materialId: usageMat.id,
-        type: "usage",
-        quantity: qty,
-        unitCostInCents: usageMat.unitCostInCents,
-      });
-      toast({ title: `${qty} ${MATERIAL_UNIT_LABELS[usageMat.unit]} de "${usageMat.name}" registrado como uso`, variant: "success" });
-      await reloadAll();
-      setUsageMat(null);
-      setUsageQty("1");
-    } catch {
-      toast({ title: "Erro ao registrar uso", variant: "destructive" });
-    } finally {
-      setSaving(false);
     }
   };
 
@@ -298,47 +349,33 @@ export default function EstoquePage() {
               {materials.map((mat) => {
                 const isLow = mat.minimumStock > 0 && mat.currentStock <= mat.minimumStock;
                 return (
-                  <div key={mat.id} className="bg-white rounded-2xl border border-brand-100 shadow-card p-4">
-                    <div className="flex items-start justify-between mb-2">
+                  <button
+                    key={mat.id}
+                    onClick={() => openMaterialDetail(mat)}
+                    className="w-full text-left bg-white rounded-2xl border border-brand-100 shadow-card p-4 hover:border-brand-200 active:bg-brand-50/30 transition-all"
+                  >
+                    <div className="flex items-center gap-3">
                       <div className="flex-1 min-w-0">
                         <p className="font-semibold text-sm truncate">{mat.name}</p>
-                        <span className="text-xs bg-brand-50 text-brand-700 px-2 py-0.5 rounded-full">
-                          {MATERIAL_CATEGORY_LABELS[mat.category]}
-                        </span>
+                        <div className="flex items-center gap-2 mt-1">
+                          <span className="text-xs bg-brand-50 text-brand-700 px-2 py-0.5 rounded-full">
+                            {MATERIAL_CATEGORY_LABELS[mat.category]}
+                          </span>
+                          <span className="text-xs text-muted-foreground">
+                            {formatCurrency(mat.unitCostInCents)}/{MATERIAL_UNIT_LABELS[mat.unit]}
+                          </span>
+                        </div>
                       </div>
-                      <div className="text-right ml-3 flex-shrink-0">
-                        <p className={`text-lg font-bold ${isLow ? "text-red-600" : "text-emerald-600"}`}>
+                      <div className="text-right flex-shrink-0">
+                        <p className={`text-xl font-bold ${isLow ? "text-red-600" : "text-emerald-600"}`}>
                           {mat.currentStock}
                           {isLow && <AlertTriangle className="w-3.5 h-3.5 text-amber-500 inline ml-1" />}
                         </p>
-                        <p className="text-xs text-muted-foreground">{MATERIAL_UNIT_LABELS[mat.unit]}</p>
+                        <p className="text-[10px] text-muted-foreground">{MATERIAL_UNIT_LABELS[mat.unit]}</p>
                       </div>
+                      <ChevronRight className="w-4 h-4 text-muted-foreground/40 flex-shrink-0" />
                     </div>
-                    <div className="flex items-center justify-between text-xs text-muted-foreground pt-2 border-t border-brand-50">
-                      <span>Mín: {mat.minimumStock} · Unit: {formatCurrency(mat.unitCostInCents)}</span>
-                      <span className="font-semibold text-foreground">{formatCurrency(mat.currentStock * mat.unitCostInCents)}</span>
-                    </div>
-                    <div className="flex gap-2 mt-2 pt-2 border-t border-brand-50">
-                      <button
-                        onClick={() => { setUsageMat(mat); setUsageQty("1"); }}
-                        className="flex-1 flex items-center justify-center gap-1.5 py-1.5 rounded-lg text-xs font-medium text-amber-600 hover:bg-amber-50 transition-colors"
-                      >
-                        <Minus className="w-3 h-3" /> Uso
-                      </button>
-                      <button
-                        onClick={() => openEditModal(mat)}
-                        className="flex-1 flex items-center justify-center gap-1.5 py-1.5 rounded-lg text-xs font-medium text-brand-600 hover:bg-brand-50 transition-colors"
-                      >
-                        <Pencil className="w-3 h-3" /> Editar
-                      </button>
-                      <button
-                        onClick={() => handleDeleteMaterial(mat)}
-                        className="flex-1 flex items-center justify-center gap-1.5 py-1.5 rounded-lg text-xs font-medium text-red-500 hover:bg-red-50 transition-colors"
-                      >
-                        <Trash2 className="w-3 h-3" /> Excluir
-                      </button>
-                    </div>
-                  </div>
+                  </button>
                 );
               })}
               {materials.length === 0 && (
@@ -362,14 +399,17 @@ export default function EstoquePage() {
                       <th className="text-center text-xs font-semibold text-muted-foreground px-4 py-3 hidden md:table-cell">Mínimo</th>
                       <th className="text-right text-xs font-semibold text-muted-foreground px-4 py-3 hidden md:table-cell">Custo Unit.</th>
                       <th className="text-right text-xs font-semibold text-muted-foreground px-5 py-3">Valor Total</th>
-                      <th className="text-center text-xs font-semibold text-muted-foreground px-3 py-3 w-28">Ações</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-brand-50">
                     {materials.map((mat) => {
                       const isLow = mat.minimumStock > 0 && mat.currentStock <= mat.minimumStock;
                       return (
-                        <tr key={mat.id} className="hover:bg-brand-50/50 transition-colors">
+                        <tr
+                          key={mat.id}
+                          onClick={() => openMaterialDetail(mat)}
+                          className="hover:bg-brand-50/50 transition-colors cursor-pointer"
+                        >
                           <td className="px-5 py-3">
                             <p className="text-sm font-medium">{mat.name}</p>
                             <p className="text-xs text-muted-foreground">{MATERIAL_UNIT_LABELS[mat.unit]}</p>
@@ -396,37 +436,12 @@ export default function EstoquePage() {
                               {formatCurrency(mat.currentStock * mat.unitCostInCents)}
                             </span>
                           </td>
-                          <td className="px-3 py-3 text-center">
-                            <div className="flex items-center justify-center gap-1">
-                              <button
-                                onClick={() => { setUsageMat(mat); setUsageQty("1"); }}
-                                className="w-7 h-7 flex items-center justify-center rounded-lg hover:bg-amber-50 text-muted-foreground hover:text-amber-600 transition-colors"
-                                title="Registrar uso"
-                              >
-                                <Minus className="w-3.5 h-3.5" />
-                              </button>
-                              <button
-                                onClick={() => openEditModal(mat)}
-                                className="w-7 h-7 flex items-center justify-center rounded-lg hover:bg-brand-50 text-muted-foreground hover:text-brand-600 transition-colors"
-                                title="Editar"
-                              >
-                                <Pencil className="w-3.5 h-3.5" />
-                              </button>
-                              <button
-                                onClick={() => handleDeleteMaterial(mat)}
-                                className="w-7 h-7 flex items-center justify-center rounded-lg hover:bg-red-50 text-muted-foreground hover:text-red-500 transition-colors"
-                                title="Excluir"
-                              >
-                                <Trash2 className="w-3.5 h-3.5" />
-                              </button>
-                            </div>
-                          </td>
                         </tr>
                       );
                     })}
                     {materials.length === 0 && (
                       <tr>
-                        <td colSpan={7} className="text-center py-8 text-sm text-muted-foreground">
+                        <td colSpan={6} className="text-center py-8 text-sm text-muted-foreground">
                           Nenhum material cadastrado
                         </td>
                       </tr>
@@ -575,90 +590,159 @@ export default function EstoquePage() {
         )}
       </div>
 
-      {/* ── Modal: Editar Material ── */}
-      <Dialog open={!!editMat} onOpenChange={(o) => { if (!o) setEditMat(null); }}>
-        <DialogContent className="max-w-md w-[calc(100%-2rem)] mx-auto">
+      {/* ── Modal: Detalhe do Material ── */}
+      <Dialog open={!!selectedMat} onOpenChange={(o) => { if (!o) closeMaterialDetail(); }}>
+        <DialogContent className="max-w-md w-[calc(100%-2rem)] mx-auto max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2 text-brand-700">
-              <Pencil className="w-4 h-4" /> Editar Material
+              <Package className="w-4 h-4" /> {selectedMat?.name}
             </DialogTitle>
           </DialogHeader>
-          <div className="space-y-3 pt-2">
-            <div>
-              <Label>Nome *</Label>
-              <Input value={editForm.name} onChange={(e) => setEditForm((f) => ({ ...f, name: e.target.value }))} className="mt-1.5" />
-            </div>
-            <div className="grid grid-cols-2 gap-3">
-              <div>
-                <Label>Categoria</Label>
-                <Select value={editForm.category} onValueChange={(v) => setEditForm((f) => ({ ...f, category: v as MaterialCategory }))}>
-                  <SelectTrigger className="mt-1.5"><SelectValue /></SelectTrigger>
-                  <SelectContent>
-                    {CATEGORIES.map((c) => <SelectItem key={c} value={c}>{MATERIAL_CATEGORY_LABELS[c]}</SelectItem>)}
-                  </SelectContent>
-                </Select>
-              </div>
-              <div>
-                <Label>Unidade</Label>
-                <Select value={editForm.unit} onValueChange={(v) => setEditForm((f) => ({ ...f, unit: v as MaterialUnit }))}>
-                  <SelectTrigger className="mt-1.5"><SelectValue /></SelectTrigger>
-                  <SelectContent>
-                    {UNITS.map((u) => <SelectItem key={u} value={u}>{MATERIAL_UNIT_LABELS[u]}</SelectItem>)}
-                  </SelectContent>
-                </Select>
-              </div>
-            </div>
-            <div>
-              <Label>Alerta (mín)</Label>
-              <Input type="number" value={editForm.minimumStock} onChange={(e) => setEditForm((f) => ({ ...f, minimumStock: e.target.value }))} className="mt-1.5" />
-            </div>
-            <div>
-              <Label>Observações</Label>
-              <Input value={editForm.notes} onChange={(e) => setEditForm((f) => ({ ...f, notes: e.target.value }))} placeholder="Observações opcionais" className="mt-1.5" />
-            </div>
-            <div className="flex gap-3 pt-1">
-              <Button variant="outline" className="flex-1" onClick={() => setEditMat(null)}>Cancelar</Button>
-              <Button className="flex-1" onClick={handleUpdateMaterial} disabled={saving || !editForm.name.trim()}>
-                {saving ? "Salvando..." : "Salvar"}
-              </Button>
-            </div>
-          </div>
-        </DialogContent>
-      </Dialog>
-
-      {/* ── Modal: Uso rápido ── */}
-      <Dialog open={!!usageMat} onOpenChange={(o) => { if (!o) { setUsageMat(null); setUsageQty("1"); } }}>
-        <DialogContent className="max-w-sm w-[calc(100%-2rem)] mx-auto">
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-2 text-amber-700">
-              <Minus className="w-4 h-4" /> Registrar Uso
-            </DialogTitle>
-          </DialogHeader>
-          {usageMat && (
+          {selectedMat && (
             <div className="space-y-4 mt-2">
-              <div className="flex items-center gap-3 bg-brand-50/50 rounded-xl px-3 py-2.5 border border-brand-100">
-                <Package className="w-5 h-5 text-brand-400" />
-                <div className="flex-1 min-w-0">
-                  <p className="text-sm font-semibold truncate">{usageMat.name}</p>
-                  <p className="text-xs text-muted-foreground">
-                    Disponível: {usageMat.currentStock} {MATERIAL_UNIT_LABELS[usageMat.unit]}
-                  </p>
+              {/* Material info */}
+              <div className="flex items-center gap-2 flex-wrap">
+                <span className="text-xs bg-brand-50 text-brand-700 px-2 py-0.5 rounded-full">
+                  {MATERIAL_CATEGORY_LABELS[selectedMat.category]}
+                </span>
+                <span className="text-xs text-muted-foreground">
+                  {MATERIAL_UNIT_LABELS[selectedMat.unit]} · {formatCurrency(selectedMat.unitCostInCents)}/un
+                </span>
+                {selectedMat.minimumStock > 0 && (
+                  <span className="text-xs text-muted-foreground">
+                    · Alerta: {selectedMat.minimumStock}
+                  </span>
+                )}
+              </div>
+
+              {/* Stock display + quick +/- */}
+              <div className="bg-brand-50/50 rounded-2xl border border-brand-100 p-4">
+                <p className="text-xs font-semibold text-muted-foreground text-center mb-3">Estoque Atual</p>
+                <div className="flex items-center justify-center gap-4">
+                  <button
+                    onClick={() => handleStockAdjust("minus")}
+                    disabled={saving || selectedMat.currentStock <= 0}
+                    className="w-12 h-12 rounded-xl bg-white border border-brand-200 flex items-center justify-center text-amber-600 hover:bg-amber-50 hover:border-amber-300 active:scale-95 transition-all disabled:opacity-40 disabled:cursor-not-allowed shadow-sm"
+                  >
+                    <Minus className="w-5 h-5" />
+                  </button>
+                  <div className="text-center min-w-[80px]">
+                    <p className={`text-4xl font-bold tabular-nums ${
+                      selectedMat.minimumStock > 0 && selectedMat.currentStock <= selectedMat.minimumStock
+                        ? "text-red-600"
+                        : "text-emerald-600"
+                    }`}>
+                      {selectedMat.currentStock}
+                    </p>
+                    <p className="text-xs text-muted-foreground mt-0.5">{MATERIAL_UNIT_LABELS[selectedMat.unit]}</p>
+                  </div>
+                  <button
+                    onClick={() => handleStockAdjust("plus")}
+                    disabled={saving}
+                    className="w-12 h-12 rounded-xl bg-white border border-brand-200 flex items-center justify-center text-emerald-600 hover:bg-emerald-50 hover:border-emerald-300 active:scale-95 transition-all disabled:opacity-40 disabled:cursor-not-allowed shadow-sm"
+                  >
+                    <Plus className="w-5 h-5" />
+                  </button>
                 </div>
+                {selectedMat.minimumStock > 0 && selectedMat.currentStock <= selectedMat.minimumStock && (
+                  <p className="text-xs text-amber-600 font-medium text-center mt-2 flex items-center justify-center gap-1">
+                    <AlertTriangle className="w-3 h-3" /> Estoque abaixo do mínimo ({selectedMat.minimumStock})
+                  </p>
+                )}
               </div>
+
+              {/* Manual adjustment */}
               <div>
-                <Label>Quantidade *</Label>
-                <Input
-                  type="number" min="1" max={usageMat.currentStock}
-                  value={usageQty}
-                  onChange={(e) => setUsageQty(e.target.value)}
-                  className="mt-1.5"
-                  autoFocus
-                />
+                <Label className="text-xs font-semibold text-muted-foreground">Ajuste manual</Label>
+                <div className="flex gap-2 mt-1.5">
+                  <Input
+                    type="number"
+                    min="0"
+                    value={adjustQty}
+                    onChange={(e) => setAdjustQty(e.target.value)}
+                    placeholder={`Atual: ${selectedMat.currentStock}`}
+                    className="flex-1 h-10"
+                  />
+                  <Button
+                    variant="outline"
+                    className="h-10 px-4"
+                    onClick={handleManualAdjust}
+                    disabled={saving || !adjustQty}
+                  >
+                    {saving ? "..." : "Ajustar"}
+                  </Button>
+                </div>
+                <p className="text-[10px] text-muted-foreground mt-1">
+                  Digite a quantidade final desejada e clique em &quot;Ajustar&quot;
+                </p>
               </div>
-              <Button className="w-full h-11" onClick={handleQuickUsage} disabled={saving}>
-                <Minus className="w-4 h-4" />
-                {saving ? "Registrando..." : `Retirar ${parseInt(usageQty) || 0} ${MATERIAL_UNIT_LABELS[usageMat.unit]}`}
-              </Button>
+
+              {/* Divider */}
+              <div className="border-t border-brand-100" />
+
+              {/* Edit metadata toggle */}
+              {!editMode ? (
+                <button
+                  onClick={() => setEditMode(true)}
+                  className="w-full flex items-center gap-2 px-3 py-2.5 rounded-xl text-sm text-brand-600 hover:bg-brand-50 transition-colors font-medium"
+                >
+                  <Pencil className="w-4 h-4" /> Editar dados do material
+                </button>
+              ) : (
+                <div className="space-y-3 p-3 bg-brand-50/30 rounded-xl border border-brand-100">
+                  <div className="flex items-center justify-between">
+                    <p className="text-xs font-semibold text-brand-700">Editar dados</p>
+                    <button onClick={() => setEditMode(false)} className="text-xs text-muted-foreground hover:text-foreground">
+                      Cancelar
+                    </button>
+                  </div>
+                  <div>
+                    <Label className="text-xs">Nome</Label>
+                    <Input value={editForm.name} onChange={(e) => setEditForm((f) => ({ ...f, name: e.target.value }))} className="mt-1 h-9" />
+                  </div>
+                  <div className="grid grid-cols-2 gap-2">
+                    <div>
+                      <Label className="text-xs">Categoria</Label>
+                      <Select value={editForm.category} onValueChange={(v) => setEditForm((f) => ({ ...f, category: v as MaterialCategory }))}>
+                        <SelectTrigger className="mt-1 h-9"><SelectValue /></SelectTrigger>
+                        <SelectContent>
+                          {CATEGORIES.map((c) => <SelectItem key={c} value={c}>{MATERIAL_CATEGORY_LABELS[c]}</SelectItem>)}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div>
+                      <Label className="text-xs">Unidade</Label>
+                      <Select value={editForm.unit} onValueChange={(v) => setEditForm((f) => ({ ...f, unit: v as MaterialUnit }))}>
+                        <SelectTrigger className="mt-1 h-9"><SelectValue /></SelectTrigger>
+                        <SelectContent>
+                          {UNITS.map((u) => <SelectItem key={u} value={u}>{MATERIAL_UNIT_LABELS[u]}</SelectItem>)}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-2 gap-2">
+                    <div>
+                      <Label className="text-xs">Alerta (mín)</Label>
+                      <Input type="number" value={editForm.minimumStock} onChange={(e) => setEditForm((f) => ({ ...f, minimumStock: e.target.value }))} className="mt-1 h-9" />
+                    </div>
+                    <div>
+                      <Label className="text-xs">Observações</Label>
+                      <Input value={editForm.notes} onChange={(e) => setEditForm((f) => ({ ...f, notes: e.target.value }))} placeholder="Opcional" className="mt-1 h-9" />
+                    </div>
+                  </div>
+                  <Button size="sm" className="w-full" onClick={handleUpdateMaterial} disabled={saving || !editForm.name.trim()}>
+                    {saving ? "Salvando..." : "Salvar alterações"}
+                  </Button>
+                </div>
+              )}
+
+              {/* Delete */}
+              <button
+                onClick={handleDeleteMaterial}
+                className="w-full flex items-center justify-center gap-2 px-3 py-2.5 rounded-xl text-sm text-red-500 hover:bg-red-50 transition-colors font-medium"
+              >
+                <Trash2 className="w-4 h-4" /> Excluir material
+              </button>
             </div>
           )}
         </DialogContent>
