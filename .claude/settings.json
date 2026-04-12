@@ -1,0 +1,8 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(ls tsconfig*.json package.json)",
+      "Bash(curl -sL http://localhost:3000/estoque)"
+    ]
+  }
+}

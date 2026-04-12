@@ -4,7 +4,6 @@ import {
   AlertTriangle,
   ArrowDownRight,
   ArrowUpRight,
-  Calculator,
   DollarSign,
   Minus,
   Package,
@@ -43,9 +42,10 @@ import { toast } from "@/components/ui/toaster";
 import { useState, useEffect, useCallback } from "react";
 import { expenseService } from "@/services";
 import Link from "next/link";
-import type { Expense } from "@/domain/entities";
 import type { MaterialPurchase, LinkedMaterialItem } from "@/services/interfaces/IExpenseService";
 import { CheckCircle2, ChevronDown, ChevronUp } from "lucide-react";
+import { NovaCompraDialog } from "@/components/estoque/NovaCompraDialog";
+import { RegistrarUsoDialog } from "@/components/estoque/RegistrarUsoDialog";
 
 const CATEGORIES = Object.keys(MATERIAL_CATEGORY_LABELS) as MaterialCategory[];
 const UNITS: MaterialUnit[] = ["un", "pacote", "caixa", "ml", "g", "par", "rolo", "kit"];
@@ -74,21 +74,6 @@ const MAT_FORM_DEFAULT = {
   name: "", category: "material" as MaterialCategory, unit: "un" as MaterialUnit,
   minimumStock: "0", initialStock: "0", notes: "",
 };
-const MOV_FORM_DEFAULT = {
-  materialId: "", type: "purchase" as StockMovementType,
-  quantity: "1", unitPrice: "", notes: "",
-  expenseId: "", // optional link to a material expense
-};
-
-// Units that typically come in bulk packages → show calculator instead of direct unit cost
-const PACKAGE_UNITS = new Set<MaterialUnit>(["pacote", "caixa", "kit", "rolo", "par"]);
-
-function calcFromPackage(pkgItems: string, pkgTotal: string): number {
-  const items = parseInt(pkgItems) || 0;
-  const total = parseFloat(pkgTotal) || 0;
-  if (items <= 0 || total <= 0) return 0;
-  return Math.round((total / items) * 100);
-}
 
 export default function EstoquePage() {
   const [tab, setTab] = useState<Tab>("materials");
@@ -96,11 +81,12 @@ export default function EstoquePage() {
   const [catFilter, setCatFilter] = useState<MaterialCategory | "all">("all");
   const [lowStockOnly, setLowStockOnly] = useState(false);
   const [matOpen, setMatOpen] = useState(false);
-  const [movOpen, setMovOpen] = useState(false);
+  const [compraOpen, setCompraOpen] = useState(false);
+  const [usoOpen, setUsoOpen] = useState(false);
   const [editMat, setEditMat] = useState<Material | null>(null);
   const [saving, setSaving] = useState(false);
 
-  const { materials, loading, createMaterial, updateMaterial, deleteMaterial, createMovement } = useStock({
+  const { materials, loading, reload: reloadMaterials, createMaterial, updateMaterial, deleteMaterial, createMovement } = useStock({
     search: search || undefined,
     category: catFilter !== "all" ? catFilter : undefined,
     lowStock: lowStockOnly || undefined,
@@ -109,30 +95,7 @@ export default function EstoquePage() {
   const { alerts, reload: reloadAlerts } = useStockAlerts();
   const { monthlyCosts, totalValue, loading: analyticsLoading, reload: reloadAnalytics } = useStockAnalytics();
 
-  // Reload all dependent data after any mutation
-  const reloadAll = useCallback(async () => {
-    await Promise.all([reloadMovements(), reloadAlerts(), reloadAnalytics()]);
-  }, [reloadMovements, reloadAlerts, reloadAnalytics]);
-
   const [matForm, setMatForm] = useState(MAT_FORM_DEFAULT);
-  const [movForm, setMovForm] = useState(MOV_FORM_DEFAULT);
-
-  // Material expenses for linking purchases (deduplicated by installment group)
-  const [materialExpenses, setMaterialExpenses] = useState<Expense[]>([]);
-  useEffect(() => {
-    expenseService.listExpenses({ category: "material" as import("@/domain/enums").ExpenseCategory }).then((all) => {
-      // Group by installment_group_id — show only the first installment per group
-      const seen = new Set<string>();
-      const deduped = all.filter((exp) => {
-        if (exp.installmentGroupId) {
-          if (seen.has(exp.installmentGroupId)) return false;
-          seen.add(exp.installmentGroupId);
-        }
-        return true;
-      });
-      setMaterialExpenses(deduped);
-    }).catch(() => {});
-  }, []);
 
   // Purchases tab: group installments into single purchase cards
   interface PurchaseGroup {
@@ -191,6 +154,11 @@ export default function EstoquePage() {
       loadPurchases();
     }
   }, [tab, purchaseGroups.length, loadPurchases]);
+
+  // Reload all dependent data after any mutation
+  const reloadAll = useCallback(async () => {
+    await Promise.all([reloadMaterials(), reloadMovements(), reloadAlerts(), reloadAnalytics(), loadPurchases()]);
+  }, [reloadMaterials, reloadMovements, reloadAlerts, reloadAnalytics, loadPurchases]);
 
   const handleCreateMaterial = async () => {
     if (!matForm.name.trim()) {
@@ -263,38 +231,17 @@ export default function EstoquePage() {
     }
   };
 
-  const handleCreateMovement = async () => {
-    if (!movForm.materialId) {
-      toast({ title: "Selecione um material", variant: "destructive" });
-      return;
-    }
-    const qty = parseInt(movForm.quantity) || 0;
-    if (qty <= 0) {
-      toast({ title: "Quantidade deve ser maior que 0", variant: "destructive" });
-      return;
-    }
-    const selectedMat = materials.find((m) => m.id === movForm.materialId);
-    const cost = movForm.type === "purchase"
-      ? Math.round(parseFloat(movForm.unitPrice || "0") * 100)
-      : selectedMat?.unitCostInCents ?? 0;
-
-    setSaving(true);
-    try {
-      await createMovement({
-        materialId: movForm.materialId,
-        type: movForm.type,
-        quantity: qty,
-        unitCostInCents: cost,
-        notes: movForm.notes || undefined,
-        expenseId: movForm.expenseId || undefined,
-      });
-      await reloadAll();
-      toast({ title: `${STOCK_MOVEMENT_TYPE_LABELS[movForm.type]} registrada!`, variant: "success" });
-      setMovForm(MOV_FORM_DEFAULT);
-      setMovOpen(false);
-    } finally {
-      setSaving(false);
-    }
+  // Handler for "Registrar Uso" dialog
+  const handleRegisterUsage = async (materialId: string, quantity: number, notes?: string) => {
+    const mat = materials.find((m) => m.id === materialId);
+    await createMovement({
+      materialId,
+      type: "usage",
+      quantity,
+      unitCostInCents: mat?.unitCostInCents ?? 0,
+      notes,
+    });
+    await reloadAll();
   };
 
   const handleDeleteMovement = async (id: string) => {
@@ -399,18 +346,26 @@ export default function EstoquePage() {
             </button>
           </div>
 
-          <div className="flex-shrink-0">
+          <div className="flex-shrink-0 flex gap-1.5">
             {tab === "materials" && (
               <Button size="sm" onClick={() => setMatOpen(true)}>
                 <Plus className="w-4 h-4" />
                 <span className="hidden sm:inline">Novo Material</span>
               </Button>
             )}
-            {tab === "movements" && (
-              <Button size="sm" onClick={() => setMovOpen(true)}>
-                <Plus className="w-4 h-4" />
-                <span className="hidden sm:inline">Registrar Movimento</span>
-              </Button>
+            {(tab === "movements" || tab === "purchases") && (
+              <>
+                <Button size="sm" onClick={() => setCompraOpen(true)}>
+                  <ShoppingCart className="w-4 h-4" />
+                  <span className="hidden sm:inline">Nova Compra</span>
+                </Button>
+                {tab === "movements" && (
+                  <Button size="sm" variant="outline" onClick={() => setUsoOpen(true)}>
+                    <Minus className="w-4 h-4" />
+                    <span className="hidden sm:inline">Registrar Uso</span>
+                  </Button>
+                )}
+              </>
             )}
           </div>
         </div>
@@ -699,7 +654,7 @@ export default function EstoquePage() {
               <div className="text-center py-12">
                 <ShoppingCart className="w-8 h-8 text-muted-foreground/40 mx-auto mb-2" />
                 <p className="text-sm text-muted-foreground">Nenhuma compra de material registrada</p>
-                <p className="text-xs text-muted-foreground mt-1">Crie uma compra em Despesas &rarr; Material</p>
+                <p className="text-xs text-muted-foreground mt-1">Use o botao &quot;Nova Compra&quot; para registrar</p>
               </div>
             ) : (
               purchaseGroups.map((g) => {
@@ -982,124 +937,21 @@ export default function EstoquePage() {
         </DialogContent>
       </Dialog>
 
-      {/* ── Modal: Registrar Movimento ── */}
-      <Dialog open={movOpen} onOpenChange={setMovOpen}>
-        <DialogContent className="max-w-md w-[calc(100%-2rem)] mx-auto">
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-2 text-brand-700">
-              <ShoppingCart className="w-4 h-4" /> Registrar Movimento
-            </DialogTitle>
-          </DialogHeader>
-          <div className="space-y-4 mt-2">
-            <div>
-              <Label>Material *</Label>
-              <Select value={movForm.materialId} onValueChange={(v) => setMovForm((f) => ({ ...f, materialId: v }))}>
-                <SelectTrigger className="mt-1.5">
-                  <SelectValue placeholder="Selecione o material" />
-                </SelectTrigger>
-                <SelectContent>
-                  {materials.map((m) => (
-                    <SelectItem key={m.id} value={m.id}>
-                      {m.name} · estoque: {m.currentStock}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="grid grid-cols-2 gap-3">
-              <div>
-                <Label>Tipo</Label>
-                <Select value={movForm.type} onValueChange={(v) => setMovForm((f) => ({ ...f, type: v as StockMovementType }))}>
-                  <SelectTrigger className="mt-1.5"><SelectValue /></SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="purchase">Compra (+)</SelectItem>
-                    <SelectItem value="usage">Uso (-)</SelectItem>
-                    <SelectItem value="adjustment">Ajuste</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-              <div>
-                <Label>Quantidade</Label>
-                <Input
-                  type="number" min="1"
-                  value={movForm.quantity}
-                  onChange={(e) => setMovForm((f) => ({ ...f, quantity: e.target.value }))}
-                  className="mt-1.5"
-                />
-              </div>
-            </div>
-            {movForm.type === "purchase" && (() => {
-              const selectedMat = materials.find((m) => m.id === movForm.materialId);
-              const unitLabel = selectedMat ? MATERIAL_UNIT_LABELS[selectedMat.unit] : "unidade";
-              const qty = parseInt(movForm.quantity) || 1;
-              const unitPrice = parseFloat(movForm.unitPrice || "0");
-              const totalCalc = unitPrice * qty;
-              return (
-                <>
-                <div className="p-3 bg-brand-50 rounded-xl border border-brand-100 space-y-2">
-                  <p className="text-xs font-semibold text-brand-700 flex items-center gap-1.5">
-                    <Calculator className="w-3.5 h-3.5" /> Valor da compra
-                  </p>
-                  <div>
-                    <Label className="text-xs">Valor por {unitLabel} (R$)</Label>
-                    <Input
-                      type="number" step="0.01"
-                      value={movForm.unitPrice}
-                      onChange={(e) => setMovForm((f) => ({ ...f, unitPrice: e.target.value }))}
-                      placeholder="Ex: 12,50"
-                      className="mt-1 h-9 text-sm"
-                    />
-                  </div>
-                  {totalCalc > 0 && (
-                    <p className="text-xs font-medium text-brand-600">
-                      Total: {formatCurrency(Math.round(totalCalc * 100))} ({qty}x {formatCurrency(Math.round(unitPrice * 100))})
-                    </p>
-                  )}
-                </div>
-                {/* Link to material expense */}
-                {materialExpenses.length > 0 && (
-                  <div>
-                    <Label className="text-xs text-muted-foreground">Vincular a compra de material</Label>
-                    <Select value={movForm.expenseId} onValueChange={(v) => setMovForm((f) => ({ ...f, expenseId: v === "none" ? "" : v }))}>
-                      <SelectTrigger className="mt-1.5 h-9 text-sm">
-                        <SelectValue placeholder="Nenhuma (opcional)" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="none">Nenhuma</SelectItem>
-                        {materialExpenses.map((exp) => {
-                          const totalValue = exp.installmentTotal && exp.installmentTotal > 1
-                            ? exp.amountInCents * exp.installmentTotal
-                            : exp.amountInCents;
-                          return (
-                            <SelectItem key={exp.id} value={exp.id}>
-                              {exp.name} · {formatCurrency(totalValue)}
-                              {exp.installmentTotal && exp.installmentTotal > 1 ? ` (${exp.installmentTotal}x)` : ""}
-                            </SelectItem>
-                          );
-                        })}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                )}
-                </>
-              );
-            })()}
-            <div>
-              <Label>Observações</Label>
-              <Input
-                value={movForm.notes}
-                onChange={(e) => setMovForm((f) => ({ ...f, notes: e.target.value }))}
-                placeholder="Ex: Compra na Shopee, reposição mensal..."
-                className="mt-1.5"
-              />
-            </div>
-            <Button className="w-full h-11" onClick={handleCreateMovement} disabled={saving}>
-              {movForm.type === "purchase" ? <Plus className="w-4 h-4" /> : <Minus className="w-4 h-4" />}
-              {saving ? "Registrando..." : `Registrar ${STOCK_MOVEMENT_TYPE_LABELS[movForm.type]}`}
-            </Button>
-          </div>
-        </DialogContent>
-      </Dialog>
+      {/* ── Nova Compra (carrinho + pagamento) ── */}
+      <NovaCompraDialog
+        open={compraOpen}
+        onOpenChange={setCompraOpen}
+        materials={materials}
+        onComplete={reloadAll}
+      />
+
+      {/* ── Registrar Uso ── */}
+      <RegistrarUsoDialog
+        open={usoOpen}
+        onOpenChange={setUsoOpen}
+        materials={materials}
+        onSubmit={handleRegisterUsage}
+      />
     </div>
   );
 }
