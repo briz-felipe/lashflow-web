@@ -53,8 +53,6 @@ interface CartItem {
   unitPriceInCents: number;
 }
 
-type PaymentMode = "paid_now" | "other_date" | "installments";
-
 interface Props {
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -98,9 +96,9 @@ export function NovaCompraDialog({ open, onOpenChange, materials, onComplete }: 
 
   // ── Payment state ──
   const [purchaseName, setPurchaseName] = useState("");
-  const [paymentMode, setPaymentMode] = useState<PaymentMode>("paid_now");
-  const [dueDay, setDueDay] = useState("");
-  const [installmentCount, setInstallmentCount] = useState("2");
+  const [purchaseDate, setPurchaseDate] = useState(() => format(new Date(), "yyyy-MM-dd"));
+  const [referenceMonth, setReferenceMonth] = useState(() => format(new Date(), "yyyy-MM"));
+  const [installmentCount, setInstallmentCount] = useState("1");
   const [notes, setNotes] = useState("");
 
   // ── Derived ──
@@ -139,9 +137,9 @@ export function NovaCompraDialog({ open, onOpenChange, materials, onComplete }: 
     setCart([]);
     resetItemForm();
     setPurchaseName("");
-    setPaymentMode("paid_now");
-    setDueDay("");
-    setInstallmentCount("2");
+    setPurchaseDate(format(new Date(), "yyyy-MM-dd"));
+    setReferenceMonth(format(new Date(), "yyyy-MM"));
+    setInstallmentCount("1");
     setNotes("");
     setSaving(false);
   }
@@ -248,7 +246,7 @@ export function NovaCompraDialog({ open, onOpenChange, materials, onComplete }: 
     setSaving(true);
     try {
       // 1. Create new materials
-      const materialIdMap = new Map<string, string>(); // cartItemId -> realMaterialId
+      const materialIdMap = new Map<string, string>();
       for (const item of cart) {
         if (item.materialId) {
           materialIdMap.set(item.id, item.materialId);
@@ -265,23 +263,20 @@ export function NovaCompraDialog({ open, onOpenChange, materials, onComplete }: 
       }
 
       // 2. Create expense
-      const currentMonth = format(new Date(), "yyyy-MM");
-      const installments =
-        paymentMode === "installments" ? parseInt(installmentCount) || 2 : undefined;
-      const dueDayNum = dueDay ? parseInt(dueDay) : undefined;
+      const installments = parseInt(installmentCount) || 1;
+      const dateObj = new Date(purchaseDate + "T12:00:00");
+      const dueDayNum = dateObj.getDate();
 
       const expense = await expenseService.createExpense({
         name: purchaseName.trim(),
         category: "material",
         amountInCents:
-          installments && installments > 1
-            ? Math.round(cartTotal / installments)
-            : cartTotal,
-        recurrence: installments && installments > 1 ? "monthly" : "one_time",
+          installments > 1 ? Math.round(cartTotal / installments) : cartTotal,
+        recurrence: installments > 1 ? "monthly" : "one_time",
         dueDay: dueDayNum,
-        referenceMonth: currentMonth,
+        referenceMonth: referenceMonth,
         notes: notes || undefined,
-        installments,
+        installments: installments > 1 ? installments : undefined,
       });
 
       // 3. Create stock movements for each cart item
@@ -297,8 +292,9 @@ export function NovaCompraDialog({ open, onOpenChange, materials, onComplete }: 
         });
       }
 
-      // 4. Mark as paid if applicable
-      if (paymentMode === "paid_now") {
+      // 4. Mark as paid if purchase date is today or in the past (already happened)
+      const today = format(new Date(), "yyyy-MM-dd");
+      if (purchaseDate <= today) {
         await expenseService.markAsPaid(expense.id);
       }
 
@@ -657,82 +653,68 @@ export function NovaCompraDialog({ open, onOpenChange, materials, onComplete }: 
               <Input
                 value={purchaseName}
                 onChange={(e) => setPurchaseName(e.target.value)}
-                placeholder="Ex: Compra de materiais descartaveis"
+                placeholder="Ex: Compra de materiais descartáveis"
                 className="mt-1.5"
               />
             </div>
 
-            {/* Payment mode */}
-            <div>
-              <Label>Forma de pagamento</Label>
-              <div className="grid grid-cols-1 gap-2 mt-2">
-                {([
-                  { value: "paid_now" as const, label: "Pago neste mes", desc: "Marca como pago automaticamente" },
-                  { value: "other_date" as const, label: "A pagar", desc: "Definir dia de vencimento" },
-                  { value: "installments" as const, label: "Parcelado", desc: "Dividir em parcelas mensais" },
-                ] as const).map((opt) => (
-                  <button
-                    key={opt.value}
-                    onClick={() => setPaymentMode(opt.value)}
-                    className={`w-full text-left px-3 py-2.5 rounded-xl border transition-all ${
-                      paymentMode === opt.value
-                        ? "border-brand-500 bg-brand-50 ring-1 ring-brand-500"
-                        : "border-brand-100 hover:border-brand-200"
-                    }`}
-                  >
-                    <p className={`text-sm font-medium ${paymentMode === opt.value ? "text-brand-700" : ""}`}>
-                      {opt.label}
-                    </p>
-                    <p className="text-[10px] text-muted-foreground">{opt.desc}</p>
-                  </button>
-                ))}
+            {/* Purchase date */}
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <Label>Data da compra</Label>
+                <Input
+                  type="date"
+                  value={purchaseDate}
+                  onChange={(e) => {
+                    const val = e.target.value;
+                    setPurchaseDate(val);
+                    if (val) setReferenceMonth(val.substring(0, 7));
+                  }}
+                  className="mt-1.5"
+                />
+                <p className="text-[10px] text-muted-foreground mt-1">
+                  {purchaseDate <= format(new Date(), "yyyy-MM-dd")
+                    ? "✓ Será marcada como paga"
+                    : "Será lançada como a pagar"}
+                </p>
+              </div>
+              <div>
+                <Label>Mês de referência</Label>
+                <Input
+                  type="month"
+                  value={referenceMonth}
+                  onChange={(e) => setReferenceMonth(e.target.value)}
+                  className="mt-1.5"
+                />
               </div>
             </div>
 
-            {/* Due day (for other_date and installments) */}
-            {(paymentMode === "other_date" || paymentMode === "installments") && (
-              <div className={paymentMode === "installments" ? "grid grid-cols-2 gap-3" : ""}>
-                <div>
-                  <Label>Dia de vencimento</Label>
-                  <Input
-                    type="number"
-                    min="1"
-                    max="31"
-                    value={dueDay}
-                    onChange={(e) => setDueDay(e.target.value)}
-                    placeholder="Ex: 15"
-                    className="mt-1.5"
-                  />
-                </div>
-                {paymentMode === "installments" && (
-                  <div>
-                    <Label>Parcelas</Label>
-                    <Input
-                      type="number"
-                      min="2"
-                      max="24"
-                      value={installmentCount}
-                      onChange={(e) => setInstallmentCount(e.target.value)}
-                      placeholder="Ex: 3"
-                      className="mt-1.5"
-                    />
-                    {parseInt(installmentCount) > 1 && (
-                      <p className="text-xs text-muted-foreground mt-1">
-                        {installmentCount}x de {formatCurrency(Math.round(cartTotal / (parseInt(installmentCount) || 1)))}
-                      </p>
-                    )}
-                  </div>
-                )}
-              </div>
-            )}
+            {/* Installments */}
+            <div>
+              <Label>Parcelas</Label>
+              <Input
+                type="number"
+                min="1"
+                max="24"
+                value={installmentCount}
+                onChange={(e) => setInstallmentCount(e.target.value)}
+                placeholder="1 = à vista"
+                className="mt-1.5"
+              />
+              {parseInt(installmentCount) > 1 && (
+                <p className="text-xs text-muted-foreground mt-1">
+                  {installmentCount}x de {formatCurrency(Math.round(cartTotal / (parseInt(installmentCount) || 1)))} a partir de {referenceMonth}
+                </p>
+              )}
+            </div>
 
             {/* Notes */}
             <div>
-              <Label>Observacoes</Label>
+              <Label>Observações</Label>
               <Input
                 value={notes}
                 onChange={(e) => setNotes(e.target.value)}
-                placeholder="Ex: Compra na Shopee, reposicao mensal..."
+                placeholder="Ex: Compra na Shopee, reposição mensal..."
                 className="mt-1.5"
               />
             </div>
