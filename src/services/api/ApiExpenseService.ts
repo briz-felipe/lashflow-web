@@ -17,8 +17,9 @@ export class ApiExpenseService implements IExpenseService {
     return api.get(`/expenses/${id}`);
   }
 
-  createExpense(input: CreateExpenseInput): Promise<Expense> {
-    return api.post("/expenses/", input);
+  async createExpense(input: CreateExpenseInput): Promise<Expense> {
+    const data = await api.post<{ expense: Expense; installmentsCreated?: number }>("/expenses/", input);
+    return data.expense;
   }
 
   updateExpense(id: string, input: UpdateExpenseInput): Promise<Expense> {
