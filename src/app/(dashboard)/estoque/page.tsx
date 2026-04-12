@@ -167,7 +167,7 @@ export default function EstoquePage() {
     try {
       await createMovement({
         materialId: matId,
-        type: direction === "minus" ? "usage" : "adjustment",
+        type: direction === "minus" ? "usage" : "purchase",
         quantity: 1,
         unitCostInCents: selectedMat.unitCostInCents,
       });
@@ -203,8 +203,8 @@ export default function EstoquePage() {
     try {
       await createMovement({
         materialId: matId,
-        type: diff > 0 ? "adjustment" : "usage",
-        quantity: Math.abs(diff),
+        type: "adjustment",
+        quantity: target,
         unitCostInCents: selectedMat.unitCostInCents,
         notes: `Ajuste manual: ${selectedMat.currentStock} → ${target}`,
       });
