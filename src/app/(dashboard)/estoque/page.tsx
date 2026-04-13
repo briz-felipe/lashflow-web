@@ -41,6 +41,7 @@ import Link from "next/link";
 import type { MaterialPurchase, LinkedMaterialItem } from "@/services/interfaces/IExpenseService";
 import { CheckCircle2, ChevronDown, ChevronUp } from "lucide-react";
 import { NovaCompraDialog } from "@/components/estoque/NovaCompraDialog";
+import { EditarCompraDialog } from "@/components/estoque/EditarCompraDialog";
 
 const CATEGORIES = Object.keys(MATERIAL_CATEGORY_LABELS) as MaterialCategory[];
 const UNITS: MaterialUnit[] = ["un", "pacote", "caixa", "ml", "g", "par", "rolo", "kit"];
@@ -91,6 +92,7 @@ export default function EstoquePage() {
   const [purchaseGroups, setPurchaseGroups] = useState<PurchaseGroup[]>([]);
   const [purchasesLoading, setPurchasesLoading] = useState(false);
   const [purchaseExpanded, setPurchaseExpanded] = useState<string | null>(null);
+  const [editingPurchase, setEditingPurchase] = useState<PurchaseGroup | null>(null);
 
   const loadPurchases = useCallback(async () => {
     setPurchasesLoading(true);
@@ -573,13 +575,21 @@ export default function EstoquePage() {
                           <p className="text-xs text-muted-foreground italic">Nenhum material vinculado ainda.</p>
                         )}
 
-                        <div className="pt-1">
+                        <div className="flex items-center justify-between gap-2 pt-1">
                           <Link
                             href="/despesas?tab=material"
                             className="text-xs text-brand-600 hover:text-brand-700 font-medium hover:underline"
                           >
                             Ver em Despesas &rarr;
                           </Link>
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            className="h-8 text-xs"
+                            onClick={() => setEditingPurchase(g)}
+                          >
+                            <Pencil className="w-3 h-3" /> Editar
+                          </Button>
                         </div>
                       </div>
                     )}
@@ -754,6 +764,14 @@ export default function EstoquePage() {
         open={compraOpen}
         onOpenChange={setCompraOpen}
         materials={materials}
+        onComplete={reloadAll}
+      />
+
+      {/* ── Editar Compra (checkout) ── */}
+      <EditarCompraDialog
+        open={!!editingPurchase}
+        onOpenChange={(o) => { if (!o) setEditingPurchase(null); }}
+        purchase={editingPurchase}
         onComplete={reloadAll}
       />
     </div>

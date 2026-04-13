@@ -99,12 +99,23 @@ export function NovaCompraDialog({ open, onOpenChange, materials, onComplete }: 
   const [purchaseDate, setPurchaseDate] = useState(() => format(new Date(), "yyyy-MM-dd"));
   const [referenceMonth, setReferenceMonth] = useState(() => format(new Date(), "yyyy-MM"));
   const [installmentCount, setInstallmentCount] = useState("1");
+  const [freight, setFreight] = useState("");
+  const [discount, setDiscount] = useState("");
+  const [surcharge, setSurcharge] = useState("");
   const [notes, setNotes] = useState("");
 
   // ── Derived ──
   const cartTotal = useMemo(
     () => cart.reduce((sum, i) => sum + i.quantity * i.unitPriceInCents, 0),
     [cart],
+  );
+
+  const freightInCents = Math.round((parseFloat(freight) || 0) * 100);
+  const discountInCents = Math.round((parseFloat(discount) || 0) * 100);
+  const surchargeInCents = Math.round((parseFloat(surcharge) || 0) * 100);
+  const finalTotal = Math.max(
+    0,
+    cartTotal + freightInCents + surchargeInCents - discountInCents,
   );
 
   const filteredMaterials = useMemo(() => {
@@ -140,6 +151,9 @@ export function NovaCompraDialog({ open, onOpenChange, materials, onComplete }: 
     setPurchaseDate(format(new Date(), "yyyy-MM-dd"));
     setReferenceMonth(format(new Date(), "yyyy-MM"));
     setInstallmentCount("1");
+    setFreight("");
+    setDiscount("");
+    setSurcharge("");
     setNotes("");
     setSaving(false);
   }
@@ -267,15 +281,22 @@ export function NovaCompraDialog({ open, onOpenChange, materials, onComplete }: 
       const dateObj = new Date(purchaseDate + "T12:00:00");
       const dueDayNum = dateObj.getDate();
 
+      // Build notes: auto-append extras breakdown for audit
+      const extrasLines: string[] = [];
+      if (freightInCents > 0) extrasLines.push(`Frete: ${formatCurrency(freightInCents)}`);
+      if (surchargeInCents > 0) extrasLines.push(`Acréscimo/juros: ${formatCurrency(surchargeInCents)}`);
+      if (discountInCents > 0) extrasLines.push(`Desconto: -${formatCurrency(discountInCents)}`);
+      const finalNotes = [notes.trim(), extrasLines.join(" · ")].filter(Boolean).join(" | ") || undefined;
+
       const expense = await expenseService.createExpense({
         name: purchaseName.trim(),
         category: "material",
         amountInCents:
-          installments > 1 ? Math.round(cartTotal / installments) : cartTotal,
+          installments > 1 ? Math.round(finalTotal / installments) : finalTotal,
         recurrence: installments > 1 ? "monthly" : "one_time",
         dueDay: dueDayNum,
         referenceMonth: referenceMonth,
-        notes: notes || undefined,
+        notes: finalNotes,
         installments: installments > 1 ? installments : undefined,
       });
 
@@ -641,9 +662,31 @@ export function NovaCompraDialog({ open, onOpenChange, materials, onComplete }: 
                   </span>
                 </div>
               ))}
+              <div className="flex items-center justify-between pt-1.5 border-t border-brand-100 text-xs text-muted-foreground">
+                <span>Subtotal</span>
+                <span>{formatCurrency(cartTotal)}</span>
+              </div>
+              {freightInCents > 0 && (
+                <div className="flex items-center justify-between text-xs text-muted-foreground">
+                  <span>Frete</span>
+                  <span>+ {formatCurrency(freightInCents)}</span>
+                </div>
+              )}
+              {surchargeInCents > 0 && (
+                <div className="flex items-center justify-between text-xs text-muted-foreground">
+                  <span>Acréscimo / juros</span>
+                  <span>+ {formatCurrency(surchargeInCents)}</span>
+                </div>
+              )}
+              {discountInCents > 0 && (
+                <div className="flex items-center justify-between text-xs text-emerald-600">
+                  <span>Desconto</span>
+                  <span>- {formatCurrency(discountInCents)}</span>
+                </div>
+              )}
               <div className="flex items-center justify-between pt-1.5 border-t border-brand-100 text-sm font-bold">
                 <span>Total</span>
-                <span className="text-brand-700">{formatCurrency(cartTotal)}</span>
+                <span className="text-brand-700">{formatCurrency(finalTotal)}</span>
               </div>
             </div>
 
@@ -689,6 +732,52 @@ export function NovaCompraDialog({ open, onOpenChange, materials, onComplete }: 
               </div>
             </div>
 
+            {/* Extras — frete, desconto, acréscimo */}
+            <div className="bg-brand-50/30 rounded-xl p-3 border border-brand-100 space-y-2.5">
+              <p className="text-xs font-semibold text-brand-700">Ajustes do pagamento</p>
+              <div className="grid grid-cols-2 gap-2">
+                <div>
+                  <Label className="text-xs">Frete (R$)</Label>
+                  <Input
+                    type="number"
+                    step="0.01"
+                    min="0"
+                    value={freight}
+                    onChange={(e) => setFreight(e.target.value)}
+                    placeholder="0,00"
+                    className="mt-1 h-9"
+                  />
+                </div>
+                <div>
+                  <Label className="text-xs">Desconto (R$)</Label>
+                  <Input
+                    type="number"
+                    step="0.01"
+                    min="0"
+                    value={discount}
+                    onChange={(e) => setDiscount(e.target.value)}
+                    placeholder="0,00"
+                    className="mt-1 h-9"
+                  />
+                </div>
+              </div>
+              <div>
+                <Label className="text-xs">Acréscimo / juros (R$)</Label>
+                <Input
+                  type="number"
+                  step="0.01"
+                  min="0"
+                  value={surcharge}
+                  onChange={(e) => setSurcharge(e.target.value)}
+                  placeholder="0,00"
+                  className="mt-1 h-9"
+                />
+                <p className="text-[10px] text-muted-foreground mt-1">
+                  Taxa de serviço, juros do parcelamento, etc.
+                </p>
+              </div>
+            </div>
+
             {/* Installments */}
             <div>
               <Label>Parcelas</Label>
@@ -703,7 +792,7 @@ export function NovaCompraDialog({ open, onOpenChange, materials, onComplete }: 
               />
               {parseInt(installmentCount) > 1 && (
                 <p className="text-xs text-muted-foreground mt-1">
-                  {installmentCount}x de {formatCurrency(Math.round(cartTotal / (parseInt(installmentCount) || 1)))} a partir de {referenceMonth}
+                  {installmentCount}x de {formatCurrency(Math.round(finalTotal / (parseInt(installmentCount) || 1)))} a partir de {referenceMonth}
                 </p>
               )}
             </div>
@@ -722,7 +811,7 @@ export function NovaCompraDialog({ open, onOpenChange, materials, onComplete }: 
             {/* Submit */}
             <Button className="w-full h-11" onClick={handleSubmit} disabled={saving}>
               <ShoppingCart className="w-4 h-4" />
-              {saving ? "Finalizando..." : `Finalizar Compra · ${formatCurrency(cartTotal)}`}
+              {saving ? "Finalizando..." : `Finalizar Compra · ${formatCurrency(finalTotal)}`}
             </Button>
           </div>
         )}
