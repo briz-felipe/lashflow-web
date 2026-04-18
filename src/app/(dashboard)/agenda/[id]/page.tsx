@@ -76,6 +76,12 @@ export default function AgendamentoDetailPage() {
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod | "">("");
   const [savingPayment, setSavingPayment] = useState(false);
 
+  // Edit de pagamento já confirmado (corrige valor ou forma lançados errados)
+  const [editingPayment, setEditingPayment] = useState(false);
+  const [editPayAmountStr, setEditPayAmountStr] = useState("");
+  const [editPayMethod, setEditPayMethod] = useState<PaymentMethod | "">("");
+  const [savingPaymentEdit, setSavingPaymentEdit] = useState(false);
+
   // Edit mode
   const [editMode, setEditMode] = useState(false);
   const [editDate, setEditDate] = useState("");
@@ -248,6 +254,35 @@ export default function AgendamentoDetailPage() {
       toast({ title: err instanceof Error && err.message ? err.message : "Erro ao salvar", variant: "destructive" });
     } finally {
       setSavingEdit(false);
+    }
+  };
+
+  // ── Editar pagamento confirmado ──────────────────────────────────────────────
+  function enterPaymentEdit() {
+    if (!payment) return;
+    setEditPayAmountStr(centsToInput(payment.paidAmountInCents));
+    setEditPayMethod(payment.method ?? "");
+    setEditingPayment(true);
+  }
+
+  const savePaymentEdit = async () => {
+    if (!payment || !editPayMethod) return;
+    const newAmount = parsePtBR(editPayAmountStr);
+    if (newAmount <= 0) return;
+    setSavingPaymentEdit(true);
+    try {
+      const updated = await paymentService.updatePayment(payment.id, {
+        paidAmountInCents: newAmount,
+        totalAmountInCents: newAmount,
+        method: editPayMethod as PaymentMethod,
+      });
+      setPayment(updated);
+      setEditingPayment(false);
+      toast({ title: "Pagamento atualizado!", variant: "success" });
+    } catch (err) {
+      toast({ title: err instanceof Error && err.message ? err.message : "Erro ao salvar", variant: "destructive" });
+    } finally {
+      setSavingPaymentEdit(false);
     }
   };
 
@@ -689,58 +724,125 @@ export default function AgendamentoDetailPage() {
           {/* ── Pagamento já registrado ── */}
           {payment && (
             <div className="bg-white rounded-2xl border border-brand-100 shadow-card p-4">
-              <div className="flex items-center gap-2 mb-3">
-                <CheckCircle2 className="w-4 h-4 text-emerald-500" />
-                <span className="text-sm font-semibold text-emerald-700">Pagamento confirmado</span>
+              <div className="flex items-center justify-between mb-3">
+                <div className="flex items-center gap-2">
+                  <CheckCircle2 className="w-4 h-4 text-emerald-500" />
+                  <span className="text-sm font-semibold text-emerald-700">Pagamento confirmado</span>
+                </div>
+                {!editingPayment && (
+                  <button
+                    onClick={enterPaymentEdit}
+                    className="flex items-center gap-1 text-xs text-brand-600 hover:text-brand-700 transition-colors"
+                    title="Editar pagamento"
+                  >
+                    <Edit2 className="w-3 h-3" /> Editar
+                  </button>
+                )}
               </div>
 
-              {/* Breakdown se tiver desconto ou taxa */}
-              {(payment.discountAmountInCents > 0 || payment.feeAmountInCents > 0) && (
-                <div className="bg-brand-50 rounded-xl p-3 mb-3 space-y-1.5 text-sm">
-                  <div className="flex justify-between text-muted-foreground">
-                    <span>Subtotal</span>
-                    <span>{formatCurrency(payment.subtotalAmountInCents || payment.totalAmountInCents)}</span>
+              {editingPayment ? (
+                <div className="space-y-4">
+                  <div>
+                    <p className="text-xs text-muted-foreground mb-1">Valor pago</p>
+                    <div className="relative">
+                      <span className="absolute left-3 top-1/2 -translate-y-1/2 text-xs text-muted-foreground pointer-events-none">R$</span>
+                      <Input
+                        type="text"
+                        inputMode="decimal"
+                        value={editPayAmountStr}
+                        onChange={(e) => setEditPayAmountStr(e.target.value)}
+                        className="h-10 text-sm pl-8"
+                      />
+                    </div>
                   </div>
-                  {payment.feeAmountInCents > 0 && (
-                    <div className="flex justify-between text-amber-600">
-                      <span>Taxas / extras</span>
-                      <span>+ {formatCurrency(payment.feeAmountInCents)}</span>
+                  <div>
+                    <p className="text-sm font-semibold flex items-center gap-2 mb-3">
+                      <DollarSign className="w-4 h-4 text-brand-500" />
+                      Forma de Pagamento
+                    </p>
+                    <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+                      {PAYMENT_METHODS.map((m) => (
+                        <button
+                          key={m}
+                          onClick={() => setEditPayMethod(m)}
+                          className={`px-3 py-2.5 rounded-xl border text-xs font-semibold transition-all ${
+                            editPayMethod === m
+                              ? "bg-brand-500 border-brand-500 text-white shadow-sm"
+                              : "bg-white border-brand-100 text-foreground hover:border-brand-300"
+                          }`}
+                        >
+                          {PAYMENT_METHOD_LABELS[m]}
+                        </button>
+                      ))}
                     </div>
-                  )}
-                  {payment.discountAmountInCents > 0 && (
-                    <div className="flex justify-between text-red-600">
-                      <span>Descontos</span>
-                      <span>− {formatCurrency(payment.discountAmountInCents)}</span>
-                    </div>
-                  )}
-                  <div className="border-t border-brand-100 pt-1.5 flex justify-between font-bold">
-                    <span>Total</span>
-                    <span>{formatCurrency(payment.totalAmountInCents)}</span>
+                  </div>
+                  <div className="flex gap-2 pt-1">
+                    <button
+                      onClick={savePaymentEdit}
+                      disabled={savingPaymentEdit || !editPayMethod || !editPayAmountStr || parsePtBR(editPayAmountStr) <= 0}
+                      className="flex-1 h-11 bg-brand-500 hover:bg-brand-600 disabled:opacity-40 text-white rounded-xl font-semibold text-sm transition-colors"
+                    >
+                      {savingPaymentEdit ? "Salvando..." : "Salvar"}
+                    </button>
+                    <button
+                      onClick={() => setEditingPayment(false)}
+                      className="flex-1 h-11 border border-input text-muted-foreground hover:bg-brand-50 rounded-xl font-semibold text-sm transition-colors"
+                    >
+                      Cancelar
+                    </button>
                   </div>
                 </div>
+              ) : (
+                <>
+                  {/* Breakdown se tiver desconto ou taxa */}
+                  {(payment.discountAmountInCents > 0 || payment.feeAmountInCents > 0) && (
+                    <div className="bg-brand-50 rounded-xl p-3 mb-3 space-y-1.5 text-sm">
+                      <div className="flex justify-between text-muted-foreground">
+                        <span>Subtotal</span>
+                        <span>{formatCurrency(payment.subtotalAmountInCents || payment.totalAmountInCents)}</span>
+                      </div>
+                      {payment.feeAmountInCents > 0 && (
+                        <div className="flex justify-between text-amber-600">
+                          <span>Taxas / extras</span>
+                          <span>+ {formatCurrency(payment.feeAmountInCents)}</span>
+                        </div>
+                      )}
+                      {payment.discountAmountInCents > 0 && (
+                        <div className="flex justify-between text-red-600">
+                          <span>Descontos</span>
+                          <span>− {formatCurrency(payment.discountAmountInCents)}</span>
+                        </div>
+                      )}
+                      <div className="border-t border-brand-100 pt-1.5 flex justify-between font-bold">
+                        <span>Total</span>
+                        <span>{formatCurrency(payment.totalAmountInCents)}</span>
+                      </div>
+                    </div>
+                  )}
+
+                  <div className="grid grid-cols-3 gap-2">
+                    <div className="p-3 bg-brand-50 rounded-xl text-center">
+                      <p className="text-xs text-muted-foreground mb-1">Total</p>
+                      <p className="font-bold text-sm">{formatCurrency(payment.paidAmountInCents)}</p>
+                    </div>
+                    <div className="p-3 bg-brand-50 rounded-xl text-center">
+                      <p className="text-xs text-muted-foreground mb-1">Método</p>
+                      <p className="font-semibold text-xs">{payment.method ? PAYMENT_METHOD_LABELS[payment.method] : "—"}</p>
+                    </div>
+                    <div className="p-3 bg-brand-50 rounded-xl text-center">
+                      <p className="text-xs text-muted-foreground mb-1">Status</p>
+                      <PaymentStatusBadge status={payment.status} />
+                    </div>
+                  </div>
+                  <button
+                    onClick={() => openPdfReceipt(apt, payment, user ?? null, procedures)}
+                    className="w-full mt-3 flex items-center justify-center gap-2 py-2.5 rounded-xl border border-brand-200 text-brand-700 text-sm font-medium hover:bg-brand-50 transition-colors"
+                  >
+                    <FileText className="w-4 h-4" />
+                    Extrato PDF
+                  </button>
+                </>
               )}
-
-              <div className="grid grid-cols-3 gap-2">
-                <div className="p-3 bg-brand-50 rounded-xl text-center">
-                  <p className="text-xs text-muted-foreground mb-1">Total</p>
-                  <p className="font-bold text-sm">{formatCurrency(payment.paidAmountInCents)}</p>
-                </div>
-                <div className="p-3 bg-brand-50 rounded-xl text-center">
-                  <p className="text-xs text-muted-foreground mb-1">Método</p>
-                  <p className="font-semibold text-xs">{payment.method ? PAYMENT_METHOD_LABELS[payment.method] : "—"}</p>
-                </div>
-                <div className="p-3 bg-brand-50 rounded-xl text-center">
-                  <p className="text-xs text-muted-foreground mb-1">Status</p>
-                  <PaymentStatusBadge status={payment.status} />
-                </div>
-              </div>
-              <button
-                onClick={() => openPdfReceipt(apt, payment, user ?? null, procedures)}
-                className="w-full mt-3 flex items-center justify-center gap-2 py-2.5 rounded-xl border border-brand-200 text-brand-700 text-sm font-medium hover:bg-brand-50 transition-colors"
-              >
-                <FileText className="w-4 h-4" />
-                Extrato PDF
-              </button>
             </div>
           )}
 
