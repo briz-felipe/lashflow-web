@@ -97,6 +97,10 @@ export function NovaCompraDialog({ open, onOpenChange, materials, onComplete }: 
   // ── Payment state ──
   const [purchaseName, setPurchaseName] = useState("");
   const [purchaseDate, setPurchaseDate] = useState(() => format(new Date(), "yyyy-MM-dd"));
+  const [firstPaymentDate, setFirstPaymentDate] = useState(() => format(new Date(), "yyyy-MM-dd"));
+  // Tracks whether the user has manually edited firstPaymentDate — once true we stop
+  // auto-syncing from purchaseDate so subsequent purchaseDate edits don't clobber the choice.
+  const [firstPaymentCustomized, setFirstPaymentCustomized] = useState(false);
   const [referenceMonth, setReferenceMonth] = useState(() => format(new Date(), "yyyy-MM"));
   const [installmentCount, setInstallmentCount] = useState("1");
   const [freight, setFreight] = useState("");
@@ -149,6 +153,8 @@ export function NovaCompraDialog({ open, onOpenChange, materials, onComplete }: 
     resetItemForm();
     setPurchaseName("");
     setPurchaseDate(format(new Date(), "yyyy-MM-dd"));
+    setFirstPaymentDate(format(new Date(), "yyyy-MM-dd"));
+    setFirstPaymentCustomized(false);
     setReferenceMonth(format(new Date(), "yyyy-MM"));
     setInstallmentCount("1");
     setFreight("");
@@ -278,8 +284,12 @@ export function NovaCompraDialog({ open, onOpenChange, materials, onComplete }: 
 
       // 2. Create expense
       const installments = parseInt(installmentCount) || 1;
-      const dateObj = new Date(purchaseDate + "T12:00:00");
+      // dueDay and referenceMonth come from the FIRST PAYMENT date, not the purchase date.
+      // Ex: bought in March but first installment due April → effectiveDate = April.
+      const effectiveFirstPayment = installments > 1 ? firstPaymentDate : purchaseDate;
+      const dateObj = new Date(effectiveFirstPayment + "T12:00:00");
       const dueDayNum = dateObj.getDate();
+      const effectiveReferenceMonth = installments > 1 ? effectiveFirstPayment.substring(0, 7) : referenceMonth;
 
       // Build notes: auto-append extras breakdown for audit
       const extrasLines: string[] = [];
@@ -295,7 +305,7 @@ export function NovaCompraDialog({ open, onOpenChange, materials, onComplete }: 
           installments > 1 ? Math.round(finalTotal / installments) : finalTotal,
         recurrence: installments > 1 ? "monthly" : "one_time",
         dueDay: dueDayNum,
-        referenceMonth: referenceMonth,
+        referenceMonth: effectiveReferenceMonth,
         notes: finalNotes,
         installments: installments > 1 ? installments : undefined,
       });
@@ -313,9 +323,10 @@ export function NovaCompraDialog({ open, onOpenChange, materials, onComplete }: 
         });
       }
 
-      // 4. Mark as paid if purchase date is today or in the past (already happened)
+      // 4. Mark the first expense as paid only if the FIRST payment date is today/past.
+      // Ex: bought in March but first installment due April → first expense is "a pagar".
       const today = format(new Date(), "yyyy-MM-dd");
-      if (purchaseDate <= today) {
+      if (effectiveFirstPayment <= today) {
         await expenseService.markAsPaid(expense.id);
       }
 
@@ -711,13 +722,18 @@ export function NovaCompraDialog({ open, onOpenChange, materials, onComplete }: 
                   onChange={(e) => {
                     const val = e.target.value;
                     setPurchaseDate(val);
-                    if (val) setReferenceMonth(val.substring(0, 7));
+                    // While the user hasn't manually edited firstPaymentDate, keep them in sync
+                    // so the single-payment and same-day cases stay frictionless.
+                    if (!firstPaymentCustomized && val) {
+                      setFirstPaymentDate(val);
+                      setReferenceMonth(val.substring(0, 7));
+                    }
                   }}
                   className="mt-1.5"
                 />
                 <p className="text-[10px] text-muted-foreground mt-1">
-                  {purchaseDate <= format(new Date(), "yyyy-MM-dd")
-                    ? "✓ Será marcada como paga"
+                  {(parseInt(installmentCount) > 1 ? firstPaymentDate : purchaseDate) <= format(new Date(), "yyyy-MM-dd")
+                    ? "✓ 1ª parcela será marcada como paga"
                     : "Será lançada como a pagar"}
                 </p>
               </div>
@@ -731,6 +747,42 @@ export function NovaCompraDialog({ open, onOpenChange, materials, onComplete }: 
                 />
               </div>
             </div>
+
+            {/* First payment date — shows when parcelado */}
+            {parseInt(installmentCount) > 1 && (
+              <div>
+                <div className="flex items-center justify-between">
+                  <Label>Data do primeiro pagamento</Label>
+                  {firstPaymentCustomized && firstPaymentDate !== purchaseDate && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setFirstPaymentDate(purchaseDate);
+                        setFirstPaymentCustomized(false);
+                        if (purchaseDate) setReferenceMonth(purchaseDate.substring(0, 7));
+                      }}
+                      className="text-[11px] text-brand-600 hover:text-brand-700 transition-colors"
+                    >
+                      usar data da compra
+                    </button>
+                  )}
+                </div>
+                <Input
+                  type="date"
+                  value={firstPaymentDate}
+                  onChange={(e) => {
+                    const val = e.target.value;
+                    setFirstPaymentDate(val);
+                    setFirstPaymentCustomized(true);
+                    if (val) setReferenceMonth(val.substring(0, 7));
+                  }}
+                  className="mt-1.5"
+                />
+                <p className="text-[10px] text-muted-foreground mt-1">
+                  Pode ser diferente da data da compra (ex: comprou em março com 1ª parcela em abril).
+                </p>
+              </div>
+            )}
 
             {/* Extras — frete, desconto, acréscimo */}
             <div className="bg-brand-50/30 rounded-xl p-3 border border-brand-100 space-y-2.5">

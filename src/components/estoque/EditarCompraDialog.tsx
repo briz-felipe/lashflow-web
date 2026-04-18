@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { Pencil, ShoppingCart } from "lucide-react";
+import { addMonths, format } from "date-fns";
 import {
   Dialog,
   DialogContent,
@@ -110,19 +111,38 @@ export function EditarCompraDialog({ open, onOpenChange, purchase, onComplete }:
   const [freight, setFreight] = useState("");
   const [discount, setDiscount] = useState("");
   const [surcharge, setSurcharge] = useState("");
+  const [firstPaymentDate, setFirstPaymentDate] = useState("");
   const [saving, setSaving] = useState(false);
+
+  // Installments sorted by installmentCurrent (fallback to array order)
+  const sortedInstallments = useMemo(() => {
+    if (!purchase) return [];
+    return [...purchase.installments].sort((a, b) => {
+      const ac = a.expense.installmentCurrent ?? 0;
+      const bc = b.expense.installmentCurrent ?? 0;
+      return ac - bc;
+    });
+  }, [purchase]);
 
   // Populate on open
   useEffect(() => {
     if (!open || !purchase) return;
-    const first = purchase.installments[0]?.expense;
+    const first = sortedInstallments[0]?.expense;
     const parsed = parseNotes(first?.notes);
     setName(purchase.name);
     setUserNotes(parsed.userNotes);
     setFreight(centsToStr(parsed.freightInCents));
     setDiscount(centsToStr(parsed.discountInCents));
     setSurcharge(centsToStr(parsed.surchargeInCents));
-  }, [open, purchase]);
+    // Current first-installment date = referenceMonth-01 adjusted to dueDay
+    if (first) {
+      const [y, m] = first.referenceMonth.split("-");
+      const day = String(first.dueDay ?? 1).padStart(2, "0");
+      setFirstPaymentDate(`${y}-${m}-${day}`);
+    } else {
+      setFirstPaymentDate("");
+    }
+  }, [open, purchase, sortedInstallments]);
 
   const subtotalInCents = useMemo(() => {
     if (!purchase) return 0;
@@ -148,6 +168,10 @@ export function EditarCompraDialog({ open, onOpenChange, purchase, onComplete }:
       toast({ title: "Nome da compra é obrigatório", variant: "destructive" });
       return;
     }
+    if (!firstPaymentDate) {
+      toast({ title: "Data da primeira parcela é obrigatória", variant: "destructive" });
+      return;
+    }
     setSaving(true);
     try {
       const newNotes = buildNotes({
@@ -156,12 +180,21 @@ export function EditarCompraDialog({ open, onOpenChange, purchase, onComplete }:
         surchargeInCents,
         discountInCents,
       });
-      // Update each installment of the group
-      for (const inst of purchase.installments) {
-        await expenseService.updateExpense(inst.expense.id, {
+      // Parse first-installment date as noon local to avoid TZ rollover
+      const firstDate = new Date(firstPaymentDate + "T12:00:00");
+      const newDueDay = firstDate.getDate();
+      // Update each installment in order — Nth installment = firstDate + (N-1) months,
+      // keeping the same dueDay throughout the series.
+      for (let i = 0; i < sortedInstallments.length; i++) {
+        const inst = sortedInstallments[i].expense;
+        const shifted = addMonths(firstDate, i);
+        const newReferenceMonth = format(shifted, "yyyy-MM");
+        await expenseService.updateExpense(inst.id, {
           name: name.trim(),
           amountInCents: newInstallmentAmount,
           notes: newNotes,
+          dueDay: newDueDay,
+          referenceMonth: newReferenceMonth,
         });
       }
       await onComplete();
@@ -218,6 +251,33 @@ export function EditarCompraDialog({ open, onOpenChange, purchase, onComplete }:
               onChange={(e) => setName(e.target.value)}
               className="mt-1.5"
             />
+          </div>
+
+          {/* First payment date — shifts entire installment series */}
+          <div>
+            <Label>
+              {installmentCount > 1 ? "Data da primeira parcela" : "Data do pagamento"}
+            </Label>
+            <Input
+              type="date"
+              value={firstPaymentDate}
+              onChange={(e) => setFirstPaymentDate(e.target.value)}
+              className="mt-1.5"
+            />
+            {installmentCount > 1 && firstPaymentDate && (
+              <p className="text-[10px] text-muted-foreground mt-1">
+                Demais parcelas seguem a primeira em +1 mês cada.
+                {(() => {
+                  const first = new Date(firstPaymentDate + "T12:00:00");
+                  const last = addMonths(first, installmentCount - 1);
+                  return (
+                    <>
+                      {" "}Última: {format(last, "dd/MM/yyyy")}.
+                    </>
+                  );
+                })()}
+              </p>
+            )}
           </div>
 
           {/* Extras */}
